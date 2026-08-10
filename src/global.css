@@ -3,14 +3,38 @@
 @tailwind utilities;
 
 :root {
-  --font-display:
-    Spline Sans, Inter, ui-sans-serif, system-ui, sans-serif, Apple Color Emoji,
-    Segoe UI Emoji, Segoe UI Symbol, Noto Color Emoji;
-  --font-mono:
-    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono,
-    Courier New, monospace;
-  --font-rounded:
-    "SF Pro Rounded", "Hiragino Maru Gothic ProN", Meiryo, "MS PGothic",
-    sans-serif;
-  --font-serif: Georgia, "Times New Roman", serif;
+  --font-display: "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-text: "SF Pro Display Regular", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+
+  /* Chatme UI Kit Tokens */
+  --color-primary-50: #F5FBF7;
+  --color-primary-200: #ABDBBE;
+  --color-primary-400: #57B77D;
+
+  --color-neutral-50: #DDE2E8;
+  --color-neutral-300: #6E8597;
+  --color-neutral-500: #3A566A;
+  --color-neutral-600: #1F3C51;
+  --color-neutral-700: #163043;
+  --color-neutral-900: #081C2C;
+
+  --color-divider: #EAEEF2;
+  --color-surface: #FFFFFF;
+  --color-app: #F5F7F9;
+
+  /* Day Mode Theme Variables (Default) */
+  --color-bg-app: #F5F7F9;
+  --color-surface: #FFFFFF;
+  --color-label: #000000;
+  --color-text-secondary: #3A566A;
+  --color-border: #EAEEF2;
+}
+
+/* Night Mode Theme Variables */
+.dark {
+  --color-bg-app: #081C2C;
+  --color-surface: #163043;
+  --color-label: #FFFFFF;
+  --color-text-secondary: #6E8597;
+  --color-border: #1F3C51;
 }
