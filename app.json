@@ -38,6 +38,21 @@
             "imageWidth": 128
           }
         }
+      ],
+      [
+        "expo-font",
+        {
+          "fonts": [
+            "./assets/fonts/sf-pro-display/SFPRODISPLAYREGULAR.OTF",
+            "./assets/fonts/sf-pro-display/SFPRODISPLAYBOLD.OTF",
+            "./assets/fonts/sf-pro-display/SFPRODISPLAYSEMIBOLD.OTF",
+            "./assets/fonts/sf-pro-display/SFPRODISPLAYLIGHT.OTF",
+            "./assets/fonts/sf-pro-display/SFPRODISPLAYMEDIUM.OTF",
+            "./assets/fonts/sf-pro-display/SFPRODISPLAYHEAVY.OTF",
+            "./assets/fonts/sf-pro-display/SFPRODISPLAYULTRALIGHT.OTF",
+            "./assets/fonts/sf-pro-display/SFPRODISPLAYULTRABOLD.OTF"
+          ]
+        }
       ]
     ],
     "experiments": {

@@ -39,8 +39,16 @@ module.exports = {
         },
       },
       fontFamily: {
-        display: ["SF Pro Display", "sans-serif"],
-        text: ["SF Pro Display Regular", "sans-serif"],
+        display: ["SfPro-Bold", "sans-serif"],
+        text: ["SfPro-Regular", "sans-serif"],
+        "sf-ultralight": ["SfPro-Ultralight", "sans-serif"],
+        "sf-light": ["SfPro-Light", "sans-serif"],
+        "sf-regular": ["SfPro-Regular", "sans-serif"],
+        "sf-medium": ["SfPro-Medium", "sans-serif"],
+        "sf-semibold": ["SfPro-Semibold", "sans-serif"],
+        "sf-bold": ["SfPro-Bold", "sans-serif"],
+        "sf-heavy": ["SfPro-Heavy", "sans-serif"],
+        "sf-ultrabold": ["SfPro-Ultrabold", "sans-serif"],
       },
       fontSize: {
         h1: ["28px", { lineHeight: "1.25", fontWeight: "700" }],
