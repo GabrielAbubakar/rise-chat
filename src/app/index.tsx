@@ -1,7 +1,7 @@
 import { useColorScheme } from "nativewind";
 import { Pressable, ScrollView, Text, View } from "react-native";
-import { ThemePreference, useThemeStore } from "../store/useThemeStore";
-import { colors, typography } from "../tokens";
+import { colors, typography } from "@shared/constants";
+import { ThemePreference, useThemeStore } from "@store/useThemeStore";
 
 export default function Index() {
   const { colorScheme } = useColorScheme();

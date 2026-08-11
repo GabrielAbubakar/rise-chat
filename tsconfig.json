@@ -5,6 +5,14 @@
     "strict": true,
     "paths": {
       "@/*": ["./src/*"],
+      "@core": ["./src/core"],
+      "@core/*": ["./src/core/*"],
+      "@features": ["./src/features"],
+      "@features/*": ["./src/features/*"],
+      "@shared": ["./src/shared"],
+      "@shared/*": ["./src/shared/*"],
+      "@store": ["./src/store"],
+      "@store/*": ["./src/store/*"],
       "@/assets/*": ["./assets/*"]
     }
   },

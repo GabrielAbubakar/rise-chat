@@ -1,10 +1,11 @@
+// import "@core/env";
+import { useThemeStore } from "@store";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { useEffect } from "react";
 import { useColorScheme } from "nativewind";
+import { useEffect } from "react";
 import "react-native-gesture-handler";
 import "../global.css";
-import { useThemeStore } from "../store/useThemeStore";
 
 export default function RootLayout() {
   const { colorScheme, setColorScheme } = useColorScheme();
@@ -14,10 +15,6 @@ export default function RootLayout() {
   useEffect(() => {
     setColorScheme(themePreference);
   }, [themePreference]);
-
-  useEffect(() => {
-    console.log("isDark", isDark);
-  }, [isDark]);
 
   return (
     <>
