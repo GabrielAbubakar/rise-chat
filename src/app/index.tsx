@@ -1,7 +1,7 @@
-import { useColorScheme } from "nativewind";
-import { Pressable, ScrollView, Text, View } from "react-native";
 import { colors, typography } from "@shared/constants";
 import { ThemePreference, useThemeStore } from "@store/useThemeStore";
+import { useColorScheme } from "nativewind";
+import { Pressable, ScrollView, Text, View } from "react-native";
 
 export default function Index() {
   const { colorScheme } = useColorScheme();
@@ -9,10 +9,10 @@ export default function Index() {
   const isNightMode = colorScheme === "dark";
 
   return (
-    <ScrollView className="flex-1 p-6 bg-app dark:bg-neutral-900">
+    <ScrollView className="flex-1 p-6 bg-app dark:bg-neutral-900 ">
       {/* Header */}
       <View className="mb-6">
-        <Text className="text-h2 mb-1 text-label dark:text-label-dark">
+        <Text className="text-h2 mb-1 text-label dark:text-label-dark font-sf-bold font-normal">
           Chatme UI Kit
         </Text>
         <Text className="text-body-sm text-neutral-500 dark:text-neutral-300">
@@ -176,7 +176,7 @@ export default function Index() {
           Typography Spec
         </Text>
         <View className="gap-2">
-          <Text className="text-h1 text-neutral-900 dark:text-white">
+          <Text className="text-h1 font-display font-normal text-neutral-900 dark:text-white">
             Heading 1 ({typography.heading.h1.size}px /{" "}
             {typography.heading.h1.weight})
           </Text>

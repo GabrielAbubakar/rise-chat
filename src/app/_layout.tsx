@@ -17,14 +17,14 @@ export default function RootLayout() {
   const isDark = colorScheme === "dark";
 
   const [loaded, error] = useFonts({
-    "SfPro-Ultralight": require("../../assets/fonts/sf-pro-display/SFPRODISPLAYULTRALIGHT.OTF"),
-    "SfPro-Light": require("../../assets/fonts/sf-pro-display/SFPRODISPLAYLIGHT.OTF"),
-    "SfPro-Regular": require("../../assets/fonts/sf-pro-display/SFPRODISPLAYREGULAR.OTF"),
-    "SfPro-Medium": require("../../assets/fonts/sf-pro-display/SFPRODISPLAYMEDIUM.OTF"),
-    "SfPro-Semibold": require("../../assets/fonts/sf-pro-display/SFPRODISPLAYSEMIBOLD.OTF"),
-    "SfPro-Bold": require("../../assets/fonts/sf-pro-display/SFPRODISPLAYBOLD.OTF"),
-    "SfPro-Heavy": require("../../assets/fonts/sf-pro-display/SFPRODISPLAYHEAVY.OTF"),
-    "SfPro-Ultrabold": require("../../assets/fonts/sf-pro-display/SFPRODISPLAYULTRABOLD.OTF"),
+    "SfPro-Ultralight": require("../../assets/fonts/sf-pro-display/SFPRODISPLAYULTRALIGHTITALIC.otf"),
+    "SfPro-Light": require("../../assets/fonts/sf-pro-display/SFPRODISPLAYLIGHTITALIC.otf"),
+    "SfPro-Regular": require("../../assets/fonts/sf-pro-display/SFPRODISPLAYREGULAR.otf"),
+    "SfPro-Medium": require("../../assets/fonts/sf-pro-display/SFPRODISPLAYMEDIUM.otf"),
+    "SfPro-Semibold": require("../../assets/fonts/sf-pro-display/SFPRODISPLAYSEMIBOLDITALIC.otf"),
+    "SfPro-Bold": require("../../assets/fonts/sf-pro-display/SFPRODISPLAYBOLD.otf"),
+    "SfPro-Heavy": require("../../assets/fonts/sf-pro-display/SFPRODISPLAYHEAVYITALIC.otf"),
+    "SfPro-Ultrabold": require("../../assets/fonts/sf-pro-display/SFPRODISPLAYBLACKITALIC.otf"),
   });
 
   useEffect(() => {
