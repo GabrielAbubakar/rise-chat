@@ -1,5 +1,6 @@
-// import "@core/env";
+import { clientPersister, queryClient } from "@core/queryClient";
 import { useThemeStore } from "@store";
+import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useColorScheme } from "nativewind";
@@ -17,9 +18,12 @@ export default function RootLayout() {
   }, [themePreference]);
 
   return (
-    <>
+    <PersistQueryClientProvider
+      client={queryClient}
+      persistOptions={{ persister: clientPersister }}
+    >
       <StatusBar style={isDark ? "light" : "dark"} />
       <Stack screenOptions={{ headerShown: false }} />
-    </>
+    </PersistQueryClientProvider>
   );
 }
