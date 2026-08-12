@@ -35,18 +35,20 @@ export function WelcomeScreen() {
       <View className="w-full p-8">
         <BaseText
           animated
+          align="center"
           entering={FadeInDown.delay(1200).duration(800).springify()}
           variant="h1"
-          className="text-center mb-3"
+          className="mb-3"
         >
           Stay connected with your friends and family
         </BaseText>
 
         <BaseText
           animated
-          entering={FadeInDown.delay(1300).duration(800).springify()}
+          align="center"
+          entering={FadeInDown.delay(1200).duration(800).springify()}
           variant="body-md"
-          className="text-center mb-6"
+          className="mb-6"
         >
           ChatMe is messaging app that will help you to connect with everyone.
         </BaseText>
