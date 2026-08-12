@@ -11,9 +11,8 @@ config.transformer = {
 };
 config.resolver = {
   ...resolver,
-  assetExts: resolver.assetExts.filter((ext) => ext !== "svg"),
+  assetExts: [...new Set([...resolver.assetExts.filter((ext) => ext !== "svg"), "otf", "OTF"])],
   sourceExts: [...resolver.sourceExts, "svg"],
 };
 
 module.exports = withNativeWind(config, { input: "./src/global.css" });
-
