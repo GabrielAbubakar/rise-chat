@@ -37,7 +37,7 @@ export function WelcomeScreen() {
           animated
           align="center"
           entering={FadeInDown.delay(1200).duration(800).springify()}
-          variant="h1"
+          type="h2"
           className="mb-3"
         >
           Stay connected with your friends and family
@@ -47,8 +47,8 @@ export function WelcomeScreen() {
           animated
           align="center"
           entering={FadeInDown.delay(1200).duration(800).springify()}
-          variant="body-md"
-          className="mb-6"
+          type="body-md"
+          className="mb-6 text-neutral-300 dark:text-neutral-300"
         >
           ChatMe is messaging app that will help you to connect with everyone.
         </BaseText>
@@ -57,7 +57,7 @@ export function WelcomeScreen() {
           animated
           entering={FadeInDown.delay(1600).duration(800).springify()}
           title="Get Started"
-          onPress={() => router.push("/")}
+          onPress={() => router.push("/(auth)/register")}
         />
       </View>
     </ScreenContainer>

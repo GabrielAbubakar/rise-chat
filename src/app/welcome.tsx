@@ -1,4 +1,4 @@
-import { WelcomeScreen } from "@/features/auth/screens/WelcomeScreen";
+import { WelcomeScreen } from "@/features/auth/screens";
 
 export default function Welcome() {
   return <WelcomeScreen />;

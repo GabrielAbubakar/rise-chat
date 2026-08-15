@@ -2,8 +2,8 @@ import {
   ActivityIndicator,
   Pressable,
   PressableProps,
-  Text,
 } from "react-native";
+import { BaseText } from "./BaseText";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -65,7 +65,9 @@ export function BaseButton({
           {loading ? (
             <ActivityIndicator color="white" />
           ) : (
-            <Text className="text-white font-sf-bold text-lg">{title}</Text>
+            <BaseText type="button-big" className="text-white">
+              {title}
+            </BaseText>
           )}
         </Pressable>
       </Animated.View>

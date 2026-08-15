@@ -3,28 +3,27 @@ import { Text, TextProps } from "react-native";
 import { tv, type VariantProps } from "tailwind-variants";
 
 const textVariants = tv({
-  base: "text-label dark:text-label-dark",
+  base: "text-label dark:text-label-dark font-normal",
   variants: {
-    variant: {
-      h1: "text-h1 font-sf-bold font-normal",
-      h2: "text-h2 font-display font-normal",
-      h3: "text-h3 font-display font-normal",
-      h4: "text-h4 font-display font-normal",
-      "title-2": "text-title-2 font-display font-normal",
-      "body-lg": "text-body-lg font-text font-normal",
-      "body-md": "text-body-md font-text font-normal",
-      "body-sm": "text-body-sm font-text font-normal",
-      callout: "text-callout font-text",
+    type: {
+      // sets the font size and weight
+      h1: "text-h1 font-sf-bold",
+      h2: "text-h2 font-sf-bold",
+      h3: "text-h3 font-sf-bold",
+      h4: "text-h4 font-sf-bold",
+      h5: "text-h5 font-sf-bold",
+      h6: "text-h6 font-sf-bold",
+      "body-lg": "text-body-lg font-sf-regular",
+      "body-md": "text-body-md font-sf-regular",
+      "body-sm": "text-body-sm font-sf-regular",
+      "button-big": "text-button-big font-sf-bold",
+      "button-small": "text-button-small font-sf-bold",
     },
     weight: {
-      ultralight: "font-sf-ultralight",
-      light: "font-sf-light",
       regular: "font-sf-regular",
       medium: "font-sf-medium",
       semibold: "font-sf-semibold",
       bold: "font-sf-bold",
-      heavy: "font-sf-heavy",
-      ultrabold: "font-sf-ultrabold",
     },
     align: {
       auto: "text-auto",
@@ -35,7 +34,7 @@ const textVariants = tv({
     },
   },
   defaultVariants: {
-    variant: "body-md",
+    type: "body-md",
     align: "left",
   },
 });
@@ -43,8 +42,7 @@ const textVariants = tv({
 import Animated from "react-native-reanimated";
 
 export interface BaseTextProps
-  extends TextProps,
-    VariantProps<typeof textVariants> {
+  extends TextProps, VariantProps<typeof textVariants> {
   children: React.ReactNode;
   animated?: boolean;
   entering?: any;
@@ -54,7 +52,7 @@ export interface BaseTextProps
 
 export function BaseText({
   className,
-  variant,
+  type,
   weight,
   align,
   animated,
@@ -63,7 +61,7 @@ export function BaseText({
   layout,
   ...props
 }: BaseTextProps) {
-  const styles = textVariants({ variant, weight, align, className });
+  const styles = textVariants({ type, weight, align, className });
 
   if (animated) {
     return (
