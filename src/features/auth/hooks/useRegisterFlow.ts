@@ -1,11 +1,12 @@
-import { useState, useEffect } from "react";
-import { useRouter, useNavigation } from "expo-router";
+import { useAppStore } from "@/store";
 import * as ImagePicker from "expo-image-picker";
+import { useNavigation, useRouter } from "expo-router";
+import { useEffect, useState } from "react";
 
 export function useRegisterFlow() {
   const router = useRouter();
   const navigation = useNavigation();
-  
+
   const [step, setStep] = useState(1);
   const [phoneNumber, setPhoneNumber] = useState("");
   const [isValidPhone, setIsValidPhone] = useState(false);
@@ -42,11 +43,18 @@ export function useRegisterFlow() {
     }
   };
 
+  const setHasSeenOnboarding = useAppStore(
+    (state) => state.setHasSeenOnboarding,
+  );
+
   const finishRegistration = () => {
-    // submit logic here
     console.log({ phoneNumber, verificationCode, username, photoUri });
-    // Go to next screen or complete auth
-    // router.replace('/');
+
+    // Mark that the user has completed onboarding
+    setHasSeenOnboarding(true);
+
+    // Navigate to tabs
+    router.replace("/(tabs)/chats");
   };
 
   return {
