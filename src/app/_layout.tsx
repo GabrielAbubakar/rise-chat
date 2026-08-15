@@ -1,6 +1,6 @@
 import { AppProviders } from "@core/providers";
+import { useAppReady } from "@shared/hooks";
 import { useThemeStore } from "@store";
-import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
@@ -15,33 +15,19 @@ export default function RootLayout() {
   const { colorScheme, setColorScheme } = useColorScheme();
   const themePreference = useThemeStore((state) => state.themePreference);
   const isDark = colorScheme === "dark";
-
-  const [loaded, error] = useFonts({
-    "SfPro-Ultralight": require("../../assets/fonts/sf-pro-display/SFPRODISPLAYULTRALIGHTITALIC.otf"),
-    "SfPro-Light": require("../../assets/fonts/sf-pro-display/SFPRODISPLAYLIGHTITALIC.otf"),
-    "SfPro-Regular": require("../../assets/fonts/sf-pro-display/SFPRODISPLAYREGULAR.otf"),
-    "SfPro-Medium": require("../../assets/fonts/sf-pro-display/SFPRODISPLAYMEDIUM.otf"),
-    "SfPro-Semibold": require("../../assets/fonts/sf-pro-display/SFPRODISPLAYSEMIBOLDITALIC.otf"),
-    "SfPro-Bold": require("../../assets/fonts/sf-pro-display/SFPRODISPLAYBOLD.otf"),
-    "SfPro-Heavy": require("../../assets/fonts/sf-pro-display/SFPRODISPLAYHEAVYITALIC.otf"),
-    "SfPro-Ultrabold": require("../../assets/fonts/sf-pro-display/SFPRODISPLAYBLACKITALIC.otf"),
-  });
+  const isAppReady = useAppReady();
 
   useEffect(() => {
-    if (error) throw error;
-  }, [error]);
-
-  useEffect(() => {
-    if (loaded) {
+    if (isAppReady) {
       SplashScreen.hideAsync().catch(() => {});
     }
-  }, [loaded]);
+  }, [isAppReady]);
 
   useEffect(() => {
     setColorScheme(themePreference);
   }, [themePreference]);
 
-  if (!loaded && !error) {
+  if (!isAppReady) {
     return null;
   }
 
