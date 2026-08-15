@@ -1,4 +1,5 @@
 import { clientPersister, queryClient } from "@core/queryClient";
+import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import { ReactNode } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -15,7 +16,9 @@ export function AppProviders({ children }: AppProvidersProps) {
       persistOptions={{ persister: clientPersister }}
     >
       <GestureHandlerRootView>
-        <KeyboardProvider>{children}</KeyboardProvider>
+        <KeyboardProvider>
+          <BottomSheetModalProvider>{children}</BottomSheetModalProvider>
+        </KeyboardProvider>
       </GestureHandlerRootView>
     </PersistQueryClientProvider>
   );

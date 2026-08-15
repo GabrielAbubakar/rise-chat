@@ -2,42 +2,38 @@ import {
   BaseButton,
   BaseInput,
   BaseText,
+  OtpInput,
+  PhoneInput,
   ScreenContainer,
 } from "@/shared/components";
-import * as ImagePicker from "expo-image-picker";
-import { useRouter } from "expo-router";
-import { useState } from "react";
+import { Feather } from "@expo/vector-icons";
+import { useColorScheme } from "nativewind";
 import { Image, Pressable, View } from "react-native";
 
+import { useRegisterFlow } from "../hooks/useRegisterFlow";
+
 export function RegisterScreen() {
-  const router = useRouter();
-  const [step, setStep] = useState(1);
-  const [phoneNumber, setPhoneNumber] = useState("");
-  const [verificationCode, setVerificationCode] = useState("");
-  const [username, setUsername] = useState("");
-  const [photoUri, setPhotoUri] = useState<string | null>(null);
+  // single responsibility hook leaving the screen as the View
+  // and the hook as the ViewModel handling state
+  const {
+    step,
+    phoneNumber,
+    setPhoneNumber,
+    isValidPhone,
+    setIsValidPhone,
+    verificationCode,
+    setVerificationCode,
+    username,
+    setUsername,
+    photoUri,
+    nextStep,
+    prevStep,
+    pickImage,
+    finishRegistration,
+  } = useRegisterFlow();
 
-  const pickImage = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ["images"],
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 1,
-    });
-
-    if (!result.canceled) {
-      setPhotoUri(result.assets[0].uri);
-    }
-  };
-
-  const nextStep = () => setStep((prev) => Math.min(prev + 1, 4));
-  const prevStep = () => setStep((prev) => Math.max(prev - 1, 1));
-  const finishRegistration = () => {
-    // submit logic here
-    console.log({ phoneNumber, verificationCode, username, photoUri });
-    // Go to next screen or complete auth
-    // router.replace('/');
-  };
+  const { colorScheme } = useColorScheme();
+  const iconColor = colorScheme === "dark" ? "#FFFFFF" : "#000000";
 
   const renderStep = () => {
     switch (step) {
@@ -49,16 +45,18 @@ export function RegisterScreen() {
             </BaseText>
             <BaseText
               type="body-md"
-              className="mb-3 text-neutral-300 dark:text-neutral-300"
+              className="mb-10 text-neutral-300 dark:text-neutral-300"
             >
               We will send you the verification code.
             </BaseText>
-            <BaseInput
+            <PhoneInput
               label="Phone Number"
-              keyboardType="phone-pad"
-              placeholder="(555) 555-5555"
+              placeholder="(234) 813-054-3070"
               value={phoneNumber}
-              onChangeText={setPhoneNumber}
+              onChangePhoneNumber={(formatted, isValid) => {
+                setPhoneNumber(formatted);
+                setIsValidPhone(isValid);
+              }}
               autoFocus
             />
 
@@ -68,64 +66,84 @@ export function RegisterScreen() {
             <BaseButton
               title="Next"
               onPress={nextStep}
-              disabled={phoneNumber.length < 5}
+              disabled={!isValidPhone}
             />
           </View>
         );
       case 2:
         return (
-          <View className="flex-1 justify-center">
-            <BaseText type="h2" className="mb-6">
-              Verification Code
+          <View className="flex-1 pb-10">
+            <BaseText type="h3" className="mb-3">
+              Verification code
             </BaseText>
             <BaseText
-              type="body-sm"
-              className="mb-8 text-neutral-300 dark:text-neutral-300"
+              type="body-md"
+              className="mb-10 text-neutral-300 dark:text-neutral-300"
             >
-              Sent to {phoneNumber}
+              Enter the code number we sent to {phoneNumber}.
             </BaseText>
-            <BaseInput
-              size="large"
-              keyboardType="number-pad"
-              placeholder="000000"
-              maxLength={6}
+
+            <OtpInput
               value={verificationCode}
               onChangeText={setVerificationCode}
-              autoFocus
             />
+
+            <View className="items-center mt-8">
+              <BaseText
+                type="body-md"
+                className="text-neutral-300 dark:text-neutral-300 mb-2"
+              >
+                If you don't get the code, resend it in 24 seconds.
+              </BaseText>
+              <Pressable>
+                <BaseText type="body-md" className="text-primary font-bold">
+                  Resend code
+                </BaseText>
+              </Pressable>
+            </View>
+
+            <View className="flex-1" />
+
             <BaseButton
-              title="Verify"
+              title="Next"
               onPress={nextStep}
               disabled={verificationCode.length < 4}
             />
-            <Pressable className="mt-6 p-2 items-center" onPress={prevStep}>
-              <BaseText className="text-gray-400">
-                Back to Phone Number
-              </BaseText>
-            </Pressable>
           </View>
         );
       case 3:
         return (
-          <View className="flex-1 justify-center">
-            <BaseText type="h2" className="mb-6 text-center text-white">
-              Pick a Username
+          <View className="flex-1 pb-10">
+            <BaseText type="h3" className="mb-3">
+              Whats your name?
+            </BaseText>
+            <BaseText
+              type="body-md"
+              className="mb-10 text-neutral-300 dark:text-neutral-300"
+            >
+              Write your name. You can change it back in settings.
             </BaseText>
             <BaseInput
-              placeholder="@username"
-              autoCapitalize="none"
+              label="Name"
+              placeholder="Name"
+              autoCapitalize="words"
               value={username}
               onChangeText={setUsername}
               autoFocus
+              leftComponent={
+                <View className="mr-3 pl-3">
+                  <Feather name="user" size={20} color="#9ca3af" />
+                </View>
+              }
             />
+
+            <View className="flex-1" />
+
             <BaseButton
               title="Next"
               onPress={nextStep}
-              disabled={username.length < 3}
+              disabled={username.length < 2}
             />
-            <Pressable className="mt-6 p-2 items-center" onPress={prevStep}>
-              <BaseText className="text-gray-400">Back</BaseText>
-            </Pressable>
           </View>
         );
       case 4:
@@ -170,7 +188,19 @@ export function RegisterScreen() {
       isSafeArea={true}
       isKeyboardAvoiding={true}
     >
-      <View className="flex-1 px-8 mt-20">{renderStep()}</View>
+      <View className="flex-1 px-8 pt-4">
+        {step > 1 && (
+          <Pressable
+            onPress={prevStep}
+            className="w-12 h-12 rounded-full border border-divider dark:border-divider-dark items-center justify-center mb-6"
+          >
+            <Feather name="chevron-left" size={24} color={iconColor} />
+          </Pressable>
+        )}
+        <View className={`flex-1 ${step === 1 ? "mt-20" : ""}`}>
+          {renderStep()}
+        </View>
+      </View>
     </ScreenContainer>
   );
 }
