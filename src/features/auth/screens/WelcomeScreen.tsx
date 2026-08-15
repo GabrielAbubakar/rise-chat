@@ -13,7 +13,7 @@ export function WelcomeScreen() {
 
   return (
     <ScreenContainer
-      useSafeArea={false}
+      isSafeArea={false}
       withPadding={false}
       className="flex-1 items-center"
     >

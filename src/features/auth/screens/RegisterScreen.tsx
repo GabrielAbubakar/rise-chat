@@ -7,13 +7,7 @@ import {
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
 import { useState } from "react";
-import {
-  Image,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  View,
-} from "react-native";
+import { Image, Pressable, View } from "react-native";
 
 export function RegisterScreen() {
   const router = useRouter();
@@ -49,7 +43,7 @@ export function RegisterScreen() {
     switch (step) {
       case 1:
         return (
-          <View className="flex-1">
+          <View className="flex-1 pb-10">
             <BaseText type="h3" className="mb-3">
               What's your phone number?
             </BaseText>
@@ -67,8 +61,11 @@ export function RegisterScreen() {
               onChangeText={setPhoneNumber}
               autoFocus
             />
+
+            {/* Spacer to push button to the bottom */}
+            <View className="flex-1" />
+
             <BaseButton
-              className="mt-auto"
               title="Next"
               onPress={nextStep}
               disabled={phoneNumber.length < 5}
@@ -168,13 +165,12 @@ export function RegisterScreen() {
   };
 
   return (
-    <ScreenContainer withPadding={false} useSafeArea={true}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        className="flex-1 px-8 mt-20"
-      >
-        {renderStep()}
-      </KeyboardAvoidingView>
+    <ScreenContainer
+      withPadding={false}
+      isSafeArea={true}
+      isKeyboardAvoiding={true}
+    >
+      <View className="flex-1 px-8 mt-20">{renderStep()}</View>
     </ScreenContainer>
   );
 }
