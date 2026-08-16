@@ -7,6 +7,7 @@ interface OtpStepProps {
   phoneNumber: string;
   initialResendSeconds: number;
   onSuccess: (hasProfile: boolean) => void;
+  onChallengeIdChanged?: (newChallengeId: string) => void;
 }
 
 export function OtpStep({
@@ -14,6 +15,7 @@ export function OtpStep({
   phoneNumber,
   initialResendSeconds,
   onSuccess,
+  onChallengeIdChanged,
 }: OtpStepProps) {
   const {
     verificationCode,
@@ -25,7 +27,7 @@ export function OtpStep({
     isActive,
     handleVerify,
     handleResend,
-  } = useOtpStep(challengeId, initialResendSeconds, onSuccess);
+  } = useOtpStep(challengeId, initialResendSeconds, onSuccess, onChallengeIdChanged);
 
   return (
     <View className="flex-1 pb-10">
@@ -66,7 +68,8 @@ export function OtpStep({
         <Pressable onPress={handleResend} disabled={isActive || isResendingOtp}>
           <BaseText
             type="body-md"
-            className={`${isActive ? "text-neutral-400" : "text-primary"} font-bold`}
+            color={isActive ? "primary50" : "primary"}
+            className="font-bold"
           >
             {isResendingOtp ? "Resending..." : "Resend code"}
           </BaseText>

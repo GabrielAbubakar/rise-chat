@@ -44,6 +44,7 @@ export function RegisterScreen() {
             challengeId={challengeId}
             phoneNumber={phoneNumber}
             initialResendSeconds={resendSeconds}
+            onChallengeIdChanged={setChallengeId}
             onSuccess={(hasProfile) => {
               if (hasProfile) {
                 // If profile is already complete, redirect to chats

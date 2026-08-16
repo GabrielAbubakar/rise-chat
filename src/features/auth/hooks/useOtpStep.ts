@@ -9,9 +9,15 @@ export function useOtpStep(
   challengeId: string,
   initialResendSeconds: number,
   onSuccess: (hasProfile: boolean) => void,
+  onChallengeIdChanged?: (newChallengeId: string) => void,
 ) {
+  const [currentChallengeId, setCurrentChallengeId] = useState(challengeId);
   const [verificationCode, setVerificationCode] = useState("");
   const [otpError, setOtpError] = useState(false);
+
+  useEffect(() => {
+    setCurrentChallengeId(challengeId);
+  }, [challengeId]);
   const setUser = useAuthStore((state) => state.setUser);
 
   const { timeLeft, isActive, startTimer } = useTimer(initialResendSeconds);
@@ -44,6 +50,8 @@ export function useOtpStep(
       startTimer(data.resendInSeconds);
       setOtpError(false);
       setVerificationCode("");
+      setCurrentChallengeId(data.challengeId);
+      if (onChallengeIdChanged) onChallengeIdChanged(data.challengeId);
     },
     onError: (error) => {
       showApiErrorToast(
@@ -56,13 +64,13 @@ export function useOtpStep(
 
   const handleVerify = () => {
     if (verificationCode.length >= 4) {
-      verifyOtp({ challengeId, code: verificationCode });
+      verifyOtp({ challengeId: currentChallengeId, code: verificationCode });
     }
   };
 
   const handleResend = () => {
-    if (!isActive && challengeId) {
-      resendOtp({ challengeId });
+    if (!isActive && currentChallengeId) {
+      resendOtp({ challengeId: currentChallengeId });
     }
   };
 

@@ -34,7 +34,7 @@ export const CountryCodePickerSheet = forwardRef<
   CountryCodePickerSheetProps
 >(({ onSelect }, ref) => {
   const colors = useThemeColors();
-  const snapPoints = useMemo(() => ["90%"], []);
+  const snapPoints = useMemo(() => ["80%", "50%"], []);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
 
@@ -104,7 +104,7 @@ export const CountryCodePickerSheet = forwardRef<
   return (
     <BottomSheetModal
       ref={ref}
-      index={1}
+      index={0}
       snapPoints={snapPoints}
       backdropComponent={renderBackdrop}
       backgroundStyle={{ backgroundColor: colors.appBackground }}
