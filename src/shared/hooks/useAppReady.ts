@@ -1,5 +1,5 @@
 import { useFonts } from "expo-font";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 
 export const useAppReady = () => {
   const [fontsLoaded, fontError] = useFonts({
@@ -9,36 +9,11 @@ export const useAppReady = () => {
     "SFProDisplay-Bold": require("../../../assets/fonts/sf-pro-display/SFPRODISPLAYBOLD.otf"),
   });
 
-  const [isAppReady, setIsAppReady] = useState(false);
-
-  useEffect(() => {
-    let mounted = true;
-
-    const prepareApp = async () => {
-      try {
-        // Put your other initialization tasks here.
-        await new Promise((resolve) => setTimeout(resolve, 2000));
-      } catch (error) {
-        console.warn("Error during app initialization:", error);
-      } finally {
-        if (mounted) {
-          setIsAppReady(true);
-        }
-      }
-    };
-
-    prepareApp();
-
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
   useEffect(() => {
     if (fontError) {
       console.warn("Font loading error:", fontError);
     }
   }, [fontError]);
 
-  return isAppReady && (fontsLoaded || !!fontError);
+  return fontsLoaded || !!fontError;
 };

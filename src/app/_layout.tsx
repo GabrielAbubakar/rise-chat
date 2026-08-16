@@ -1,5 +1,5 @@
 import { AppProviders } from "@core/providers";
-import { useAppReady } from "@shared/hooks";
+import { useAppReady, useProtectedRoute } from "@shared/hooks";
 import { useThemeStore } from "@store";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
@@ -18,6 +18,9 @@ export default function RootLayout() {
   const themePreference = useThemeStore((state) => state.themePreference);
   const isDark = colorScheme === "dark";
   const isAppReady = useAppReady();
+
+  // Enforce global routing based on authentication state
+  useProtectedRoute(isAppReady);
 
   useEffect(() => {
     if (isAppReady) {

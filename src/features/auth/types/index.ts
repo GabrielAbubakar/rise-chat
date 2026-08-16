@@ -45,3 +45,8 @@ export interface AuthResponseDto {
   refreshTokenExpiresInSeconds: number;
   user: UserResponseDto;
 }
+
+export interface UpdateProfileDto {
+  displayName?: string;
+  avatarUrl?: string;
+}

@@ -1,5 +1,5 @@
 import { BottomSheetModal } from "@gorhom/bottom-sheet";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Keyboard, Pressable } from "react-native";
 import { BaseInput, BaseInputProps } from "./BaseInput";
 import { BaseText } from "./BaseText";
@@ -10,32 +10,48 @@ export interface PhoneInputProps extends Omit<
   "value" | "onChangeText"
 > {
   value: string;
-  onChangePhoneNumber: (numberWithCode: string, isValid: boolean) => void;
+  onChangePhoneNumber: (
+    rawNumber: string,
+    fullNumber: string,
+    isValid: boolean,
+  ) => void;
   defaultCountryCode?: string;
 }
 
 export function PhoneInput({
   value,
   onChangePhoneNumber,
-  defaultCountryCode = "US",
+  defaultCountryCode = "NG",
   ...props
 }: PhoneInputProps) {
   const bottomSheetRef = useRef<BottomSheetModal>(null);
+  
   const [selectedCountry, setSelectedCountry] = useState<Country>({
-    name: "United States",
-    dialCode: "1",
-    code: "US",
-    flag: "🇺🇸",
+    name: "Nigeria",
+    dialCode: "234",
+    code: "NG",
+    flag: "🇳🇬",
   });
 
   const handleChangeText = (text: string) => {
     // Only allow numbers
     const cleaned = text.replace(/[^\d]/g, "");
 
-    // User requested basic 10 digit validation
-    const isValid = cleaned.length === 10;
+    // Basic validation, e.g. >= 10 for most numbers
+    const isValid = cleaned.length >= 10;
 
-    onChangePhoneNumber(cleaned, isValid);
+    const fullNumber = `+${selectedCountry.dialCode}${cleaned}`;
+    onChangePhoneNumber(cleaned, fullNumber, isValid);
+  };
+
+  const handleCountrySelect = (country: Country) => {
+    setSelectedCountry(country);
+    
+    const cleaned = value ? value.replace(/[^\d]/g, "") : "";
+    const isValid = cleaned.length >= 10;
+    const fullNumber = `+${country.dialCode}${cleaned}`;
+    
+    onChangePhoneNumber(cleaned, fullNumber, isValid);
   };
 
   return (
@@ -65,7 +81,7 @@ export function PhoneInput({
       />
       <CountryCodePickerSheet
         ref={bottomSheetRef}
-        onSelect={(country) => setSelectedCountry(country)}
+        onSelect={handleCountrySelect}
       />
     </>
   );

@@ -1,27 +1,27 @@
-import { useAppStore } from "@/store";
-import * as ImagePicker from "expo-image-picker";
-import { useNavigation, useRouter } from "expo-router";
-import { useEffect, useState } from "react";
-import { BackHandler } from "react-native";
+import { useState, useEffect } from 'react';
+import { useNavigation } from 'expo-router';
+import { BackHandler } from 'react-native';
+import { useAuthStore } from '@/store/useAuthStore';
 
 export function useRegisterFlow() {
-  const router = useRouter();
   const navigation = useNavigation();
-
-  const [step, setStep] = useState(1);
-  const [phoneNumber, setPhoneNumber] = useState("");
-  const [isValidPhone, setIsValidPhone] = useState(false);
-  const [verificationCode, setVerificationCode] = useState("");
-  const [username, setUsername] = useState("");
-  const [photoUri, setPhotoUri] = useState<string | null>(null);
+  const user = useAuthStore((state) => state.user);
+  
+  // If we already have a user, it means they completed OTP but not profile (otherwise they wouldn't be here)
+  const initialStep = user && (!user.profileComplete && !user.displayName) ? 3 : 1;
+  const [step, setStep] = useState(initialStep);
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [challengeId, setChallengeId] = useState('');
+  const [resendSeconds, setResendSeconds] = useState(60);
 
   const nextStep = () => setStep((prev) => Math.min(prev + 1, 4));
   const prevStep = () => setStep((prev) => Math.max(prev - 1, 1));
+  const jumpToStep = (newStep: number) => setStep(newStep);
 
   useEffect(() => {
     // 1. Handle React Navigation (e.g., header back button)
-    const unsubscribe = navigation.addListener("beforeRemove", (e) => {
-      if (step > 1) {
+    const unsubscribe = navigation.addListener("beforeRemove", (e: any) => {
+      if (e.data.action.type === 'GO_BACK' && step > 1) {
         e.preventDefault();
         prevStep();
       }
@@ -47,47 +47,16 @@ export function useRegisterFlow() {
     };
   }, [navigation, step]);
 
-  const pickImage = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ["images"],
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 1,
-    });
-
-    if (!result.canceled) {
-      setPhotoUri(result.assets[0].uri);
-    }
-  };
-
-  const setHasSeenOnboarding = useAppStore(
-    (state) => state.setHasSeenOnboarding,
-  );
-
-  const finishRegistration = () => {
-    console.log({ phoneNumber, verificationCode, username, photoUri });
-
-    // Mark that the user has completed onboarding
-    setHasSeenOnboarding(true);
-
-    // Navigate to tabs
-    router.replace("/(tabs)/chats");
-  };
-
   return {
     step,
-    phoneNumber,
-    setPhoneNumber,
-    isValidPhone,
-    setIsValidPhone,
-    verificationCode,
-    setVerificationCode,
-    username,
-    setUsername,
-    photoUri,
     nextStep,
     prevStep,
-    pickImage,
-    finishRegistration,
+    jumpToStep,
+    phoneNumber,
+    setPhoneNumber,
+    challengeId,
+    setChallengeId,
+    resendSeconds,
+    setResendSeconds,
   };
 }

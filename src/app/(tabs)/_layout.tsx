@@ -2,14 +2,17 @@ import { BaseText } from "@/shared/components";
 import { tabs } from "@/shared/constants/tabs";
 import { colors } from "@/shared/constants/tokens";
 import { Tabs } from "expo-router";
-import { StatusBar } from "expo-status-bar";
+import { useColorScheme } from "nativewind";
 import { View } from "react-native";
 
 export default function TabsLayout() {
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === "dark";
+
   const screenOptions = {
     headerShown: false,
     tabBarStyle: {
-      backgroundColor: colors.neutral[700],
+      backgroundColor: isDark ? colors.neutral[700] : "white",
       borderTopWidth: 0,
       elevation: 0,
       height: 95,
@@ -60,7 +63,6 @@ export default function TabsLayout() {
           />
         ))}
       </Tabs>
-      <StatusBar style="light" />
     </>
   );
 }
