@@ -2,6 +2,7 @@ import { useAppStore } from "@/store";
 import * as ImagePicker from "expo-image-picker";
 import { useNavigation, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
+import { BackHandler } from "react-native";
 
 export function useRegisterFlow() {
   const router = useRouter();
@@ -18,16 +19,32 @@ export function useRegisterFlow() {
   const prevStep = () => setStep((prev) => Math.max(prev - 1, 1));
 
   useEffect(() => {
+    // 1. Handle React Navigation (e.g., header back button)
     const unsubscribe = navigation.addListener("beforeRemove", (e) => {
       if (step > 1) {
-        // Prevent default behavior of leaving the screen
         e.preventDefault();
-        // Go back one step instead
         prevStep();
       }
     });
 
-    return unsubscribe;
+    // 2. Handle Android Hardware Back / Gesture
+    const onHardwareBackPress = () => {
+      if (step > 1) {
+        prevStep();
+        return true; // Prevents the app from closing
+      }
+      return false; // Allows the app to close if on step 1
+    };
+
+    const backHandler = BackHandler.addEventListener(
+      "hardwareBackPress",
+      onHardwareBackPress
+    );
+
+    return () => {
+      unsubscribe();
+      backHandler.remove();
+    };
   }, [navigation, step]);
 
   const pickImage = async () => {

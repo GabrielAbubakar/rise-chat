@@ -8,7 +8,7 @@ const boxVariants = tv({
   variants: {
     state: {
       default: "border-divider dark:border-divider-dark",
-      active: "border-primary",
+      active: "border-primary-400 bg-primary-50 dark:bg-neutral-800",
     },
   },
   defaultVariants: {
@@ -67,6 +67,7 @@ export function OtpInput({ length = 4, value, onChangeText }: OtpInputProps) {
         onFocus={() => setIsFocused(true)}
         onBlur={() => setIsFocused(false)}
         caretHidden
+        autoFocus
       />
     </View>
   );

@@ -1,16 +1,42 @@
-import {
-  ActivityIndicator,
-  Pressable,
-  PressableProps,
-} from "react-native";
-import { BaseText } from "./BaseText";
+import { ActivityIndicator, Pressable, PressableProps } from "react-native";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withSpring,
 } from "react-native-reanimated";
+import { tv, type VariantProps } from "tailwind-variants";
+import { BaseText } from "./BaseText";
 
-interface BaseButtonProps extends PressableProps {
+const buttonVariants = tv({
+  base: "w-full items-center justify-center py-5 rounded-2xl",
+  variants: {
+    variant: {
+      primary: "bg-primary",
+      secondary: "bg-white",
+    },
+    disabled: {
+      true: "opacity-50",
+    },
+  },
+  defaultVariants: {
+    variant: "primary",
+    disabled: false,
+  },
+});
+
+const textVariants = tv({
+  variants: {
+    variant: {
+      primary: "text-white",
+      secondary: "text-primary",
+    },
+  },
+  defaultVariants: {
+    variant: "primary",
+  },
+});
+
+interface BaseButtonProps extends PressableProps, Omit<VariantProps<typeof buttonVariants>, 'disabled'> {
   title: string;
   loading?: boolean;
   animated?: boolean;
@@ -22,6 +48,7 @@ interface BaseButtonProps extends PressableProps {
 export function BaseButton({
   title,
   loading,
+  variant = "primary",
   className = "",
   animated,
   entering,
@@ -56,16 +83,14 @@ export function BaseButton({
             scale.value = withSpring(1, { damping: 18, stiffness: 200 });
             opacity.value = withSpring(1);
           }}
-          className={`w-full bg-primary items-center justify-center py-4 rounded-2xl ${
-            props.disabled ? "opacity-50" : ""
-          } ${className}`}
+          className={buttonVariants({ variant, disabled: props.disabled || loading, className })}
           disabled={props.disabled || loading}
           {...props}
         >
           {loading ? (
-            <ActivityIndicator color="white" />
+            <ActivityIndicator color={variant === "primary" ? "white" : "#57B77D"} />
           ) : (
-            <BaseText type="button-big" className="text-white">
+            <BaseText type="button-big" className={textVariants({ variant })}>
               {title}
             </BaseText>
           )}
