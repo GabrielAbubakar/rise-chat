@@ -3,7 +3,7 @@ import { Text, TextProps } from "react-native";
 import { tv, type VariantProps } from "tailwind-variants";
 
 const textVariants = tv({
-  base: "text-label dark:text-label-dark font-normal",
+  base: "font-normal",
   variants: {
     type: {
       // sets the font size and weight
@@ -32,10 +32,24 @@ const textVariants = tv({
       center: "text-center",
       justify: "text-justify",
     },
+    color: {
+      default: "text-label dark:text-label-dark",
+      primary: "text-primary dark:text-primary",
+      primary50: "text-primary/50 dark:text-primary/50",
+      secondary: "text-neutral-300 dark:text-neutral-300",
+      error: "text-red-500 dark:text-red-500",
+    },
   },
   defaultVariants: {
     type: "body-md",
     align: "left",
+    color: "default",
+  },
+}, {
+  twMergeConfig: {
+    classGroups: {
+      "font-size": [{ text: ["h1", "h2", "h3", "h4", "h5", "h6", "body-lg", "body-md", "body-sm", "button-big", "button-small"] }],
+    },
   },
 });
 
@@ -55,13 +69,14 @@ export function BaseText({
   type,
   weight,
   align,
+  color,
   animated,
   entering,
   exiting,
   layout,
   ...props
 }: BaseTextProps) {
-  const styles = textVariants({ type, weight, align, className });
+  const styles = textVariants({ type, weight, align, color, className });
 
   if (animated) {
     return (

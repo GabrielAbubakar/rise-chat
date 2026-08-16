@@ -1,3 +1,4 @@
+import { useThemeColors } from "@/shared/hooks";
 import {
   BottomSheetBackdrop,
   BottomSheetFlatList,
@@ -5,11 +6,9 @@ import {
   BottomSheetTextInput,
 } from "@gorhom/bottom-sheet";
 import { customArray } from "country-codes-list";
-import { forwardRef, useCallback, useMemo, useState } from "react";
+import { forwardRef, useCallback, useEffect, useMemo, useState } from "react";
 import { ListRenderItem, Pressable, View } from "react-native";
-import { useColorScheme } from "nativewind";
 import { BaseText } from "./BaseText";
-import { useThemeColors } from "@/shared/hooks";
 
 export interface Country {
   name: string;
@@ -35,18 +34,28 @@ export const CountryCodePickerSheet = forwardRef<
   CountryCodePickerSheetProps
 >(({ onSelect }, ref) => {
   const colors = useThemeColors();
-  const snapPoints = useMemo(() => ["90%"], []);
+  const snapPoints = useMemo(() => ["80%", "50%"], []);
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+
+  // Debounce the actual filtering so the JS thread doesn't stutter while typing,
+  // which prevents the BottomSheetTextInput from dropping/duplicating characters.
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [search]);
 
   const filteredCountries = useMemo(() => {
-    if (!search) return allCountries;
-    const lowerSearch = search.toLowerCase();
+    if (!debouncedSearch) return allCountries;
+    const lowerSearch = debouncedSearch.toLowerCase();
     return allCountries.filter(
       (c) =>
         c.name.toLowerCase().includes(lowerSearch) ||
         c.dialCode.includes(lowerSearch),
     );
-  }, [search]);
+  }, [debouncedSearch]);
 
   const handleSelect = useCallback(
     (country: Country) => {
@@ -77,7 +86,10 @@ export const CountryCodePickerSheet = forwardRef<
       >
         <BaseText className="text-3xl mr-4">{item.flag}</BaseText>
         <View className="flex-1">
-          <BaseText type="body-md" className="font-bold text-black dark:text-white">
+          <BaseText
+            type="body-md"
+            className="font-bold text-black dark:text-white"
+          >
             {item.name}
           </BaseText>
           <BaseText type="body-sm" className="text-gray-500 dark:text-gray-400">
@@ -92,7 +104,7 @@ export const CountryCodePickerSheet = forwardRef<
   return (
     <BottomSheetModal
       ref={ref}
-      index={1}
+      index={0}
       snapPoints={snapPoints}
       backdropComponent={renderBackdrop}
       backgroundStyle={{ backgroundColor: colors.appBackground }}

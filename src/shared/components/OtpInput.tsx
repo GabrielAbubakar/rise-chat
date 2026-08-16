@@ -8,7 +8,8 @@ const boxVariants = tv({
   variants: {
     state: {
       default: "border-divider dark:border-divider-dark",
-      active: "border-primary",
+      active: "border-primary-400 bg-primary-50 dark:bg-neutral-800",
+      error: "border-red-500 bg-red-50 dark:bg-red-900/20",
     },
   },
   defaultVariants: {
@@ -20,9 +21,10 @@ export interface OtpInputProps {
   length?: number;
   value: string;
   onChangeText: (text: string) => void;
+  isError?: boolean;
 }
 
-export function OtpInput({ length = 4, value, onChangeText }: OtpInputProps) {
+export function OtpInput({ length = 4, value, onChangeText, isError }: OtpInputProps) {
   const inputRef = useRef<TextInput>(null);
   const [isFocused, setIsFocused] = useState(false);
 
@@ -36,7 +38,7 @@ export function OtpInput({ length = 4, value, onChangeText }: OtpInputProps) {
       <View
         key={index}
         className={boxVariants({
-          state: isCurrent || hasValue ? "active" : "default",
+          state: isError ? "error" : isCurrent || hasValue ? "active" : "default",
         })}
       >
         <BaseText className="text-3xl font-display text-black dark:text-white">{char}</BaseText>
@@ -67,6 +69,7 @@ export function OtpInput({ length = 4, value, onChangeText }: OtpInputProps) {
         onFocus={() => setIsFocused(true)}
         onBlur={() => setIsFocused(false)}
         caretHidden
+        autoFocus
       />
     </View>
   );
