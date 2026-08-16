@@ -7,6 +7,8 @@ import { StatusBar } from "expo-status-bar";
 import { useColorScheme } from "nativewind";
 import { useEffect } from "react";
 import "react-native-gesture-handler";
+import Toast from "react-native-toast-message";
+import { toastConfig } from "@shared/components";
 import "../global.css";
 
 SplashScreen.preventAutoHideAsync();
@@ -35,6 +37,7 @@ export default function RootLayout() {
     <AppProviders>
       <StatusBar style={isDark ? "light" : "dark"} />
       <Stack screenOptions={{ headerShown: false }} />
+      <Toast config={toastConfig} position="top" topOffset={60} />
     </AppProviders>
   );
 }

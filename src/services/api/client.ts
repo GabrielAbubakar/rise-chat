@@ -1,6 +1,7 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { tokenStorage } from './token';
 import Constants from 'expo-constants';
+import { AppError } from '@/shared/utils';
 
 // We can get the base API URL from env variables.
 // Adjust this to your environment setup.
@@ -109,6 +110,12 @@ apiClient.interceptors.response.use(
       }
     }
 
-    return Promise.reject(error);
+    // Map the error to our standard AppError
+    const data = error.response?.data as any;
+    const message = data?.message || error.message || 'An unexpected error occurred';
+    const code = data?.code || error.code || 'API_ERROR';
+    const appError = new AppError(message, code, error.response?.status);
+
+    return Promise.reject(appError);
   }
 );
