@@ -4,8 +4,6 @@ import { useConversationsList } from "../hooks/useChats";
 export function ChatsScreen() {
   const { data, isLoading, error } = useConversationsList();
 
-  // console.log(data.pages[0]);
-
   return (
     <View className="flex-1 items-center justify-center bg-app dark:bg-app-dark">
       <Text className="text-black dark:text-white text-2xl font-bold">
