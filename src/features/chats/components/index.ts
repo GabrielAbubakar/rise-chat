@@ -1,1 +1,2 @@
-export {};
+export { ChatSearchInput } from "./ChatSearchInput";
+

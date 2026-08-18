@@ -1,41 +1,38 @@
+import { Image } from "expo-image";
 import React from "react";
 import { View, ViewProps } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export interface ScreenHeaderProps extends ViewProps {
-  isSafeArea?: boolean;
-  isScrollable?: boolean;
-  withPadding?: boolean;
-  isKeyboardAvoiding?: boolean;
-  keyboardVerticalOffset?: number;
-  keyboardBehavior?: "padding" | "height" | "position";
   children: React.ReactNode;
-  contentContainerClassName?: string;
+  className?: string;
+  withPadding?: boolean;
+  useSafeArea?: boolean;
 }
 
-// Component for wrapping page screens
 export function ScreenHeader({
-  isSafeArea = true,
-  isScrollable = false,
-  withPadding = true,
-  isKeyboardAvoiding = false,
-  keyboardVerticalOffset = 0,
-  keyboardBehavior = "padding",
-  className = "",
-  contentContainerClassName = "",
   children,
+  className = "",
+  withPadding = true,
+  useSafeArea = false,
   ...props
 }: ScreenHeaderProps) {
-  const baseClasses = "flex-1 bg-app dark:bg-neutral-900";
-  const paddingClasses = withPadding ? "p-6" : "";
-
-  let content = children;
+  const Container = useSafeArea ? SafeAreaView : View;
 
   return (
-    <View
-      className={`${baseClasses} ${paddingClasses} ${className}`}
+    <Container
+      {...(useSafeArea ? { edges: ["top"] } : {})}
+      className={`bg-primary-400 dark:bg-neutral-700 overflow-hidden ${className}`}
       {...props}
     >
-      {content}
-    </View>
+      <Image
+        source={require("@/assets/images/blur-tr.png")}
+        className="absolute top-0 right-0 w-[200px] h-[200px] opacity-80"
+        contentFit="contain"
+      />
+      <View className={withPadding ? "px-6 pt-2 pb-8" : "flex-1"}>
+        {children}
+      </View>
+    </Container>
   );
 }
