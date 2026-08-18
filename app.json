@@ -43,10 +43,10 @@
         "expo-font",
         {
           "fonts": [
-            "./assets/fonts/sf-pro-display/SFPRODISPLAYBOLD.OTF",
-            "./assets/fonts/sf-pro-display/SFPRODISPLAYMEDIUM.OTF",
-            "./assets/fonts/sf-pro-display/SFPRODISPLAYREGULAR.OTF",
-            "./assets/fonts/sf-pro-display/SFPRODISPLAYSEMIBOLDITALIC.OTF"
+            "./assets/fonts/sf-pro-display/SFPRODISPLAYBOLD.otf",
+            "./assets/fonts/sf-pro-display/SFPRODISPLAYMEDIUM.otf",
+            "./assets/fonts/sf-pro-display/SFPRODISPLAYREGULAR.otf",
+            "./assets/fonts/sf-pro-display/SFPRODISPLAYSEMIBOLDITALIC.otf"
           ]
         }
       ]
