@@ -5,7 +5,7 @@ import { PinKeypad } from "@/features/security/components/PinKeypad";
 import { verifyPinCode } from "@/services/security/pin";
 import { useSecurityStore } from "@/store/useSecurityStore";
 import Toast from "react-native-toast-message";
-import LockIcon from "@/assets/icons/lock-closed.svg";
+import LockIcon from "@/assets/icons/solid/lock-closed.svg";
 import { colors } from "@/shared/constants/tokens";
 import { ScreenContainer, BaseText } from "@/shared/components";
 

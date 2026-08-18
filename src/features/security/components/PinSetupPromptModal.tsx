@@ -1,4 +1,4 @@
-import LockIcon from "@/assets/icons/lock-closed.svg";
+import LockIcon from "@/assets/icons/solid/lock-closed.svg";
 import { BaseButton, BaseText } from "@/shared/components";
 import { colors } from "@/shared/constants/tokens";
 import React from "react";

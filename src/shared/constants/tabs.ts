@@ -1,6 +1,6 @@
-import ChatIcon from "@/assets/icons/chat.svg";
-import CogIcon from "@/assets/icons/cog.svg";
-import PhoneIcon from "@/assets/icons/phone.svg";
+import ChatIcon from "@/assets/icons/solid/chat.svg";
+import CogIcon from "@/assets/icons/solid/cog.svg";
+import PhoneIcon from "@/assets/icons/solid/phone.svg";
 
 export const tabs = [
   {

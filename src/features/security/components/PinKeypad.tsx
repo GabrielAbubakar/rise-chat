@@ -2,7 +2,7 @@ import React from "react";
 import { View, TouchableOpacity } from "react-native";
 import { useColorScheme } from "nativewind";
 import { BaseText } from "@/shared/components";
-import BackspaceIcon from "@/assets/icons/backspace.svg";
+import BackspaceIcon from "@/assets/icons/solid/backspace.svg";
 import * as Haptics from "expo-haptics";
 
 interface PinKeypadProps {
