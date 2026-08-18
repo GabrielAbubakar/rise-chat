@@ -30,7 +30,7 @@ export function ScreenHeader({
         className="absolute top-0 right-0 w-[200px] h-[200px] opacity-80"
         contentFit="contain"
       />
-      <View className={withPadding ? "px-6 pt-2 pb-8" : "flex-1"}>
+      <View className={withPadding ? "px-6 pt-2 pb-5" : "flex-1"}>
         {children}
       </View>
     </Container>

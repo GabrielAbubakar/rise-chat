@@ -10,7 +10,7 @@ export function ChatsScreen() {
 
   return (
     <View className="flex-1 bg-app dark:bg-app-dark">
-      <ScreenHeader className="pt-14">
+      <ScreenHeader className="pt-10">
         <BaseText type="h1" className="text-white dark:text-white mb-6">
           Chats
         </BaseText>
