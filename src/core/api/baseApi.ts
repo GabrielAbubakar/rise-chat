@@ -1,7 +1,8 @@
-import axios from 'axios';
+import { env } from "@/core/config/env";
+import axios from "axios";
 
 export const baseApi = axios.create({
-  baseURL: process.env.EXPO_PUBLIC_API_URL,
+  baseURL: env.API_URL,
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
