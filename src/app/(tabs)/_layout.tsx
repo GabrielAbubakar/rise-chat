@@ -1,13 +1,40 @@
 import { BaseText } from "@/shared/components";
 import { tabs } from "@/shared/constants/tabs";
 import { colors } from "@/shared/constants/tokens";
-import { Tabs } from "expo-router";
+import { Tabs, useRouter } from "expo-router";
 import { useColorScheme } from "nativewind";
 import { View } from "react-native";
+import { useEffect, useState } from "react";
+import { useSecurityStore } from "@/store/useSecurityStore";
+import { PinSetupPromptModal } from "@/features/security/components/PinSetupPromptModal";
 
 export default function TabsLayout() {
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === "dark";
+  const router = useRouter();
+
+  const isPinSet = useSecurityStore((state) => state.isPinSet);
+  const hasSkippedPinSetup = useSecurityStore((state) => state.hasSkippedPinSetup);
+  const markPinSetupSkipped = useSecurityStore((state) => state.markPinSetupSkipped);
+
+  const [showPinPrompt, setShowPinPrompt] = useState(false);
+
+  useEffect(() => {
+    // When arriving at the tabs flow, check if we should prompt for PIN setup
+    if (!isPinSet && !hasSkippedPinSetup) {
+      setShowPinPrompt(true);
+    }
+  }, [isPinSet, hasSkippedPinSetup]);
+
+  const handleAcceptPinSetup = () => {
+    setShowPinPrompt(false);
+    router.push("/setup-pin");
+  };
+
+  const handleDeclinePinSetup = () => {
+    markPinSetupSkipped();
+    setShowPinPrompt(false);
+  };
 
   const screenOptions = {
     headerShown: false,
@@ -63,6 +90,12 @@ export default function TabsLayout() {
           />
         ))}
       </Tabs>
+
+      <PinSetupPromptModal
+        visible={showPinPrompt}
+        onAccept={handleAcceptPinSetup}
+        onDecline={handleDeclinePinSetup}
+      />
     </>
   );
 }

@@ -17,6 +17,7 @@
     "country-codes-list": "^3.1.1",
     "expo": "~57.0.10",
     "expo-audio": "~57.0.3",
+    "expo-blur": "~57.0.2",
     "expo-build-properties": "~57.0.9",
     "expo-camera": "~57.0.3",
     "expo-clipboard": "~57.0.1",

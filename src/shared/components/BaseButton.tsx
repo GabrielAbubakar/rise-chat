@@ -12,7 +12,7 @@ const buttonVariants = tv({
   variants: {
     variant: {
       primary: "bg-primary",
-      secondary: "bg-white",
+      secondary: "bg-primary-50",
     },
     disabled: {
       true: "opacity-50",
@@ -27,8 +27,8 @@ const buttonVariants = tv({
 const textVariants = tv({
   variants: {
     variant: {
-      primary: "text-white",
-      secondary: "text-primary",
+      primary: "text-white dark:text-white",
+      secondary: "text-primary dark:text-primary",
     },
   },
   defaultVariants: {
@@ -36,7 +36,10 @@ const textVariants = tv({
   },
 });
 
-interface BaseButtonProps extends PressableProps, Omit<VariantProps<typeof buttonVariants>, 'disabled'> {
+interface BaseButtonProps
+  extends
+    PressableProps,
+    Omit<VariantProps<typeof buttonVariants>, "disabled"> {
   title: string;
   loading?: boolean;
   animated?: boolean;
@@ -83,12 +86,18 @@ export function BaseButton({
             scale.value = withSpring(1, { damping: 18, stiffness: 200 });
             opacity.value = withSpring(1);
           }}
-          className={buttonVariants({ variant, disabled: props.disabled || loading, className })}
+          className={buttonVariants({
+            variant,
+            disabled: props.disabled || loading,
+            className,
+          })}
           disabled={props.disabled || loading}
           {...props}
         >
           {loading ? (
-            <ActivityIndicator color={variant === "primary" ? "white" : "#57B77D"} />
+            <ActivityIndicator
+              color={variant === "primary" ? "white" : "#57B77D"}
+            />
           ) : (
             <BaseText type="button-big" className={textVariants({ variant })}>
               {title}
