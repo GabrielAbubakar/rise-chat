@@ -1,13 +1,10 @@
+import { env } from "@/core/config/env";
 import { AppError } from "@/shared/utils";
 import axios, { AxiosError, InternalAxiosRequestConfig } from "axios";
 import { tokenStorage } from "./token";
 
-// We can get the base API URL from env variables.
-// Adjust this to your environment setup.
-const API_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000";
-
 export const apiClient = axios.create({
-  baseURL: API_URL,
+  baseURL: env.API_URL,
   headers: {
     "Content-Type": "application/json",
   },
@@ -88,7 +85,7 @@ apiClient.interceptors.response.use(
         }
 
         // We make a raw axios call to avoid interceptor loops
-        const { data } = await axios.post(`${API_URL}/auth/refresh`, {
+        const { data } = await axios.post(`${env.API_URL}/auth/refresh`, {
           refreshToken,
         });
 
