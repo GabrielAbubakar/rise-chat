@@ -76,6 +76,7 @@ apiClient.interceptors.response.use(
 
       originalRequest._retry = true;
       isRefreshing = true;
+      console.log('⏳ [Auth Module] Attempting token refresh...');
 
       try {
         const refreshToken = await tokenStorage.getRefreshToken();
@@ -98,10 +99,12 @@ apiClient.interceptors.response.use(
           originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
         }
 
+        console.log('✨ [Auth Module] Token refreshed successfully');
         processQueue(null, newAccessToken);
 
         return apiClient(originalRequest);
       } catch (refreshError) {
+        console.log('🚨 [Auth Module] Token refresh failed, logging out');
         processQueue(refreshError, null);
         // Clear tokens if refresh fails to force a re-login
         // Trigger a global sign-out event

@@ -6,7 +6,9 @@ const REFRESH_TOKEN_KEY = 'rise_chat_refresh_token';
 export const tokenStorage = {
   getAccessToken: async (): Promise<string | null> => {
     try {
-      return await SecureStore.getItemAsync(ACCESS_TOKEN_KEY);
+      const token = await SecureStore.getItemAsync(ACCESS_TOKEN_KEY);
+      if (token) console.log('🔑 [Auth Module] Access token found');
+      return token;
     } catch (e) {
       console.error('Error getting access token', e);
       return null;
@@ -23,7 +25,9 @@ export const tokenStorage = {
 
   getRefreshToken: async (): Promise<string | null> => {
     try {
-      return await SecureStore.getItemAsync(REFRESH_TOKEN_KEY);
+      const token = await SecureStore.getItemAsync(REFRESH_TOKEN_KEY);
+      if (token) console.log('🔄 [Auth Module] Refresh token found');
+      return token;
     } catch (e) {
       console.error('Error getting refresh token', e);
       return null;
@@ -43,6 +47,7 @@ export const tokenStorage = {
       tokenStorage.setAccessToken(accessToken),
       tokenStorage.setRefreshToken(refreshToken),
     ]);
+    console.log('💾 [Auth Module] Tokens saved successfully');
   },
 
   clearTokens: async (): Promise<void> => {
@@ -51,6 +56,7 @@ export const tokenStorage = {
         SecureStore.deleteItemAsync(ACCESS_TOKEN_KEY),
         SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY),
       ]);
+      console.log('🗑️ [Auth Module] Tokens cleared from secure storage');
     } catch (e) {
       console.error('Error clearing tokens', e);
     }

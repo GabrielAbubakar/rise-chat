@@ -1,8 +1,9 @@
-import { useAuthStore } from "@/store/useAuthStore";
 import { useLogout } from "@/features/auth/hooks/useAuth";
 import { tokenStorage } from "@/services/api/token";
 import { BaseButton } from "@/shared/components";
 import { showApiErrorToast, showSuccessToast } from "@/shared/utils";
+import { useSecurityStore } from "@/store";
+import { useAuthStore } from "@/store/useAuthStore";
 import { Text, View } from "react-native";
 
 export function SettingsScreen() {
@@ -27,6 +28,7 @@ export function SettingsScreen() {
     } else {
       // If there's no refresh token locally for some reason, just force local logout
       await useAuthStore.getState().logout();
+      useSecurityStore.getState().reset();
     }
   };
 
