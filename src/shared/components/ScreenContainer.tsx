@@ -54,7 +54,7 @@ export function ScreenContainer({
       <KeyboardAvoidingView
         behavior={keyboardBehavior}
         keyboardVerticalOffset={keyboardVerticalOffset}
-        className="flex-1"
+        style={{ flex: 1 }}
       >
         {content}
       </KeyboardAvoidingView>
