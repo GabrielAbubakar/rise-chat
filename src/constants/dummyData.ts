@@ -294,3 +294,16 @@ export const DUMMY_ARCHIVED_CHATS = [
     isActive: false,
   },
 ];
+
+export const DUMMY_CONTACTS = [
+  { id: "c1", name: "Annette Black", phone: "+61-827-680-673", avatar: "https://i.pravatar.cc/150?u=5" },
+  { id: "c2", name: "Arlene McCoy", phone: "+61-827-680-673", avatar: "https://i.pravatar.cc/150?u=a2" },
+  { id: "c3", name: "Annie Miles", phone: "+61-827-680-673", avatar: "https://i.pravatar.cc/150?u=a1" },
+  { id: "c4", name: "Courtney Henry", phone: "+61-827-680-673", avatar: "https://i.pravatar.cc/150?u=15" },
+  { id: "c5", name: "Cianne Russell", phone: "+61-827-680-673", avatar: "https://i.pravatar.cc/150?u=c5" },
+  { id: "c6", name: "Cessie Cooper", phone: "+61-827-680-673", avatar: "https://i.pravatar.cc/150?u=c6" },
+  { id: "c7", name: "Craig Fatari", phone: "+61-827-680-673", avatar: "https://i.pravatar.cc/150?u=c7" },
+  { id: "c8", name: "Keanu Murphy", phone: "+61-827-680-673", avatar: "https://i.pravatar.cc/150?u=c8" },
+  { id: "c9", name: "Kemal Pahlevi", phone: "+61-827-680-673", avatar: "https://i.pravatar.cc/150?u=c9" },
+  { id: "c10", name: "Kemana Malik", phone: "+61-827-680-673", avatar: "https://i.pravatar.cc/150?u=c10" },
+];

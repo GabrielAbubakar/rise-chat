@@ -24,7 +24,9 @@ interface ChatItemProps {
   unreadCount: number;
   isPinned: boolean;
   isActive: boolean;
+  isSelected?: boolean;
   onPress?: () => void;
+  onLongPress?: () => void;
 }
 
 export function ChatItem({
@@ -38,7 +40,9 @@ export function ChatItem({
   unreadCount,
   isPinned,
   isActive,
+  isSelected,
   onPress,
+  onLongPress,
 }: ChatItemProps) {
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === "dark";
@@ -87,7 +91,12 @@ export function ChatItem({
     >
       <Pressable
         onPress={onPress}
-        className="flex-row items-center px-4 py-3 bg-app dark:bg-app-dark"
+        onLongPress={onLongPress}
+        className={`flex-row items-center rounded-lg px-4 py-3 active:bg-primary-50 dark:active:bg-neutral-700 ${
+          isSelected
+            ? "bg-primary-50 dark:bg-neutral-700"
+            : "bg-app dark:bg-app-dark"
+        }`}
       >
         <View className="relative">
           <Avatar

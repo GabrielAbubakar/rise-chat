@@ -7,5 +7,6 @@ export * from "./OtpInput";
 export * from "./PhoneInput";
 export * from "./ScreenContainer";
 export * from "./ScreenHeader";
+export * from "./BaseBottomSheet";
 export * from "./ToastConfig";
 

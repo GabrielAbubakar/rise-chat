@@ -1,5 +1,4 @@
 import { BaseText } from "@/shared/components";
-import React from "react";
 import { View } from "react-native";
 
 export interface MessagePillProps {
@@ -11,10 +10,10 @@ export interface MessagePillProps {
 export function MessagePill({ isMe, text, time }: MessagePillProps) {
   return (
     <View
-      className={`flex-row mb-4 px-4 ${isMe ? "justify-end" : "justify-start"}`}
+      className={`flex-row mb-4 px-4  ${isMe ? "justify-end" : "justify-start"}`}
     >
-      {!isMe && (
-        <BaseText className="text-neutral-300 dark:text-neutral-300 mr-2 self-end mb-1">
+      {isMe && (
+        <BaseText className="text-neutral-300 dark:text-neutral-300 mr-2 self-center mb-1">
           {time}
         </BaseText>
       )}
@@ -41,8 +40,9 @@ export function MessagePill({ isMe, text, time }: MessagePillProps) {
           {text}
         </BaseText>
       </View>
-      {isMe && (
-        <BaseText className="text-neutral-300 dark:text-neutral-300 ml-2 self-end mb-1">
+
+      {!isMe && (
+        <BaseText className="text-neutral-300 dark:text-neutral-300 ml-2 self-center mb-1">
           {time}
         </BaseText>
       )}
