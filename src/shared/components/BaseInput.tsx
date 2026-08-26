@@ -40,13 +40,15 @@ export interface BaseInputProps
   className?: string; // Applies to the outer container
   inputClassName?: string; // Applies to the text input
   leftComponent?: React.ReactNode;
+  InputComponent?: React.ElementType<any>;
 }
 
 export const BaseInput = forwardRef<TextInput, BaseInputProps>(
   (
-    { label, className, inputClassName, size, leftComponent, ...props },
+    { label, className, inputClassName, size, leftComponent, InputComponent, ...props },
     ref,
   ) => {
+    const Comp = InputComponent || TextInput;
     const [isFocused, setIsFocused] = useState(false);
 
     return (
@@ -58,15 +60,15 @@ export const BaseInput = forwardRef<TextInput, BaseInputProps>(
         )}
         <View className={containerVariants({ size, state: isFocused ? "active" : "default", className })}>
           {leftComponent}
-          <TextInput
-            ref={ref}
+          <Comp
+            ref={ref as any}
             className={inputVariants({ size, className: inputClassName })}
             placeholderTextColor={props.placeholderTextColor || "#9ca3af"}
-            onFocus={(e) => {
+            onFocus={(e: any) => {
               setIsFocused(true);
               props.onFocus?.(e);
             }}
-            onBlur={(e) => {
+            onBlur={(e: any) => {
               setIsFocused(false);
               props.onBlur?.(e);
             }}
