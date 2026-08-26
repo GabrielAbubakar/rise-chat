@@ -9,4 +9,4 @@ export * from "./ScreenContainer";
 export * from "./ScreenHeader";
 export * from "./BaseBottomSheet";
 export * from "./ToastConfig";
-
+export * from "./BaseTouchableOpacity";

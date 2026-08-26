@@ -1,14 +1,23 @@
 export const DUMMY_CHATS = [
   {
     id: "1",
-    name: "Darrell Steward",
-    avatar: "https://i.pravatar.cc/150?u=1",
+    name: "Arlene McCoy",
+    avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800",
     avatarType: "image",
     lastMessage: "Hello, Good morning ✨",
     time: "11:47 PM",
     unreadCount: 4,
     isPinned: false,
     isActive: true,
+    isGroup: false,
+    phone: "+61-123-753-555",
+    statusText: "Busy 🔥",
+    lastSeen: "Last seen 24 minutes ago",
+    description: "Design lead & creative enthusiast. Building next-gen mobile experiences.",
+    photosCount: 2238,
+    starMessagesCount: 43,
+    sharedLinksCount: 19,
+    notificationsEnabled: true,
   },
   {
     id: "2",
@@ -21,6 +30,14 @@ export const DUMMY_CHATS = [
     unreadCount: 0,
     isPinned: false,
     isActive: false,
+    isGroup: false,
+    phone: "+61-827-680-673",
+    statusText: "Available",
+    lastSeen: "Active 1 hour ago",
+    photosCount: 120,
+    starMessagesCount: 8,
+    sharedLinksCount: 5,
+    notificationsEnabled: true,
   },
   {
     id: "3",
@@ -32,17 +49,34 @@ export const DUMMY_CHATS = [
     unreadCount: 4,
     isPinned: false,
     isActive: false,
+    isGroup: false,
+    phone: "+61-912-345-678",
+    statusText: "In a meeting 💻",
+    lastSeen: "Active 30 minutes ago",
+    photosCount: 450,
+    starMessagesCount: 15,
+    sharedLinksCount: 9,
+    notificationsEnabled: false,
   },
   {
     id: "4",
     name: "Work Team",
     avatarType: "group",
     avatarColor: "#1E3A8A", // blue-900
+    avatar: "https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=800",
+    coverImage: "https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=800",
     lastMessage: "Wait, I am on my way!",
     time: "08:26 PM",
     unreadCount: 0,
     isPinned: true,
     isActive: true,
+    isGroup: true,
+    description:
+      "Massa massa, ultrices morbi tortor et in cursus ultrices rem dignissim nunc tortor aenean aliquet faucibus habitasse mi. Proin sed libero enim sed faucibus turpis in eu mi.",
+    photosCount: 2238,
+    starMessagesCount: 43,
+    sharedLinksCount: 19,
+    membersCount: 258,
   },
   {
     id: "5",
@@ -297,7 +331,7 @@ export const DUMMY_ARCHIVED_CHATS = [
 
 export const DUMMY_CONTACTS = [
   { id: "c1", name: "Annette Black", phone: "+61-827-680-673", avatar: "https://i.pravatar.cc/150?u=5" },
-  { id: "c2", name: "Arlene McCoy", phone: "+61-827-680-673", avatar: "https://i.pravatar.cc/150?u=a2" },
+  { id: "c2", name: "Arlene McCoy", phone: "+61-123-753-555", avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800" },
   { id: "c3", name: "Annie Miles", phone: "+61-827-680-673", avatar: "https://i.pravatar.cc/150?u=a1" },
   { id: "c4", name: "Courtney Henry", phone: "+61-827-680-673", avatar: "https://i.pravatar.cc/150?u=15" },
   { id: "c5", name: "Cianne Russell", phone: "+61-827-680-673", avatar: "https://i.pravatar.cc/150?u=c5" },
@@ -307,3 +341,218 @@ export const DUMMY_CONTACTS = [
   { id: "c9", name: "Kemal Pahlevi", phone: "+61-827-680-673", avatar: "https://i.pravatar.cc/150?u=c9" },
   { id: "c10", name: "Kemana Malik", phone: "+61-827-680-673", avatar: "https://i.pravatar.cc/150?u=c10" },
 ];
+
+export const DUMMY_PHOTOS = [
+  {
+    id: "p1",
+    url: "https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?w=800",
+    title: "Living Room Modern",
+    aspect: "wide",
+  },
+  {
+    id: "p2",
+    url: "https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?w=600",
+    title: "Dining Corner",
+    aspect: "square",
+  },
+  {
+    id: "p3",
+    url: "https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=600",
+    title: "Cozy Armchair",
+    aspect: "square",
+  },
+  {
+    id: "p4",
+    url: "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=600",
+    title: "Living Room Window",
+    aspect: "square",
+  },
+  {
+    id: "p5",
+    url: "https://images.unsplash.com/photo-1556911220-e15b29be8c8f?w=600",
+    title: "Kitchen Counter",
+    aspect: "square",
+  },
+  {
+    id: "p6",
+    url: "https://images.unsplash.com/photo-1616594039964-ae9021a400a0?w=800",
+    title: "Master Bedroom",
+    aspect: "wide",
+  },
+  {
+    id: "p7",
+    url: "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=600",
+    title: "Balcony Lounge",
+    aspect: "square",
+  },
+  {
+    id: "p8",
+    url: "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=600",
+    title: "Patio Garden",
+    aspect: "square",
+  },
+  {
+    id: "p9",
+    url: "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=600",
+    title: "Interior Hallway",
+    aspect: "square",
+  },
+];
+
+export const DUMMY_STARRED_MESSAGES = [
+  {
+    id: "sm1",
+    text: "Orci maecenas hendrerit mattis consectetur. Mauris.",
+    time: "19:40",
+    date: "23/07/2021",
+    sender: {
+      id: "u1",
+      name: "Rianna Russell",
+      avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150",
+    },
+  },
+  {
+    id: "sm2",
+    text: "Orci maecenas hendrerit mattis consectetur. Mauris.",
+    time: "19:40",
+    date: "23/07/2021",
+    sender: {
+      id: "u2",
+      name: "Annie Miles",
+      avatar: "https://i.pravatar.cc/150?u=a1",
+    },
+  },
+  {
+    id: "sm3",
+    text: "Egestas interdum orci commodo faucibus pretium, neque etiam",
+    time: "19:40",
+    date: "21/07/2021",
+    sender: {
+      id: "u3",
+      name: "Bessie Cooper",
+      avatar: "https://i.pravatar.cc/150?u=c6",
+    },
+  },
+  {
+    id: "sm4",
+    text: "Habitant elit pellentesque curabitur morbi sit fusce elit sed do eiusmod",
+    time: "18:25",
+    date: "19/07/2021",
+    sender: {
+      id: "u4",
+      name: "Arlene McCoy",
+      avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150",
+    },
+  },
+];
+
+export const DUMMY_SHARED_LINKS = [
+  {
+    section: "Today",
+    links: [
+      {
+        id: "l1",
+        title: "Invester - Landing Page",
+        url: "https://dribbble.com/shots/16976358-Invester-Landing-Page",
+        type: "dribbble",
+        badgeColor: "#EA4C89",
+      },
+      {
+        id: "l2",
+        title: "Google Meet",
+        url: "https://meet.google.com/xyz-qwer-zxc",
+        type: "meet",
+        badgeColor: "#00AC47",
+      },
+    ],
+  },
+  {
+    section: "Yesterday",
+    links: [
+      {
+        id: "l3",
+        title: "Remote Work - Illustration",
+        url: "https://dribbble.com/shots/16976358-Remote-Work-Illustration",
+        type: "dribbble",
+        badgeColor: "#EA4C89",
+      },
+      {
+        id: "l4",
+        title: "Invester - Mobile App",
+        url: "https://dribbble.com/shots/16976358-Invester-Mobile-App",
+        type: "dribbble",
+        badgeColor: "#EA4C89",
+      },
+      {
+        id: "l5",
+        title: "Websites - Landing Page",
+        url: "https://dribbble.com/shots/16976358-Websites-Landing-Page",
+        type: "dribbble",
+        badgeColor: "#EA4C89",
+      },
+    ],
+  },
+  {
+    section: "26 Oct 2021",
+    links: [
+      {
+        id: "l6",
+        title: "Design System Tokens",
+        url: "https://figma.com/file/tokens-and-design-system",
+        type: "figma",
+        badgeColor: "#A259FF",
+      },
+      {
+        id: "l7",
+        title: "Project Documentation & API Spec",
+        url: "https://notion.so/rise/docs/project-api-spec",
+        type: "notion",
+        badgeColor: "#000000",
+      },
+    ],
+  },
+];
+
+export const DUMMY_GROUP_MEMBERS = [
+  {
+    id: "m1",
+    name: "Arlene McCoy",
+    avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150",
+    status: "Online",
+    isOnline: true,
+    role: "Admin",
+  },
+  {
+    id: "m2",
+    name: "Annie Miles",
+    avatar: "https://i.pravatar.cc/150?u=a1",
+    status: "Last seen 5 min ago",
+    isOnline: false,
+    role: "Member",
+  },
+  {
+    id: "m3",
+    name: "Bessie Cooper",
+    avatar: "https://i.pravatar.cc/150?u=c6",
+    status: "Online",
+    isOnline: true,
+    role: "Member",
+  },
+  {
+    id: "m4",
+    name: "Courtney Henry",
+    avatar: "https://i.pravatar.cc/150?u=15",
+    status: "Active yesterday",
+    isOnline: false,
+    role: "Member",
+  },
+  {
+    id: "m5",
+    name: "Rianna Russell",
+    avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150",
+    status: "Online",
+    isOnline: true,
+    role: "Member",
+  },
+];
+

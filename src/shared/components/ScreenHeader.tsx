@@ -6,7 +6,7 @@ import { BaseText } from "./BaseText";
 import ChevronLeftIcon from "@/assets/icons/solid/cheveron-left.svg";
 
 export interface ScreenHeaderProps extends ViewProps {
-  children: React.ReactNode;
+  children?: React.ReactNode;
   className?: string;
   withPadding?: boolean;
   useSafeArea?: boolean;
@@ -35,7 +35,7 @@ export function ScreenHeader({
     >
       <Image
         source={require("@/assets/images/blur-tr.png")}
-        className="absolute top-0 right-0 w-[200px] h-[200px] opacity-80"
+        className="absolute top-0 right-0 w-[200px] h-[200px] opacity-80 pointer-events-none"
         contentFit="contain"
       />
       <View className={withPadding ? "px-6 pt-2 pb-5" : ""}>

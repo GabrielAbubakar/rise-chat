@@ -4,4 +4,9 @@ export * from "./ChatSearchInput";
 export * from "./MessagePill";
 export * from "./NewChatBottomSheet";
 export * from "./NewGroupBottomSheet";
-
+export * from "./MediaPhotosTab";
+export * from "./MediaStarsTab";
+export * from "./MediaLinksTab";
+export * from "./MediaTabSwitcher";
+export * from "./MediaSummaryRows";
+export * from "./GroupMembersList";
