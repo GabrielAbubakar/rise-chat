@@ -1,21 +1,6 @@
-import { createMMKV } from "react-native-mmkv";
 import { create } from "zustand";
-import { createJSONStorage, persist, StateStorage } from "zustand/middleware";
-
-const storage = createMMKV({ id: "theme-storage" });
-
-const zustandStorage: StateStorage = {
-  setItem: (name, value) => {
-    return storage.set(name, value);
-  },
-  getItem: (name) => {
-    const value = storage.getString(name);
-    return value ?? null;
-  },
-  removeItem: (name) => {
-    return storage.remove(name);
-  },
-};
+import { createJSONStorage, persist } from "zustand/middleware";
+import { createZustandStorage } from "./storage";
 
 export type ThemePreference = "light" | "dark" | "system";
 
@@ -32,7 +17,7 @@ export const useThemeStore = create<ThemeState>()(
     }),
     {
       name: "theme-preference",
-      storage: createJSONStorage(() => zustandStorage),
+      storage: createJSONStorage(() => createZustandStorage("theme-storage")),
     },
   ),
 );

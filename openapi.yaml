@@ -1,0 +1,1092 @@
+﻿openapi: 3.0.0
+paths:
+  /v1/auth/otp/request:
+    post:
+      operationId: requestOtp
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RequestOtpDto'
+            examples:
+              default:
+                summary: Request a code for a Nigerian phone number
+                value:
+                  phoneNumber: '+2348012345678'
+      responses:
+        '202':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OtpChallengeResponseDto'
+      summary: Request a phone verification code
+      tags:
+        - auth
+  /v1/auth/otp/resend:
+    post:
+      operationId: resendOtp
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResendOtpDto'
+            examples:
+              default:
+                summary: Resend the code for an existing challenge
+                value:
+                  challengeId: 550e8400-e29b-41d4-a716-446655440000
+      responses:
+        '202':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OtpChallengeResponseDto'
+      summary: Resend a phone verification code
+      tags:
+        - auth
+  /v1/auth/otp/verify:
+    post:
+      operationId: verifyOtp
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyOtpDto'
+            examples:
+              default:
+                summary: Verify a code from a mobile device
+                value:
+                  challengeId: 550e8400-e29b-41d4-a716-446655440000
+                  code: '1234'
+                  device:
+                    name: Student's iPhone
+                    platform: ios
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponseDto'
+      summary: Verify the code and create a persistent session
+      tags:
+        - auth
+  /v1/auth/refresh:
+    post:
+      operationId: refresh
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshTokenDto'
+            examples:
+              default:
+                summary: Exchange the current refresh token
+                value:
+                  refreshToken: >-
+                    550e8400-e29b-41d4-a716-446655440000.3fQ8xZ7uV2nK5mP9rT4wY6aB1cD0eF8gH2jL7sN5qRk
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponseDto'
+      summary: Rotate a refresh token and issue a new token pair
+      tags:
+        - auth
+  /v1/auth/logout:
+    post:
+      operationId: logout
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshTokenDto'
+            examples:
+              default:
+                summary: Log out the session represented by a refresh token
+                value:
+                  refreshToken: >-
+                    550e8400-e29b-41d4-a716-446655440000.3fQ8xZ7uV2nK5mP9rT4wY6aB1cD0eF8gH2jL7sN5qRk
+      responses:
+        '204':
+          description: ''
+      summary: Revoke a refresh session
+      tags:
+        - auth
+  /v1/me:
+    get:
+      operationId: getMe
+      parameters: []
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponseDto'
+      security:
+        - bearer: []
+      summary: Get the signed-in user profile
+      tags:
+        - profile
+    patch:
+      operationId: updateMe
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProfileDto'
+            examples:
+              default:
+                summary: Complete the signed-in user profile
+                value:
+                  displayName: Great Ichoku
+                  avatarUrl: https://example.com/avatars/great.jpg
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponseDto'
+      security:
+        - bearer: []
+      summary: Complete or update the signed-in user profile
+      tags:
+        - profile
+  /v1/contacts/match:
+    post:
+      operationId: matchContacts
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MatchContactsDto'
+            examples:
+              default:
+                summary: Match and normalize a batch of international phone numbers
+                value:
+                  phoneNumbers:
+                    - +234 801 234 5678
+                    - '+2348098765432'
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContactMatchesResponseDto'
+      security:
+        - bearer: []
+      summary: Match phone numbers already present in the caller contacts
+      tags:
+        - discovery
+  /v1/users/search:
+    get:
+      operationId: searchUsers
+      parameters:
+        - name: q
+          required: true
+          in: query
+          description: A display-name search term. Phone numbers are not searched.
+          schema:
+            minLength: 3
+            maxLength: 80
+            example: Ada
+            type: string
+        - name: limit
+          required: false
+          in: query
+          schema:
+            minimum: 1
+            maximum: 25
+            default: 20
+            allOf:
+              - $ref: '#/components/schemas/Object'
+        - name: cursor
+          required: false
+          in: query
+          description: Opaque cursor returned by the previous search response.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserSearchResponseDto'
+      security:
+        - bearer: []
+      summary: Search completed profiles by display name
+      tags:
+        - discovery
+  /v1/conversations/direct:
+    post:
+      operationId: createDirect
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDirectConversationDto'
+            examples:
+              default:
+                summary: Start a direct conversation with a registered user
+                value:
+                  participantId: 7d444840-9dc0-11d1-b245-5ffdce74fad2
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConversationResponseDto'
+      security:
+        - bearer: []
+      summary: Create or return an existing direct conversation
+      tags:
+        - conversations
+  /v1/conversations:
+    get:
+      operationId: list
+      parameters:
+        - name: limit
+          required: false
+          in: query
+          schema:
+            minimum: 1
+            maximum: 50
+            default: 20
+            example: 20
+            allOf:
+              - $ref: '#/components/schemas/Object'
+        - name: cursor
+          required: false
+          in: query
+          description: Opaque cursor returned by the previous page.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConversationListResponseDto'
+      security:
+        - bearer: []
+      summary: List the signed-in user conversations
+      tags:
+        - conversations
+  /v1/conversations/{conversationId}:
+    get:
+      operationId: get
+      parameters:
+        - name: conversationId
+          required: true
+          in: path
+          schema:
+            format: uuid
+            type: string
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConversationResponseDto'
+        '404':
+          description: The conversation is missing or the user is not a member.
+      security:
+        - bearer: []
+      summary: Get a conversation by ID
+      tags:
+        - conversations
+  /v1/conversations/{conversationId}/messages:
+    post:
+      operationId: send
+      parameters:
+        - name: conversationId
+          required: true
+          in: path
+          schema:
+            format: uuid
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SendMessageDto'
+            examples:
+              default:
+                summary: Send a text message
+                value:
+                  clientMessageId: 7d444840-9dc0-41d1-b245-5ffdce74fad2
+                  text: Hello! Are you free to chat?
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponseDto'
+        '404':
+          description: The conversation is missing or the user is not a member.
+        '409':
+          description: The client message ID was reused with different data.
+      security:
+        - bearer: []
+      summary: Persist or replay an idempotent text message
+      tags:
+        - messages
+    get:
+      operationId: list
+      parameters:
+        - name: conversationId
+          required: true
+          in: path
+          schema:
+            format: uuid
+            type: string
+        - name: limit
+          required: false
+          in: query
+          schema:
+            minimum: 1
+            maximum: 100
+            default: 50
+            allOf:
+              - $ref: '#/components/schemas/Object'
+        - name: cursor
+          required: false
+          in: query
+          description: Opaque cursor returned by the previous history page.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageHistoryResponseDto'
+        '400':
+          description: The message cursor is invalid.
+        '404':
+          description: The conversation is missing or the user is not a member.
+      security:
+        - bearer: []
+      summary: List message history, newest first
+      tags:
+        - messages
+  /v1/conversations/{conversationId}/read:
+    post:
+      operationId: markRead
+      parameters:
+        - name: conversationId
+          required: true
+          in: path
+          schema:
+            format: uuid
+            type: string
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConversationReadStateResponseDto'
+        '404':
+          description: The conversation is missing or the user is not a member.
+      security:
+        - bearer: []
+      summary: Mark all currently persisted messages as read
+      tags:
+        - messages
+  /v1/conversations/{conversationId}/receipts/delivered:
+    put:
+      operationId: markDelivered
+      parameters:
+        - name: conversationId
+          required: true
+          in: path
+          schema:
+            format: uuid
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateReceiptDto'
+            examples:
+              default:
+                summary: Persist a delivery boundary
+                value:
+                  throughMessageId: 44444444-4444-4444-8444-444444444444
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReceiptUpdateResponseDto'
+        '404':
+          description: >-
+            The conversation, membership, or incoming message boundary is
+            inaccessible.
+      security:
+        - bearer: []
+      summary: Mark incoming messages as delivered
+      tags:
+        - receipts
+  /v1/conversations/{conversationId}/receipts/read:
+    put:
+      operationId: markRead
+      parameters:
+        - name: conversationId
+          required: true
+          in: path
+          schema:
+            format: uuid
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateReceiptDto'
+            examples:
+              default:
+                summary: Persist a read boundary
+                value:
+                  throughMessageId: 44444444-4444-4444-8444-444444444444
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReceiptUpdateResponseDto'
+        '404':
+          description: >-
+            The conversation, membership, or incoming message boundary is
+            inaccessible.
+      security:
+        - bearer: []
+      summary: Mark incoming messages as read
+      tags:
+        - receipts
+  /v1/conversations/{conversationId}/receipts:
+    get:
+      operationId: list
+      parameters:
+        - name: conversationId
+          required: true
+          in: path
+          schema:
+            format: uuid
+            type: string
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReceiptFrontiersResponseDto'
+        '404':
+          description: The conversation is missing or the user is not a member.
+      security:
+        - bearer: []
+      summary: Reconcile participant receipt frontiers
+      tags:
+        - receipts
+  /v1/health:
+    get:
+      operationId: getHealth
+      parameters: []
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                example:
+                  status: ok
+                  service: chateo-api
+      tags:
+        - health
+info:
+  title: ChatMe API
+  description: Phone authentication and chat backend API
+  version: '1.0'
+  contact: {}
+tags: []
+servers: []
+components:
+  securitySchemes:
+    bearer:
+      scheme: bearer
+      bearerFormat: JWT
+      type: http
+  schemas:
+    RequestOtpDto:
+      type: object
+      properties:
+        phoneNumber:
+          type: string
+          example: '+2348012345678'
+          description: A valid phone number in E.164 format.
+      required:
+        - phoneNumber
+    ResendOtpDto:
+      type: object
+      properties:
+        challengeId:
+          type: string
+          format: uuid
+          example: 550e8400-e29b-41d4-a716-446655440000
+      required:
+        - challengeId
+    AuthDeviceDto:
+      type: object
+      properties:
+        name:
+          type: string
+          example: GreatΓÇÖs iPhone
+        platform:
+          type: string
+          enum:
+            - ios
+            - android
+            - web
+            - unknown
+          default: unknown
+          example: ios
+    VerifyOtpDto:
+      type: object
+      properties:
+        challengeId:
+          type: string
+          format: uuid
+          example: 550e8400-e29b-41d4-a716-446655440000
+        code:
+          type: string
+          example: '1234'
+          minLength: 4
+          maxLength: 8
+          description: Use the codeLength returned by the OTP request endpoint.
+        device:
+          $ref: '#/components/schemas/AuthDeviceDto'
+      required:
+        - challengeId
+        - code
+    RefreshTokenDto:
+      type: object
+      properties:
+        refreshToken:
+          type: string
+          description: The opaque refresh token returned at sign-in.
+          example: >-
+            550e8400-e29b-41d4-a716-446655440000.3fQ8xZ7uV2nK5mP9rT4wY6aB1cD0eF8gH2jL7sN5qRk
+      required:
+        - refreshToken
+    OtpChallengeResponseDto:
+      type: object
+      properties:
+        challengeId:
+          type: string
+          format: uuid
+        phoneNumberMasked:
+          type: string
+          example: +234********78
+        expiresInSeconds:
+          type: number
+          example: 300
+        resendInSeconds:
+          type: number
+          example: 24
+        codeLength:
+          type: number
+          example: 4
+          minimum: 4
+          maximum: 8
+      required:
+        - challengeId
+        - phoneNumberMasked
+        - expiresInSeconds
+        - resendInSeconds
+        - codeLength
+    UserResponseDto:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        phoneNumber:
+          type: string
+          example: '+2348012345678'
+        displayName:
+          type: object
+          nullable: true
+          example: Great Ichoku
+        avatarUrl:
+          type: object
+          nullable: true
+          format: uri
+        profileComplete:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - phoneNumber
+        - profileComplete
+        - createdAt
+    AuthResponseDto:
+      type: object
+      properties:
+        accessToken:
+          type: string
+        accessTokenExpiresInSeconds:
+          type: number
+          example: 900
+        refreshToken:
+          type: string
+        refreshTokenExpiresInSeconds:
+          type: number
+          example: 2592000
+        user:
+          $ref: '#/components/schemas/UserResponseDto'
+      required:
+        - accessToken
+        - accessTokenExpiresInSeconds
+        - refreshToken
+        - refreshTokenExpiresInSeconds
+        - user
+    UpdateProfileDto:
+      type: object
+      properties:
+        displayName:
+          type: string
+          example: Great Ichoku
+          minLength: 2
+          maxLength: 80
+        avatarUrl:
+          type: string
+          nullable: true
+          format: uri
+          example: https://example.com/avatars/great.jpg
+          description: >-
+            A URL returned by the future media-upload service, or null to
+            remove.
+    MatchContactsDto:
+      type: object
+      properties:
+        phoneNumbers:
+          minItems: 1
+          maxItems: 100
+          example:
+            - +234 801 234 5678
+            - '+2348098765432'
+          description: >-
+            International phone numbers already known to the caller. Values must
+            include + and are normalized to E.164 before matching.
+          type: array
+          items:
+            type: string
+      required:
+        - phoneNumbers
+    PublicDiscoveryUserDto:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        displayName:
+          type: object
+          nullable: true
+          example: Ada Okafor
+        avatarUrl:
+          type: string
+          nullable: true
+          format: uri
+          example: https://example.com/avatars/ada.jpg
+      required:
+        - id
+        - displayName
+        - avatarUrl
+    ContactMatchDto:
+      type: object
+      properties:
+        matchedPhoneNumber:
+          type: string
+          example: '+2348012345678'
+        user:
+          $ref: '#/components/schemas/PublicDiscoveryUserDto'
+      required:
+        - matchedPhoneNumber
+        - user
+    ContactMatchesResponseDto:
+      type: object
+      properties:
+        matches:
+          type: array
+          items:
+            $ref: '#/components/schemas/ContactMatchDto'
+      required:
+        - matches
+    Object:
+      type: object
+      properties: {}
+    UserSearchResponseDto:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/PublicDiscoveryUserDto'
+        nextCursor:
+          type: string
+          nullable: true
+          description: Pass this opaque value to cursor to request the next page.
+      required:
+        - items
+        - nextCursor
+    CreateDirectConversationDto:
+      type: object
+      properties:
+        participantId:
+          type: string
+          format: uuid
+          example: 7d444840-9dc0-11d1-b245-5ffdce74fad2
+          description: The registered user to start a direct conversation with.
+      required:
+        - participantId
+    ConversationParticipantDto:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        displayName:
+          type: object
+          nullable: true
+          example: Ada Okafor
+        avatarUrl:
+          type: string
+          nullable: true
+          format: uri
+          example: https://example.com/avatars/ada.jpg
+      required:
+        - id
+        - displayName
+        - avatarUrl
+    ConversationLatestMessageDto:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        senderId:
+          type: string
+          format: uuid
+        kind:
+          type: string
+          enum:
+            - text
+          example: text
+        preview:
+          type: string
+          example: Hello!
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - senderId
+        - kind
+        - preview
+        - createdAt
+    ConversationResponseDto:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum:
+            - direct
+          example: direct
+        otherParticipant:
+          $ref: '#/components/schemas/ConversationParticipantDto'
+        latestMessage:
+          nullable: true
+          example: null
+          description: The newest message in the conversation, when present.
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/ConversationLatestMessageDto'
+        unreadCount:
+          type: number
+          minimum: 0
+          example: 0
+        lastActivityAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - type
+        - otherParticipant
+        - latestMessage
+        - unreadCount
+        - lastActivityAt
+        - createdAt
+        - updatedAt
+    ConversationPageInfoDto:
+      type: object
+      properties:
+        nextCursor:
+          type: object
+          nullable: true
+        hasNextPage:
+          type: boolean
+      required:
+        - nextCursor
+        - hasNextPage
+    ConversationListResponseDto:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ConversationResponseDto'
+        pageInfo:
+          $ref: '#/components/schemas/ConversationPageInfoDto'
+      required:
+        - items
+        - pageInfo
+    SendMessageDto:
+      type: object
+      properties:
+        clientMessageId:
+          type: string
+          format: uuid
+          example: 7d444840-9dc0-41d1-b245-5ffdce74fad2
+          description: >-
+            A client-generated idempotency key. Reusing it with the same message
+            returns the original message.
+        text:
+          type: string
+          minLength: 1
+          maxLength: 4000
+          example: Hello! Are you free to chat?
+      required:
+        - clientMessageId
+        - text
+    MessageResponseDto:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        conversationId:
+          type: string
+          format: uuid
+        clientMessageId:
+          type: string
+          format: uuid
+        senderId:
+          type: string
+          format: uuid
+        kind:
+          type: string
+          enum:
+            - text
+          example: text
+        text:
+          type: string
+          example: Hello! Are you free to chat?
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - conversationId
+        - clientMessageId
+        - senderId
+        - kind
+        - text
+        - createdAt
+    MessagePageInfoDto:
+      type: object
+      properties:
+        nextCursor:
+          type: string
+          nullable: true
+        hasNextPage:
+          type: boolean
+      required:
+        - nextCursor
+        - hasNextPage
+    MessageHistoryResponseDto:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/MessageResponseDto'
+        pageInfo:
+          $ref: '#/components/schemas/MessagePageInfoDto'
+      required:
+        - items
+        - pageInfo
+    ConversationReadStateResponseDto:
+      type: object
+      properties:
+        conversationId:
+          type: string
+          format: uuid
+        lastReadAt:
+          type: string
+          format: date-time
+        unreadCount:
+          type: number
+          minimum: 0
+          example: 0
+      required:
+        - conversationId
+        - lastReadAt
+        - unreadCount
+    UpdateReceiptDto:
+      type: object
+      properties:
+        throughMessageId:
+          type: string
+          format: uuid
+          description: Latest incoming message included in this receipt update.
+          example: 44444444-4444-4444-8444-444444444444
+      required:
+        - throughMessageId
+    ReceiptBoundaryResponseDto:
+      type: object
+      properties:
+        messageId:
+          type: string
+          format: uuid
+        at:
+          type: string
+          format: date-time
+      required:
+        - messageId
+        - at
+    ReceiptUpdateResponseDto:
+      type: object
+      properties:
+        conversationId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+            - delivered
+            - read
+        throughMessageId:
+          type: string
+          format: uuid
+        at:
+          type: string
+          format: date-time
+        changed:
+          type: boolean
+          description: False when this boundary had already been persisted.
+        unreadCount:
+          type: number
+          minimum: 0
+        version:
+          type: number
+          minimum: 0
+        delivered:
+          $ref: '#/components/schemas/ReceiptBoundaryResponseDto'
+        read:
+          nullable: true
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/ReceiptBoundaryResponseDto'
+      required:
+        - conversationId
+        - status
+        - throughMessageId
+        - at
+        - changed
+        - unreadCount
+        - version
+        - delivered
+        - read
+    ReceiptFrontierResponseDto:
+      type: object
+      properties:
+        userId:
+          type: string
+          format: uuid
+        version:
+          type: number
+          minimum: 0
+        delivered:
+          nullable: true
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/ReceiptBoundaryResponseDto'
+        read:
+          nullable: true
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/ReceiptBoundaryResponseDto'
+      required:
+        - userId
+        - version
+        - delivered
+        - read
+    ReceiptFrontiersResponseDto:
+      type: object
+      properties:
+        conversationId:
+          type: string
+          format: uuid
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReceiptFrontierResponseDto'
+      required:
+        - conversationId
+        - items
+

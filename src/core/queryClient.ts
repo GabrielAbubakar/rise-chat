@@ -1,20 +1,8 @@
+import { createZustandStorage } from "@store/storage";
 import { createAsyncStoragePersister } from "@tanstack/query-async-storage-persister";
 import { QueryClient } from "@tanstack/react-query";
-import { createMMKV } from "react-native-mmkv";
 
-const queryClientStorage = createMMKV({ id: "react-query-cache" });
-
-const mmkvPersister = {
-  setItem: (key: string, value: string) => {
-    queryClientStorage.set(key, value);
-  },
-  getItem: (key: string) => {
-    return queryClientStorage.getString(key) ?? null;
-  },
-  removeItem: (key: string) => {
-    queryClientStorage.remove(key);
-  },
-};
+const mmkvPersister = createZustandStorage("react-query-cache");
 
 export const queryClient = new QueryClient({
   defaultOptions: {
