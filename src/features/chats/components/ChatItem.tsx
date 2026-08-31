@@ -1,5 +1,4 @@
 import { Avatar, BaseText } from "@/shared/components";
-import { useState } from "react";
 import { Pressable, View } from "react-native";
 // import Swipeable from "react-native-gesture-handler/Swipeable";
 import { useColorScheme } from "nativewind";
@@ -11,42 +10,35 @@ import PinIcon from "@/assets/icons/solid/bookmark.svg";
 import DotsIcon from "@/assets/icons/solid/dots-horizontal.svg";
 import TrashIcon from "@/assets/icons/solid/trash.svg";
 import VolumeOffIcon from "@/assets/icons/solid/volume-off.svg";
+import { ConversationResponseDto } from "../types";
 
 interface ChatItemProps {
-  id: string;
-  name: string;
-  avatar?: string;
-  avatarType?: "image" | "initials" | "group" | "archive";
-  initials?: string;
-  avatarColor?: string;
-  lastMessage: string;
-  time: string;
-  unreadCount: number;
-  isPinned: boolean;
-  isActive: boolean;
+  data: ConversationResponseDto;
   isSelected?: boolean;
   onPress?: () => void;
   onLongPress?: () => void;
 }
 
 export function ChatItem({
-  name,
-  avatar,
-  avatarType = "image",
-  initials,
-  avatarColor,
-  lastMessage,
-  time,
-  unreadCount,
-  isPinned,
-  isActive,
+  data,
   isSelected,
   onPress,
   onLongPress,
 }: ChatItemProps) {
+  const { otherParticipant, latestMessage, unreadCount, lastActivityAt } = data;
+  
+  const lastMessage = latestMessage?.preview || "";
+  const time = lastActivityAt
+    ? new Date(lastActivityAt).toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    : "";
+  
+  const isPinned = false; // Can be derived from data later
+  const isActive = false; // Can be derived from data later
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === "dark";
-  const [isSwiping, setIsSwiping] = useState(false);
 
   const renderRightActions = () => {
     return (
@@ -100,10 +92,8 @@ export function ChatItem({
       >
         <View className="relative">
           <Avatar
-            type={avatarType}
-            source={avatar}
-            initials={initials}
-            backgroundColor={avatarColor}
+            source={otherParticipant?.avatarUrl || undefined}
+            initials={otherParticipant?.displayName?.charAt(0)}
             isActive={isActive}
             size={56}
           />
@@ -114,7 +104,7 @@ export function ChatItem({
             type="body-lg"
             className="text-label dark:text-label-dark font-sf-bold"
           >
-            {name}
+            {otherParticipant?.displayName}
           </BaseText>
           <BaseText
             type="body-lg"
