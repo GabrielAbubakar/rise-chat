@@ -33,17 +33,19 @@ export function ChatsScreen() {
   const newChatBottomSheetRef = useRef<BottomSheetModal>(null);
   const newGroupBottomSheetRef = useRef<BottomSheetModal>(null);
   const { data: conversations } = useConversationsList();
+  // const userID = useAuthStore((state) => state.user?.id);
   const [displayConversations, setDisplayConversations] = useState(
     conversations?.pages.flatMap((page) => page.items) || [],
   );
+
+  // console.log("userID", userID);
+  // console.log("conversations", conversations);
 
   useEffect(() => {
     setDisplayConversations(
       conversations?.pages.flatMap((page) => page.items) || [],
     );
   }, [conversations]);
-
-  console.log(conversations);
 
   const handleNewChatPress = () => {
     newChatBottomSheetRef.current?.present();

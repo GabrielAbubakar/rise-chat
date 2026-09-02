@@ -11,6 +11,7 @@ import ArrowLeftIcon from "@/assets/icons/solid/cheveron-left.svg";
 
 // Dummy Data
 import { DUMMY_ARCHIVED_CHATS } from "@/constants/dummyData";
+import { ConversationResponseDto } from "../types";
 
 export function ArchivedChatsScreen() {
   const router = useRouter();
@@ -19,18 +20,8 @@ export function ArchivedChatsScreen() {
     router.push(`/chat/${id}`);
   };
 
-  const renderItem = ({
-    item,
-  }: {
-    item: (typeof DUMMY_ARCHIVED_CHATS)[0];
-  }) => (
-    <ChatItem
-      {...item}
-      avatarType={
-        item.avatarType as "image" | "initials" | "group" | "archive" | undefined
-      }
-      onPress={() => handleChatPress(item.id)}
-    />
+  const renderItem = ({ item }: { item: ConversationResponseDto }) => (
+    <ChatItem data={item} onPress={() => handleChatPress(item.id)} />
   );
 
   return (

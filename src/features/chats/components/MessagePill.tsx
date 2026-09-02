@@ -1,5 +1,5 @@
-import React from "react";
 import { BaseText } from "@/shared/components";
+import React from "react";
 import { View } from "react-native";
 
 export interface MessagePillProps {
@@ -78,8 +78,8 @@ export function MessagePill({
           isMe
             ? "bg-primary-400 rounded-br-sm"
             : isCurrentMatch
-            ? "bg-white dark:bg-neutral-800 border-2 border-primary-400 rounded-bl-sm"
-            : "bg-white dark:bg-neutral-800 rounded-bl-sm"
+              ? "bg-white dark:bg-neutral-800 border-2 border-primary-400 rounded-bl-sm"
+              : "bg-white dark:bg-neutral-800 rounded-bl-sm"
         }`}
         style={{
           shadowColor: "#000",
@@ -100,4 +100,3 @@ export function MessagePill({
     </View>
   );
 }
-

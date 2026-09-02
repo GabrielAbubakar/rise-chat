@@ -35,6 +35,8 @@ apiClient.interceptors.request.use(
     const token = await tokenStorage.getAccessToken();
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
+    } else if (config.headers) {
+      delete config.headers.Authorization;
     }
     return config;
   },
@@ -119,9 +121,11 @@ apiClient.interceptors.response.use(
 
     // Map the error to our standard AppError
     const data = error.response?.data as any;
-    const message =
-      data?.message || error.message || "An unexpected error occurred";
-    const code = data?.code || error.code || "API_ERROR";
+    const rawMessage = data?.message;
+    const message = Array.isArray(rawMessage)
+      ? rawMessage.join("; ")
+      : rawMessage || error.message || "An unexpected error occurred";
+    const code = data?.code || data?.error || error.code || "API_ERROR";
     const appError = new AppError(message, code, error.response?.status);
 
     return Promise.reject(appError);

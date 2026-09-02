@@ -2,7 +2,14 @@ import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { useColorScheme } from "nativewind";
 import { useState } from "react";
-import { Alert, Pressable, ScrollView, Switch, View } from "react-native";
+import {
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  ScrollView,
+  Switch,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 // Shared Components
@@ -25,13 +32,14 @@ import ArrowLeftIcon from "@/assets/icons/solid/cheveron-left.svg";
 import LogoutIcon from "@/assets/icons/solid/logout.svg";
 import SearchIcon from "@/assets/icons/solid/search.svg";
 import UserAddIcon from "@/assets/icons/solid/user-add.svg";
+import UserIcon from "@/assets/icons/solid/user.svg";
 
-// Dummy Data
-import {
-  DUMMY_CHATS,
-  DUMMY_GROUP_MEMBERS,
-  DUMMY_PHOTOS,
-} from "@/constants/dummyData";
+// Utilities
+import { formatLastSeen } from "@/shared/utils";
+
+// API Hooks & Dummy Media
+import { DUMMY_GROUP_MEMBERS, DUMMY_PHOTOS } from "@/constants/dummyData";
+import { useConversationDetail } from "../hooks/useChats";
 
 export interface ProfileScreenProps {
   id?: string;
@@ -46,44 +54,45 @@ export function ProfileScreen({ id }: ProfileScreenProps) {
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
 
-  // Find chat or fallback to first chat
-  const chat = DUMMY_CHATS.find((c) => c.id === id) || DUMMY_CHATS[0];
-  const isGroup = chat.avatarType === "group" || chat.isGroup;
+  const conversationId = id || "";
+  const { data: conversationDetail, isLoading } = useConversationDetail(
+    conversationId,
+    { enabled: !!conversationId },
+  );
 
-  const coverImageSource =
-    chat.coverImage ||
-    chat.avatar ||
-    (isGroup
-      ? "https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=800"
-      : "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800");
+  const otherParticipant = conversationDetail?.otherParticipant;
+  const name = otherParticipant?.displayName || "User";
+  const avatar = otherParticipant?.avatarUrl || undefined;
+  const isGroup = (conversationDetail?.type as any) === "group";
+  const lastSeenText = formatLastSeen(conversationDetail?.lastActivityAt);
 
   const previewPhotos = DUMMY_PHOTOS.slice(0, 5);
 
   const handleOpenMediaTab = (tab: "photos" | "stars" | "links") => {
     router.push({
       pathname: "/chat/media",
-      params: { id: chat.id, initialTab: tab },
+      params: { id: conversationId, initialTab: tab },
     });
   };
 
   const handleSearchChat = () => {
     router.push({
       pathname: "/chat/[id]",
-      params: { id: chat.id, search: "true" },
+      params: { id: conversationId, search: "true" },
     });
   };
 
   const handleOpenQrCode = () => {
     router.push({
       pathname: "/chat/qr",
-      params: { id: chat.id },
+      params: { id: conversationId },
     });
   };
 
   const handleBlockContact = () => {
     Alert.alert(
       "Block Contact",
-      `Are you sure you want to block ${chat.name}? You won't receive messages or calls from them.`,
+      `Are you sure you want to block ${name}? You won't receive messages or calls from them.`,
       [
         { text: "Cancel", style: "cancel" },
         { text: "Block", style: "destructive", onPress: () => router.back() },
@@ -92,7 +101,7 @@ export function ProfileScreen({ id }: ProfileScreenProps) {
   };
 
   const handleLeaveGroup = () => {
-    Alert.alert("Leave group", `Are you sure you want to leave ${chat.name}?`, [
+    Alert.alert("Leave group", `Are you sure you want to leave ${name}?`, [
       { text: "Cancel", style: "cancel" },
       {
         text: "Leave",
@@ -101,6 +110,18 @@ export function ProfileScreen({ id }: ProfileScreenProps) {
       },
     ]);
   };
+
+  if (isLoading) {
+    return (
+      <ScreenContainer
+        withPadding={false}
+        isSafeArea={false}
+        className="flex-1 bg-white dark:bg-app-dark items-center justify-center"
+      >
+        <ActivityIndicator size="large" color="#4ADE80" />
+      </ScreenContainer>
+    );
+  }
 
   return (
     <ScreenContainer
@@ -120,21 +141,31 @@ export function ProfileScreen({ id }: ProfileScreenProps) {
           className="relative w-full"
           style={{ height: isGroup ? 250 : 340 }}
         >
-          <Image
-            source={{ uri: coverImageSource }}
-            style={{ width: "100%", height: "100%" }}
-            contentFit="cover"
-          />
+          {avatar ? (
+            <Image
+              source={{ uri: avatar }}
+              style={{ width: "100%", height: "100%" }}
+              contentFit="cover"
+            />
+          ) : (
+            <View className="w-full h-full bg-neutral-200 dark:bg-neutral-800 items-center justify-center">
+              <UserIcon
+                width={100}
+                height={100}
+                color={isDark ? "#6E8597" : "#9CA3AF"}
+              />
+            </View>
+          )}
 
           {/* Dark gradient / tint overlay */}
           <View className="absolute inset-0 bg-black/25" />
 
-          <View className="mb-4 absolute bottom-4 left-6">
-            <BaseText className="text-neutral-900 dark:text-white text-3xl font-sf-bold">
-              {chat.name}
+          <View className="mb-4 absolute bottom-4 left-6 z-10">
+            <BaseText className="text-white text-3xl font-sf-bold">
+              {name}
             </BaseText>
-            <BaseText className="text-neutral-500 dark:text-neutral-400 font-sf-regular mt-0.5">
-              {chat.lastSeen || "Last seen 24 minutes ago"}
+            <BaseText className="text-white/80 font-sf-regular mt-0.5">
+              {lastSeenText}
             </BaseText>
           </View>
 
@@ -176,7 +207,7 @@ export function ProfileScreen({ id }: ProfileScreenProps) {
               onPress={() =>
                 router.push({
                   pathname: "/chat/[id]",
-                  params: { id: chat.id },
+                  params: { id: conversationId },
                 })
               }
               className="absolute right-6 -bottom-6 w-14 h-14 rounded-full bg-primary-400 items-center justify-center shadow-lg z-20"
@@ -209,8 +240,7 @@ export function ProfileScreen({ id }: ProfileScreenProps) {
                     className="text-neutral-700 dark:text-neutral-200 font-sf-regular leading-5"
                     numberOfLines={isDescriptionExpanded ? undefined : 2}
                   >
-                    {chat.description ||
-                      "Massa massa, ultrices morbi tortor et in cursus ultrices rem dignissim nunc tortor aenean aliquet faucibus habitasse mi. Proin sed libero enim sed faucibus."}
+                    Group conversation
                   </BaseText>
                   <Pressable
                     onPress={() =>
@@ -234,9 +264,6 @@ export function ProfileScreen({ id }: ProfileScreenProps) {
                 </BaseText>
 
                 <MediaSummaryRows
-                  photosCount={chat.photosCount}
-                  starMessagesCount={chat.starMessagesCount}
-                  sharedLinksCount={chat.sharedLinksCount}
                   previewPhotos={previewPhotos}
                   isDark={isDark}
                   onOpenMediaTab={handleOpenMediaTab}
@@ -249,7 +276,7 @@ export function ProfileScreen({ id }: ProfileScreenProps) {
               <View className="p-6">
                 <View className="flex-row items-center justify-between mb-4">
                   <BaseText className="text-neutral-900 dark:text-white font-sf-bold text-lg">
-                    {chat.membersCount || 258} members
+                    Members
                   </BaseText>
                   <View className="flex-row items-center gap-4">
                     <Pressable className="p-1">
@@ -290,23 +317,13 @@ export function ProfileScreen({ id }: ProfileScreenProps) {
             /* ================= Individual User Profile View ================= */
             <View>
               <View className="px-6">
-                {/* Phone Number Block */}
+                {/* User Name / Info Block */}
                 <View className="py-2.5">
                   <BaseText className="text-neutral-900 dark:text-white font-sf-bold text-lg">
-                    {chat.phone || "+61-123-753-555"}
+                    {name}
                   </BaseText>
                   <BaseText className="text-neutral-500 dark:text-neutral-400 font-sf-regular mt-0.5">
-                    Phone number
-                  </BaseText>
-                </View>
-
-                {/* Description / Status Block */}
-                <View className="py-2.5 mb-2">
-                  <BaseText className="text-neutral-900 dark:text-white font-sf-bold text-lg">
-                    {chat.statusText || "Busy 🔥"}
-                  </BaseText>
-                  <BaseText className="text-neutral-500 dark:text-neutral-400 font-sf-regular mt-0.5">
-                    Description
+                    User
                   </BaseText>
                 </View>
               </View>
@@ -318,9 +335,6 @@ export function ProfileScreen({ id }: ProfileScreenProps) {
                 </BaseText>
 
                 <MediaSummaryRows
-                  photosCount={chat.photosCount}
-                  starMessagesCount={chat.starMessagesCount}
-                  sharedLinksCount={chat.sharedLinksCount}
                   previewPhotos={previewPhotos}
                   isDark={isDark}
                   onOpenMediaTab={handleOpenMediaTab}

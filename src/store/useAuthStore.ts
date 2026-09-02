@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { UserResponseDto } from "@/features/auth/types";
 import { tokenStorage } from "@/services/api/token";
+import { clientPersister, queryClient } from "@/core/queryClient";
 import { createZustandStorage } from "./storage";
 
 interface AuthState {
@@ -14,9 +15,18 @@ export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
       user: null,
-      setUser: (user) => set({ user }),
+      setUser: (user) => {
+        const currentUser = useAuthStore.getState().user;
+        if (!currentUser || currentUser.id !== user.id) {
+          queryClient.clear();
+          clientPersister.removeClient();
+        }
+        set({ user });
+      },
       logout: async () => {
         await tokenStorage.clearTokens();
+        queryClient.clear();
+        await clientPersister.removeClient();
         set({ user: null });
       },
     }),

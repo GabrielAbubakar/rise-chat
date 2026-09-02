@@ -11,8 +11,9 @@ import {
   BottomSheetTextInput,
 } from "@gorhom/bottom-sheet";
 import * as Contacts from "expo-contacts/legacy";
-import {
+import React, {
   forwardRef,
+  useCallback,
   useDeferredValue,
   useEffect,
   useMemo,
@@ -25,15 +26,67 @@ import CheckIcon from "@/assets/icons/solid/check.svg";
 import SearchIcon from "@/assets/icons/solid/search.svg";
 import { colors } from "@/shared/constants";
 import { useColorScheme } from "nativewind";
-
-export interface ContactItem {
-  id: string;
-  name: string;
-  phone?: string;
-  avatar?: string;
-}
+import { ContactItem } from "./NewChatBottomSheet";
 
 export type NewGroupBottomSheetProps = {};
+
+interface GroupContactCardProps {
+  item: ContactItem;
+  isSelected: boolean;
+  onToggle: (id: string) => void;
+}
+
+const GroupContactCard = React.memo(
+  ({ item, isSelected, onToggle }: GroupContactCardProps) => {
+    return (
+      <Pressable
+        onPress={() => onToggle(item.id)}
+        className="items-center w-16"
+      >
+        <View className="relative mb-2">
+          <View
+            className={`rounded-full overflow-hidden ${
+              isSelected
+                ? "border-2 border-primary-400"
+                : "border-2 border-transparent"
+            }`}
+          >
+            <Avatar
+              type={item.avatar ? "image" : "initials"}
+              source={item.avatar}
+              initials={item.name.charAt(0)}
+              size={52}
+            />
+          </View>
+          {isSelected && (
+            <View className="absolute inset-0 bg-black/40 rounded-full items-center justify-center m-[2px]">
+              <View
+                className="w-6 h-6 bg-primary-400 items-center justify-center"
+                style={{ borderRadius: 12 }}
+              >
+                <CheckIcon width={12} height={12} color="white" />
+              </View>
+            </View>
+          )}
+        </View>
+        <BaseText
+          type="body-md"
+          className="text-center font-sf-medium text-neutral-900 dark:text-white"
+          numberOfLines={1}
+        >
+          {item.name.split(" ")[0]}
+        </BaseText>
+      </Pressable>
+    );
+  },
+  (prevProps, nextProps) =>
+    prevProps.isSelected === nextProps.isSelected &&
+    prevProps.item.id === nextProps.item.id &&
+    prevProps.item.name === nextProps.item.name &&
+    prevProps.item.avatar === nextProps.item.avatar,
+);
+
+GroupContactCard.displayName = "GroupContactCard";
 
 export const NewGroupBottomSheet = forwardRef<
   BottomSheetModal,
@@ -45,8 +98,8 @@ export const NewGroupBottomSheet = forwardRef<
   const snapPoints = useMemo(() => ["85%"], []);
 
   const [step, setStep] = useState<1 | 2>(1);
-  const [selectedParticipants, setSelectedParticipants] = useState<string[]>(
-    [],
+  const [selectedParticipants, setSelectedParticipants] = useState<Set<string>>(
+    new Set(),
   );
   const [searchQuery, setSearchQuery] = useState("");
   const [groupName, setGroupName] = useState("");
@@ -84,11 +137,17 @@ export const NewGroupBottomSheet = forwardRef<
     })();
   }, []);
 
-  const toggleParticipant = (id: string) => {
-    setSelectedParticipants((prev) =>
-      prev.includes(id) ? prev.filter((pId) => pId !== id) : [...prev, id],
-    );
-  };
+  const toggleParticipant = useCallback((id: string) => {
+    setSelectedParticipants((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }, []);
 
   const deferredSearchQuery = useDeferredValue(searchQuery);
 
@@ -98,45 +157,16 @@ export const NewGroupBottomSheet = forwardRef<
     );
   }, [contacts, deferredSearchQuery]);
 
-  const renderContact = ({ item }: { item: ContactItem }) => {
-    const isSelected = selectedParticipants.includes(item.id);
-    return (
-      <Pressable
-        onPress={() => toggleParticipant(item.id)}
-        className="items-center w-16"
-      >
-        <View className="relative mb-2">
-          <View
-            className={`rounded-full overflow-hidden ${isSelected ? "border-2 border-primary-400" : "border-2 border-transparent"}`}
-          >
-            <Avatar
-              type={item.avatar ? "image" : "initials"}
-              source={item.avatar}
-              initials={item.name.charAt(0)}
-              size={52}
-            />
-          </View>
-          {isSelected && (
-            <View className="absolute inset-0 bg-black/40 rounded-full items-center justify-center m-[2px]">
-              <View
-                className="w-6 h-6 bg-primary-400 items-center justify-center"
-                style={{ borderRadius: 12 }}
-              >
-                <CheckIcon width={12} height={12} color="white" />
-              </View>
-            </View>
-          )}
-        </View>
-        <BaseText
-          type="body-md"
-          className="text-center font-sf-medium text-neutral-900 dark:text-white"
-          numberOfLines={1}
-        >
-          {item.name.split(" ")[0]}
-        </BaseText>
-      </Pressable>
-    );
-  };
+  const renderContact = useCallback(
+    ({ item }: { item: ContactItem }) => (
+      <GroupContactCard
+        item={item}
+        isSelected={selectedParticipants.has(item.id)}
+        onToggle={toggleParticipant}
+      />
+    ),
+    [selectedParticipants, toggleParticipant],
+  );
 
   const renderStep1 = () => (
     <>
@@ -231,13 +261,13 @@ export const NewGroupBottomSheet = forwardRef<
             console.log("Create Group", {
               groupName,
               groupDescription,
-              selectedParticipants,
+              selectedParticipants: Array.from(selectedParticipants),
             });
             (ref as any)?.current?.dismiss();
             // Reset state after closing animation
             setTimeout(() => {
               setStep(1);
-              setSelectedParticipants([]);
+              setSelectedParticipants(new Set());
               setGroupName("");
               setGroupDescription("");
               setSearchQuery("");
@@ -264,7 +294,7 @@ export const NewGroupBottomSheet = forwardRef<
       onDismiss={() => {
         setTimeout(() => {
           setStep(1);
-          setSelectedParticipants([]);
+          setSelectedParticipants(new Set());
           setGroupName("");
           setGroupDescription("");
           setSearchQuery("");
@@ -276,10 +306,10 @@ export const NewGroupBottomSheet = forwardRef<
         <View className={`items-center ${step === 1 ? "mb-6" : "mb-10"}`}>
           <BaseText type="h4" className="font-sf-bold mb-5">
             {step === 1 ? "Add participants" : "New Group"}
-            {step === 1 && selectedParticipants.length > 0 && (
+            {step === 1 && selectedParticipants.size > 0 && (
               <BaseText type="h4" style={{ color: colors.primary[400] }}>
                 {" "}
-                ({selectedParticipants.length})
+                ({selectedParticipants.size})
               </BaseText>
             )}
           </BaseText>
@@ -303,3 +333,4 @@ export const NewGroupBottomSheet = forwardRef<
 });
 
 NewGroupBottomSheet.displayName = "NewGroupBottomSheet";
+

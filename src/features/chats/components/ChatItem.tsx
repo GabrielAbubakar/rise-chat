@@ -74,6 +74,18 @@ export function ChatItem({
     );
   };
 
+  const hasAvatar = Boolean(otherParticipant?.avatarUrl);
+  const avatarType =
+    data.type === "direct"
+      ? hasAvatar
+        ? "image"
+        : "initials"
+      : "group";
+
+  const initials = otherParticipant?.displayName
+    ? otherParticipant.displayName.charAt(0).toUpperCase()
+    : "?";
+
   return (
     <Swipeable
       renderRightActions={renderRightActions}
@@ -92,8 +104,9 @@ export function ChatItem({
       >
         <View className="relative">
           <Avatar
+            type={avatarType}
             source={otherParticipant?.avatarUrl || undefined}
-            initials={otherParticipant?.displayName?.charAt(0)}
+            initials={initials}
             isActive={isActive}
             size={56}
           />
