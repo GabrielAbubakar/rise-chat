@@ -37,7 +37,7 @@ function RootLayout() {
 
   useEffect(() => {
     setColorScheme(themePreference);
-  }, [themePreference]);
+  }, [themePreference, setColorScheme]);
 
   if (!isAppReady) {
     return null;

@@ -4,7 +4,7 @@ import { LegendList } from "@legendapp/list/react-native";
 import * as Haptics from "expo-haptics";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useColorScheme } from "nativewind";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { BackHandler, Pressable, RefreshControl, View } from "react-native";
 import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
 
@@ -41,18 +41,8 @@ export function ChatsScreen() {
   const { data: conversations, refetch, isPending } = useConversationsList();
   const { data: archivedConversations } = useArchivedConversationsList();
   // const userID = useAuthStore((state) => state.user?.id);
-  const [displayConversations, setDisplayConversations] = useState(
-    conversations?.pages.flatMap((page) => page.items) || [],
-  );
-
-  // console.log("userID", userID);
-  // console.log("conversations", conversations);
-
-  useEffect(() => {
-    setDisplayConversations(
-      conversations?.pages.flatMap((page) => page.items) || [],
-    );
-  }, [conversations]);
+  const displayConversations =
+    conversations?.pages.flatMap((page) => page.items) || [];
 
   const handleNewChatPress = () => {
     newChatBottomSheetRef.current?.present();

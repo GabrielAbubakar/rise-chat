@@ -45,8 +45,6 @@ export function RealtimeProvider({
     let active = true;
 
     if (!enabled || !user) {
-      setSocket(null);
-      setStatus("disconnected");
       return;
     }
 

@@ -22,6 +22,8 @@ import {
   useUnpinConversation,
 } from "../hooks/useChats";
 
+import { ConversationResponseDto } from "../types";
+
 interface SwipeableActionButtonProps {
   onPress?: () => void;
   bgColorClass: string;
@@ -54,8 +56,6 @@ const SwipeableActionButton = ({
     </RNGHPressable>
   );
 };
-
-import { ConversationResponseDto } from "../types";
 
 interface ChatItemProps {
   data: ConversationResponseDto;

@@ -29,10 +29,10 @@ export interface PresenceParticipantState {
 export interface PresenceSubscriptionData {
   conversationId: string;
   participants: PresenceParticipantState[];
-  typing: Array<{
+  typing: {
     userId: string;
     expiresAt: string;
-  }>;
+  }[];
 }
 
 export interface PresenceUnsubscriptionData {

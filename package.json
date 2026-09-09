@@ -73,6 +73,9 @@
     "zustand": "^5.0.14"
   },
   "devDependencies": {
+    "@eslint/compat": "^2.1.1",
+    "@eslint/eslintrc": "^3.3.7",
+    "@eslint/js": "^10.0.1",
     "@types/react": "~19.2.2",
     "eslint": "^10.8.1",
     "eslint-config-expo": "^57.0.1",
@@ -85,7 +88,8 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "lint-fix": "expo lint --fix"
   },
   "private": true
 }

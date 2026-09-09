@@ -1,7 +1,7 @@
-import React, { forwardRef } from "react";
+import { forwardRef } from "react";
 import { TouchableOpacity, TouchableOpacityProps, View } from "react-native";
 
-export interface BaseTouchableOpacityProps extends TouchableOpacityProps {}
+export type BaseTouchableOpacityProps = TouchableOpacityProps;
 
 export const BaseTouchableOpacity = forwardRef<View, BaseTouchableOpacityProps>(
   ({ className = "", activeOpacity = 0.7, ...props }, ref) => {
@@ -13,7 +13,7 @@ export const BaseTouchableOpacity = forwardRef<View, BaseTouchableOpacityProps>(
         {...props}
       />
     );
-  }
+  },
 );
 
 BaseTouchableOpacity.displayName = "BaseTouchableOpacity";

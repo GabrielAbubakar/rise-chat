@@ -1,11 +1,11 @@
 import { useRouter } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
 import { useColorScheme } from "nativewind";
-import { useEffect, useState } from "react";
-import { Alert, Pressable, ScrollView, View } from "react-native";
+import { useState } from "react";
+import { Alert, Pressable, View } from "react-native";
 
 // Shared Components
-import { BaseText, ScreenContainer, ScreenHeader } from "@/shared/components";
+import { ScreenContainer, ScreenHeader } from "@/shared/components";
 
 // Icons
 import SearchIcon from "@/assets/icons/solid/search.svg";
@@ -23,8 +23,8 @@ import {
   MediaLinksTab,
   MediaPhotosTab,
   MediaStarsTab,
-  MediaTabSwitcher,
   MediaTab,
+  MediaTabSwitcher,
 } from "@/features/chats/components";
 
 // ============================================================================
@@ -51,13 +51,12 @@ export function ChatMediaScreen({ id, initialTab }: ChatMediaScreenProps) {
   const [activeTab, setActiveTab] = useState<MediaTab>(
     normalizeTab(initialTab),
   );
+  const [prevInitialTab, setPrevInitialTab] = useState(initialTab);
 
-  // Sync state whenever initialTab param changes
-  useEffect(() => {
-    if (initialTab) {
-      setActiveTab(normalizeTab(initialTab));
-    }
-  }, [initialTab]);
+  if (initialTab !== prevInitialTab) {
+    setPrevInitialTab(initialTab);
+    setActiveTab(normalizeTab(initialTab));
+  }
 
   const chat = DUMMY_CHATS.find((c) => c.id === id) || DUMMY_CHATS[0];
 

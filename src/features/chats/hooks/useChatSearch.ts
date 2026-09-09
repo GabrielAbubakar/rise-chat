@@ -29,12 +29,18 @@ export function useChatSearch({
     return indices;
   }, [searchQuery, messages]);
 
-  useEffect(() => {
+  const [prevQuery, setPrevQuery] = useState(searchQuery);
+
+  if (searchQuery !== prevQuery) {
+    setPrevQuery(searchQuery);
     setCurrentMatchIndex(0);
+  }
+
+  useEffect(() => {
     if (matchingIndices.length > 0 && onScrollToIndex) {
       onScrollToIndex(matchingIndices[0]);
     }
-  }, [searchQuery, matchingIndices, onScrollToIndex]);
+  }, [matchingIndices, onScrollToIndex]);
 
   const handlePrevMatch = () => {
     if (matchingIndices.length === 0) return;

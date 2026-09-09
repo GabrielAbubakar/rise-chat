@@ -12,10 +12,10 @@ export const apiClient = axios.create({
 
 // Flag to prevent multiple refresh token requests at once
 let isRefreshing = false;
-let failedQueue: Array<{
+let failedQueue: {
   resolve: (value?: unknown) => void;
   reject: (reason?: any) => void;
-}> = [];
+}[] = [];
 
 const processQueue = (error: any, token: string | null = null) => {
   failedQueue.forEach((prom) => {
@@ -78,7 +78,7 @@ apiClient.interceptors.response.use(
 
       originalRequest._retry = true;
       isRefreshing = true;
-      console.log('⏳ [Auth Module] Attempting token refresh...');
+      console.log("⏳ [Auth Module] Attempting token refresh...");
 
       try {
         const refreshToken = await tokenStorage.getRefreshToken();
@@ -101,12 +101,12 @@ apiClient.interceptors.response.use(
           originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
         }
 
-        console.log('✨ [Auth Module] Token refreshed successfully');
+        console.log("✨ [Auth Module] Token refreshed successfully");
         processQueue(null, newAccessToken);
 
         return apiClient(originalRequest);
       } catch (refreshError) {
-        console.log('🚨 [Auth Module] Token refresh failed, logging out');
+        console.log("🚨 [Auth Module] Token refresh failed, logging out");
         processQueue(refreshError, null);
         // Clear tokens if refresh fails to force a re-login
         // Trigger a global sign-out event

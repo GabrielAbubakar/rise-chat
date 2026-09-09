@@ -1,11 +1,10 @@
 import { BaseText } from "@/shared/components";
 import { CameraView, useCameraPermissions } from "expo-camera";
-import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
 
 export function FaceIdScreen() {
-  const router = useRouter();
+  // const router = useRouter();
   const [permission, requestPermission] = useCameraPermissions();
   const [isReady, setIsReady] = useState(false);
 
@@ -35,8 +34,11 @@ export function FaceIdScreen() {
       ) : (
         <View className="flex-1">
           <CameraView style={StyleSheet.absoluteFill} facing="front" />
-          
-          <View className="flex-1 items-center justify-center mt-20" pointerEvents="none">
+
+          <View
+            className="flex-1 items-center justify-center mt-20"
+            pointerEvents="none"
+          >
             <BaseText className="text-white text-[17px] text-center mb-10 shadow-sm">
               Please put your phone in front of your face
             </BaseText>

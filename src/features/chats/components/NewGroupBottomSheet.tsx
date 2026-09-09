@@ -28,7 +28,7 @@ import { colors } from "@/shared/constants";
 import { useColorScheme } from "nativewind";
 import { ContactItem } from "./NewChatBottomSheet";
 
-export type NewGroupBottomSheetProps = {};
+export type NewGroupBottomSheetProps = object;
 
 interface GroupContactCardProps {
   item: ContactItem;
@@ -333,4 +333,3 @@ export const NewGroupBottomSheet = forwardRef<
 });
 
 NewGroupBottomSheet.displayName = "NewGroupBottomSheet";
-

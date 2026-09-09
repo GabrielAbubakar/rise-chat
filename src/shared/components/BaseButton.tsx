@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/immutability */
 import { ActivityIndicator, Pressable, PressableProps } from "react-native";
 import Animated, {
   useAnimatedStyle,
