@@ -1,3 +1,5 @@
+import { ConversationResponseDto } from "@/features/chats/types";
+
 export const DUMMY_CHATS = [
   {
     id: "1",
@@ -304,28 +306,72 @@ export const DUMMY_MESSAGES = [
   },
 ];
 
-export const DUMMY_ARCHIVED_CHATS = [
+export const DUMMY_ARCHIVED_CHATS: ConversationResponseDto[] = [
   {
     id: "a1",
-    name: "Annie Miles",
-    avatar: "https://i.pravatar.cc/150?u=a1",
-    avatarType: "image",
-    lastMessage: "Please, I don't know anything ab...",
-    time: "20:46 PM",
+    type: "direct",
+    otherParticipant: {
+      id: "u-a1",
+      displayName: "Annie Miles",
+      avatarUrl: "https://i.pravatar.cc/150?u=a1",
+    },
+    latestMessage: {
+      id: "msg-a1",
+      senderId: "u-a1",
+      kind: "text",
+      preview: "Please, I don't know anything ab...",
+      createdAt: new Date().toISOString(),
+    },
+    settings: {
+      archived: true,
+      muted: false,
+      pinned: false,
+      favorited: false,
+      archivedAt: new Date().toISOString(),
+      mutedAt: null,
+      mutedUntil: null,
+      pinnedAt: null,
+      favoritedAt: null,
+      clearedAt: null,
+      clearedThroughMessageId: null,
+    },
     unreadCount: 2,
-    isPinned: false,
-    isActive: false,
+    lastActivityAt: new Date().toISOString(),
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
   },
   {
     id: "a2",
-    name: "Arlene McCoy",
-    avatar: "https://i.pravatar.cc/150?u=a2",
-    avatarType: "image",
-    lastMessage: "Wow, it's very cool",
-    time: "11:23 PM",
+    type: "direct",
+    otherParticipant: {
+      id: "u-a2",
+      displayName: "Arlene McCoy",
+      avatarUrl: "https://i.pravatar.cc/150?u=a2",
+    },
+    latestMessage: {
+      id: "msg-a2",
+      senderId: "u-a2",
+      kind: "text",
+      preview: "Wow, it's very cool",
+      createdAt: new Date().toISOString(),
+    },
+    settings: {
+      archived: true,
+      muted: false,
+      pinned: false,
+      favorited: false,
+      archivedAt: new Date().toISOString(),
+      mutedAt: null,
+      mutedUntil: null,
+      pinnedAt: null,
+      favoritedAt: null,
+      clearedAt: null,
+      clearedThroughMessageId: null,
+    },
     unreadCount: 0,
-    isPinned: false,
-    isActive: false,
+    lastActivityAt: new Date().toISOString(),
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
   },
 ];
 

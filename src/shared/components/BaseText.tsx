@@ -2,6 +2,8 @@ import React from "react";
 import { Text, TextProps } from "react-native";
 import { tv, type VariantProps } from "tailwind-variants";
 
+import Animated from "react-native-reanimated";
+
 const textVariants = tv(
   {
     base: "font-normal",
@@ -71,8 +73,6 @@ const textVariants = tv(
     },
   },
 );
-
-import Animated from "react-native-reanimated";
 
 export interface BaseTextProps
   extends TextProps, VariantProps<typeof textVariants> {

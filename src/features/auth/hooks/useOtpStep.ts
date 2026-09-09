@@ -15,9 +15,12 @@ export function useOtpStep(
   const [verificationCode, setVerificationCode] = useState("");
   const [otpError, setOtpError] = useState(false);
 
-  useEffect(() => {
+  const [prevChallengeId, setPrevChallengeId] = useState(challengeId);
+
+  if (challengeId !== prevChallengeId) {
+    setPrevChallengeId(challengeId);
     setCurrentChallengeId(challengeId);
-  }, [challengeId]);
+  }
   const setUser = useAuthStore((state) => state.setUser);
 
   const { timeLeft, isActive, startTimer } = useTimer(initialResendSeconds);
@@ -74,15 +77,16 @@ export function useOtpStep(
     }
   };
 
-  useEffect(() => {
-    if (otpError && verificationCode.length > 0) {
+  const handleSetVerificationCode = (code: string) => {
+    setVerificationCode(code);
+    if (otpError && code.length > 0) {
       setOtpError(false);
     }
-  }, [verificationCode]);
+  };
 
   return {
     verificationCode,
-    setVerificationCode,
+    setVerificationCode: handleSetVerificationCode,
     isVerifyingOtp,
     isResendingOtp,
     otpError,

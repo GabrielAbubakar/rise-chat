@@ -1,5 +1,5 @@
 import { BottomSheetModal } from "@gorhom/bottom-sheet";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { Keyboard, Pressable } from "react-native";
 import { BaseInput, BaseInputProps } from "./BaseInput";
 import { BaseText } from "./BaseText";
@@ -25,7 +25,7 @@ export function PhoneInput({
   ...props
 }: PhoneInputProps) {
   const bottomSheetRef = useRef<BottomSheetModal>(null);
-  
+
   const [selectedCountry, setSelectedCountry] = useState<Country>({
     name: "Nigeria",
     dialCode: "234",
@@ -46,11 +46,11 @@ export function PhoneInput({
 
   const handleCountrySelect = (country: Country) => {
     setSelectedCountry(country);
-    
+
     const cleaned = value ? value.replace(/[^\d]/g, "") : "";
     const isValid = cleaned.length >= 10;
     const fullNumber = `+${country.dialCode}${cleaned}`;
-    
+
     onChangePhoneNumber(cleaned, fullNumber, isValid);
   };
 

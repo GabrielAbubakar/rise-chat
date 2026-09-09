@@ -1,8 +1,7 @@
-import React from "react";
-import { Dimensions, Pressable, View } from "react-native";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useColorScheme } from "nativewind";
+import { Pressable, View } from "react-native";
 import Svg, { Rect } from "react-native-svg";
 
 // Shared Components
@@ -15,7 +14,7 @@ import QrCodeIcon from "@/assets/icons/solid/qrcode.svg";
 // Dummy Data
 import { DUMMY_CHATS } from "@/constants/dummyData";
 
-const { width: windowWidth } = Dimensions.get("window");
+// const { width: windowWidth } = Dimensions.get("window");
 
 export function QrCodeScreen() {
   const router = useRouter();

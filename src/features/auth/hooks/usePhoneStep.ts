@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useRequestOtp } from "./useAuth";
 
-import Toast from "react-native-toast-message";
 import { showApiErrorToast } from "@/shared/utils";
 
 export function usePhoneStep(
@@ -23,7 +22,7 @@ export function usePhoneStep(
       showApiErrorToast(
         error,
         "Could not send verification code. Please check your number.",
-        "Request Failed"
+        "Request Failed",
       );
     },
   });

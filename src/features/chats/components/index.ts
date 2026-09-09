@@ -10,3 +10,6 @@ export * from "./MediaLinksTab";
 export * from "./MediaTabSwitcher";
 export * from "./MediaSummaryRows";
 export * from "./GroupMembersList";
+export * from "./ChatHeader";
+export * from "./ChatSearchNavigator";
+export * from "./ChatInputBar";

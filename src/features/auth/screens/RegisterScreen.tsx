@@ -2,8 +2,8 @@ import { ScreenContainer } from "@/shared/components";
 import { Feather } from "@expo/vector-icons";
 import { useColorScheme } from "nativewind";
 import { Pressable, View } from "react-native";
+import { OtpStep, PhoneStep, ProfileStep } from "../components";
 import { useRegisterFlow } from "../hooks/useRegisterFlow";
-import { PhoneStep, OtpStep, ProfileStep } from "../components";
 
 import { useRouter } from "expo-router";
 
@@ -17,7 +17,7 @@ export function RegisterScreen() {
     setChallengeId,
     resendSeconds,
     setResendSeconds,
-    jumpToStep,
+    // jumpToStep,
     phoneNumber,
     setPhoneNumber,
   } = useRegisterFlow();
@@ -57,7 +57,9 @@ export function RegisterScreen() {
         );
       case 3:
       case 4:
-        return <ProfileStep step={step} nextStep={nextStep} prevStep={prevStep} />;
+        return (
+          <ProfileStep step={step} nextStep={nextStep} prevStep={prevStep} />
+        );
       default:
         return null;
     }

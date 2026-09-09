@@ -1,7 +1,7 @@
 import { BaseText, ScreenContainer, ScreenHeader } from "@/shared/components";
 import { LegendList } from "@legendapp/list/react-native";
 import { useRouter } from "expo-router";
-import { Pressable, View } from "react-native";
+import { Pressable, RefreshControl, View } from "react-native";
 
 // Components
 import { ChatItem } from "../components";
@@ -9,28 +9,22 @@ import { ChatItem } from "../components";
 // Icons
 import ArrowLeftIcon from "@/assets/icons/solid/cheveron-left.svg";
 
-// Dummy Data
-import { DUMMY_ARCHIVED_CHATS } from "@/constants/dummyData";
+// API
+import { useArchivedConversationsList } from "../hooks/useChats";
+import { ConversationResponseDto } from "../types";
 
 export function ArchivedChatsScreen() {
   const router = useRouter();
+  
+  const { data: conversations, isPending, refetch } = useArchivedConversationsList();
+  const displayConversations = conversations?.pages.flatMap((page) => page.items) || [];
 
   const handleChatPress = (id: string) => {
     router.push(`/chat/${id}`);
   };
 
-  const renderItem = ({
-    item,
-  }: {
-    item: (typeof DUMMY_ARCHIVED_CHATS)[0];
-  }) => (
-    <ChatItem
-      {...item}
-      avatarType={
-        item.avatarType as "image" | "initials" | "group" | "archive" | undefined
-      }
-      onPress={() => handleChatPress(item.id)}
-    />
+  const renderItem = ({ item }: { item: ConversationResponseDto }) => (
+    <ChatItem data={item} onPress={() => handleChatPress(item.id)} />
   );
 
   return (
@@ -54,11 +48,27 @@ export function ArchivedChatsScreen() {
 
       <View className="flex-1">
         <LegendList
-          data={DUMMY_ARCHIVED_CHATS}
+          data={displayConversations}
           renderItem={renderItem}
           keyExtractor={(item) => item.id}
           estimatedItemSize={80}
           recycleItems={true}
+          ItemSeparatorComponent={() => <View className="h-2" />}
+          refreshControl={
+            <RefreshControl
+              refreshing={isPending}
+              onRefresh={() => refetch()}
+              tintColor="#ffffff"
+            />
+          }
+          ListEmptyComponent={
+            <View className="flex-1 items-center justify-center p-8 mt-10">
+              <BaseText className="text-neutral-500 text-center">
+                No archived chats available
+              </BaseText>
+            </View>
+          }
+          className="p-3"
         />
       </View>
     </ScreenContainer>

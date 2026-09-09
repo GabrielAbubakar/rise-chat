@@ -22,31 +22,61 @@ type FabMenuItemProps = {
   label: string;
   icon: React.FC<any>;
   onPress: () => void;
-  style: any;
   isLast?: boolean;
+  index: number;
+  animation: any;
 };
 
 const FabMenuItem = ({
   label,
   icon: Icon,
   onPress,
-  style,
   isLast,
-}: FabMenuItemProps) => (
-  <Animated.View style={style}>
-    <Pressable
-      className={`flex-row items-center w-44 bg-white dark:bg-neutral-800 p-4 gap-3  rounded-full shadow-lg ${
-        isLast ? "" : "mb-3"
-      }`}
-      onPress={onPress}
-    >
-      <Icon width={20} height={20} color="#4ADE80" className="mr-3" />
-      <BaseText className="text-neutral-900 dark:text-white font-sf-bold">
-        {label}
-      </BaseText>
-    </Pressable>
-  </Animated.View>
-);
+  index,
+  animation,
+}: FabMenuItemProps) => {
+  const style = useAnimatedStyle(() => {
+    const translateY = interpolate(
+      animation.value,
+      [0, 1],
+      [20 + index * 10, 0],
+      Extrapolation.CLAMP,
+    );
+    const opacity = interpolate(
+      animation.value,
+      [0, 1],
+      [0, 1],
+      Extrapolation.CLAMP,
+    );
+    const scale = interpolate(
+      animation.value,
+      [0, 1],
+      [0.8, 1],
+      Extrapolation.CLAMP,
+    );
+
+    return {
+      opacity,
+      transform: [{ translateY }, { scale }],
+    };
+  });
+
+  return (
+    <Animated.View style={style}>
+      <Pressable
+        className={`flex-row items-center w-44 bg-white dark:bg-neutral-800 p-4 gap-3  rounded-full shadow-lg ${
+          isLast ? "" : "mb-3"
+        }`}
+        onPress={onPress}
+      >
+        <Icon width={20} height={20} color="#4ADE80" className="mr-3" />
+        <BaseText className="text-neutral-900 dark:text-white font-sf-bold">
+          {label}
+        </BaseText>
+      </Pressable>
+    </Animated.View>
+  );
+};
 
 export function ChatFabMenu({
   onNewChatPress,
@@ -112,33 +142,7 @@ export function ChatFabMenu({
     };
   });
 
-  const getMenuItemStyle = (index: number) => {
-    return useAnimatedStyle(() => {
-      const translateY = interpolate(
-        animation.value,
-        [0, 1],
-        [20 + index * 10, 0],
-        Extrapolation.CLAMP,
-      );
-      const opacity = interpolate(
-        animation.value,
-        [0, 1],
-        [0, 1],
-        Extrapolation.CLAMP,
-      );
-      const scale = interpolate(
-        animation.value,
-        [0, 1],
-        [0.8, 1],
-        Extrapolation.CLAMP,
-      );
 
-      return {
-        opacity,
-        transform: [{ translateY }, { scale }],
-      };
-    });
-  };
 
   return (
     <View
@@ -165,7 +169,8 @@ export function ChatFabMenu({
           <FabMenuItem
             label="New Chat"
             icon={ChatIcon}
-            style={getMenuItemStyle(2)}
+            index={2}
+            animation={animation}
             onPress={() => {
               toggleMenu();
               onNewChatPress?.();
@@ -174,7 +179,8 @@ export function ChatFabMenu({
           <FabMenuItem
             label="New Contact"
             icon={UserIcon}
-            style={getMenuItemStyle(1)}
+            index={1}
+            animation={animation}
             onPress={() => {
               toggleMenu();
               router.push("/new-contact");
@@ -183,7 +189,8 @@ export function ChatFabMenu({
           <FabMenuItem
             label="New Group"
             icon={UsersIcon}
-            style={getMenuItemStyle(0)}
+            index={0}
+            animation={animation}
             onPress={() => {
               toggleMenu();
               onNewGroupPress?.();

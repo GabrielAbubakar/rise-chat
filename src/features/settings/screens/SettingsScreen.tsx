@@ -5,16 +5,14 @@ import { showApiErrorToast, showSuccessToast } from "@/shared/utils";
 import { useSecurityStore } from "@/store";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useRouter } from "expo-router";
+import React from "react";
 import {
-  ActivityIndicator,
   Alert,
   Image,
   ScrollView,
-  Switch,
   TouchableOpacity,
-  View,
+  View
 } from "react-native";
-import React from "react";
 
 // Icons
 import ChevronRightIcon from "@/assets/icons/outline/cheveron-right.svg";
@@ -106,7 +104,9 @@ export function SettingsScreen() {
           <BaseText className="text-3xl font-bold text-black dark:text-white">
             Settings
           </BaseText>
-          <BaseTouchableOpacity onPress={() => router.push("/settings/edit-profile")}>
+          <BaseTouchableOpacity
+            onPress={() => router.push("/settings/edit-profile")}
+          >
             <EditIcon width={24} height={24} color="#57B77D" />
           </BaseTouchableOpacity>
         </View>
@@ -132,7 +132,9 @@ export function SettingsScreen() {
               </BaseText>
             </View>
           </View>
-          <BaseTouchableOpacity onPress={() => router.push("/settings/qr-code")}>
+          <BaseTouchableOpacity
+            onPress={() => router.push("/settings/qr-code")}
+          >
             <QrCodeIcon width={28} height={28} color="#57B77D" />
           </BaseTouchableOpacity>
         </View>
@@ -147,7 +149,7 @@ export function SettingsScreen() {
               item.label,
               item.onPress,
               item.rightElement,
-              index === group1Data.length - 1
+              index === group1Data.length - 1,
             )}
           </React.Fragment>
         ))}
@@ -162,7 +164,7 @@ export function SettingsScreen() {
               item.label,
               item.onPress,
               item.rightElement,
-              index === group2Data.length - 1
+              index === group2Data.length - 1,
             )}
           </React.Fragment>
         ))}

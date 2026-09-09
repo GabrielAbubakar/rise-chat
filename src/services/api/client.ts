@@ -12,10 +12,10 @@ export const apiClient = axios.create({
 
 // Flag to prevent multiple refresh token requests at once
 let isRefreshing = false;
-let failedQueue: Array<{
+let failedQueue: {
   resolve: (value?: unknown) => void;
   reject: (reason?: any) => void;
-}> = [];
+}[] = [];
 
 const processQueue = (error: any, token: string | null = null) => {
   failedQueue.forEach((prom) => {
@@ -35,6 +35,8 @@ apiClient.interceptors.request.use(
     const token = await tokenStorage.getAccessToken();
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
+    } else if (config.headers) {
+      delete config.headers.Authorization;
     }
     return config;
   },
@@ -76,7 +78,7 @@ apiClient.interceptors.response.use(
 
       originalRequest._retry = true;
       isRefreshing = true;
-      console.log('⏳ [Auth Module] Attempting token refresh...');
+      console.log("⏳ [Auth Module] Attempting token refresh...");
 
       try {
         const refreshToken = await tokenStorage.getRefreshToken();
@@ -99,12 +101,12 @@ apiClient.interceptors.response.use(
           originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
         }
 
-        console.log('✨ [Auth Module] Token refreshed successfully');
+        console.log("✨ [Auth Module] Token refreshed successfully");
         processQueue(null, newAccessToken);
 
         return apiClient(originalRequest);
       } catch (refreshError) {
-        console.log('🚨 [Auth Module] Token refresh failed, logging out');
+        console.log("🚨 [Auth Module] Token refresh failed, logging out");
         processQueue(refreshError, null);
         // Clear tokens if refresh fails to force a re-login
         // Trigger a global sign-out event
@@ -119,9 +121,11 @@ apiClient.interceptors.response.use(
 
     // Map the error to our standard AppError
     const data = error.response?.data as any;
-    const message =
-      data?.message || error.message || "An unexpected error occurred";
-    const code = data?.code || error.code || "API_ERROR";
+    const rawMessage = data?.message;
+    const message = Array.isArray(rawMessage)
+      ? rawMessage.join("; ")
+      : rawMessage || error.message || "An unexpected error occurred";
+    const code = data?.code || data?.error || error.code || "API_ERROR";
     const appError = new AppError(message, code, error.response?.status);
 
     return Promise.reject(appError);

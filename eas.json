@@ -12,6 +12,10 @@
       "distribution": "internal",
       "android": {
         "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://chateo-lhuw.onrender.com/v1",
+        "EXPO_PUBLIC_WS_URL": "wss://chateo-lhuw.onrender.com/chat"
       }
     },
     "production": {
