@@ -1,5 +1,10 @@
-import { ScreenContainer } from "@/shared/components";
-import { formatTime, generateUUID } from "@/shared/utils";
+import { BaseText, ScreenContainer } from "@/shared/components";
+import {
+  formatChatDateSeparator,
+  formatTime,
+  generateUUID,
+  isSameDay,
+} from "@/shared/utils";
 import { useAuthStore } from "@/store/useAuthStore";
 import { LegendList } from "@legendapp/list/react-native";
 import { useColorScheme } from "nativewind";
@@ -14,7 +19,7 @@ import {
   Platform,
   Pressable,
   TextInput,
-  View,
+  View
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -77,13 +82,13 @@ export function ChatDetailScreen({ id, search }: ChatDetailScreenProps) {
   const { isOtherOnline, isOtherTyping, sendTypingStart, sendTypingStop } =
     useChatRealtime(conversationId);
 
-  // Flatten and sort messages newest first
+  // Flatten and sort messages oldest first
   const messages = useMemo(() => {
     if (!messagesData) return [];
     const allMessages = messagesData.pages.flatMap((page) => page.items);
     return [...allMessages].sort(
       (a, b) =>
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
     );
   }, [messagesData]);
 
@@ -149,11 +154,18 @@ export function ChatDetailScreen({ id, search }: ChatDetailScreenProps) {
     setIsAtBottom(isBottom);
   };
 
-  const otherParticipant = conversationDetail?.otherParticipant;
-  const participantName = otherParticipant?.displayName || "Chat";
-  const participantAvatar = otherParticipant?.avatarUrl || undefined;
-  const participantInitials = otherParticipant?.displayName
-    ? otherParticipant.displayName.charAt(0).toUpperCase()
+  const isDirect = conversationDetail?.type === "direct";
+  const otherParticipant = isDirect
+    ? conversationDetail?.otherParticipant
+    : null;
+  const participantName =
+    (isDirect ? otherParticipant?.displayName : conversationDetail?.name) ||
+    "Chat";
+  const participantAvatar =
+    (isDirect ? otherParticipant?.avatarUrl : conversationDetail?.avatarUrl) ||
+    undefined;
+  const participantInitials = participantName
+    ? participantName.charAt(0).toUpperCase()
     : "?";
 
   const handleSendMessage = () => {
@@ -183,14 +195,30 @@ export function ChatDetailScreen({ id, search }: ChatDetailScreenProps) {
         matchingIndices.length > 0 &&
         matchingIndices[currentMatchIndex] === index;
 
+      const prevMessage = index > 0 ? messages[index - 1] : null;
+      const showDateSeparator =
+        !prevMessage ||
+        !isSameDay(new Date(item.createdAt), new Date(prevMessage.createdAt));
+
       return (
-        <MessagePill
-          isMe={item.senderId === user?.id}
-          text={item.text}
-          time={formatTime(item.createdAt)}
-          searchQuery={isSearching ? searchQuery : undefined}
-          isCurrentMatch={isCurrentMatch}
-        />
+        <View>
+          {showDateSeparator && (
+            <View className="items-center my-4">
+              <View className="bg-gray-200/80 dark:bg-gray-800/80 px-3 py-1 rounded-full">
+                <BaseText className="text-xs text-gray-600 dark:text-gray-300 font-medium">
+                  {formatChatDateSeparator(item.createdAt)}
+                </BaseText>
+              </View>
+            </View>
+          )}
+          <MessagePill
+            isMe={item.senderId === user?.id}
+            text={item.text}
+            time={formatTime(item.createdAt)}
+            searchQuery={isSearching ? searchQuery : undefined}
+            isCurrentMatch={isCurrentMatch}
+          />
+        </View>
       );
     },
     [
@@ -199,6 +227,7 @@ export function ChatDetailScreen({ id, search }: ChatDetailScreenProps) {
       matchingIndices,
       currentMatchIndex,
       searchQuery,
+      messages,
     ],
   );
 
@@ -264,12 +293,16 @@ export function ChatDetailScreen({ id, search }: ChatDetailScreenProps) {
             onScroll={handleScroll}
             scrollEventThrottle={16}
             recycleItems={true}
-            onEndReached={() => {
+            alignItemsAtEnd={true}
+            maintainScrollAtEnd={true}
+            maintainScrollAtEndThreshold={0.1}
+            maintainVisibleContentPosition={true}
+            onStartReached={() => {
               if (hasNextPage && !isFetchingNextPage) {
                 fetchNextPage();
               }
             }}
-            onEndReachedThreshold={0.5}
+            onStartReachedThreshold={0.5}
           />
         )}
       </View>

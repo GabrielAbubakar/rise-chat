@@ -3,8 +3,9 @@ import { BottomSheetModal } from "@gorhom/bottom-sheet";
 import { LegendList } from "@legendapp/list/react-native";
 import * as Haptics from "expo-haptics";
 import { useFocusEffect, useRouter } from "expo-router";
+import { useColorScheme } from "nativewind";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { BackHandler, Pressable, View } from "react-native";
+import { BackHandler, Pressable, RefreshControl, View } from "react-native";
 import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
 
 // Components
@@ -23,16 +24,22 @@ import TrashIcon from "@/assets/icons/solid/trash.svg";
 import VolumeOffIcon from "@/assets/icons/solid/volume-off.svg";
 
 // Dummy Data
-import { useConversationsList } from "../hooks/useChats";
+import {
+  useArchivedConversationsList,
+  useConversationsList,
+} from "../hooks/useChats";
 import { ConversationResponseDto } from "../types";
 
 export function ChatsScreen() {
   const router = useRouter();
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === "dark";
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedChats, setSelectedChats] = useState<Set<string>>(new Set());
   const newChatBottomSheetRef = useRef<BottomSheetModal>(null);
   const newGroupBottomSheetRef = useRef<BottomSheetModal>(null);
-  const { data: conversations } = useConversationsList();
+  const { data: conversations, refetch, isPending } = useConversationsList();
+  const { data: archivedConversations } = useArchivedConversationsList();
   // const userID = useAuthStore((state) => state.user?.id);
   const [displayConversations, setDisplayConversations] = useState(
     conversations?.pages.flatMap((page) => page.items) || [],
@@ -115,13 +122,40 @@ export function ChatsScreen() {
   );
 
   const renderHeader = () => {
+    const archivedCount =
+      archivedConversations?.pages.flatMap((page) => page.items).length || 0;
+
     return (
-      <Pressable
-        onPress={() => router.push("/archived-chats")}
-        className="flex-row justify-between items-center px-6 py-4"
-      >
-        <BaseText>Archived Chats</BaseText>
-      </Pressable>
+      <View className="mb-2">
+        <Pressable
+          onPress={() => router.push("/archived-chats")}
+          className="flex-row items-center rounded-lg px-4 py-3 active:bg-primary-50 dark:active:bg-neutral-700 bg-app dark:bg-app-dark"
+        >
+          <View className="w-14 h-14 rounded-full bg-neutral-200 dark:bg-neutral-800 items-center justify-center">
+            <ArchiveIcon
+              width={24}
+              height={24}
+              color={isDark ? "white" : "black"}
+            />
+          </View>
+          <View className="flex-1 flex-row justify-between ml-4">
+            <BaseText
+              type="body-lg"
+              className="text-label dark:text-label-dark font-sf-bold"
+            >
+              Archived Chats
+            </BaseText>
+
+            <BaseText
+              type="body-lg"
+              numberOfLines={1}
+              className="text-neutral-500 dark:text-neutral-300 mt-1"
+            >
+              {archivedCount} {archivedCount === 1 ? "chat" : "chats"}
+            </BaseText>
+          </View>
+        </Pressable>
+      </View>
     );
   };
 
@@ -174,6 +208,13 @@ export function ChatsScreen() {
           keyExtractor={(item) => item.id}
           extraData={selectedChats}
           estimatedItemSize={80}
+          refreshControl={
+            <RefreshControl
+              refreshing={isPending}
+              onRefresh={() => refetch()}
+              tintColor="#ffffff"
+            />
+          }
           ItemSeparatorComponent={() => <View className="h-2" />}
           recycleItems={true}
           ListEmptyComponent={
@@ -182,6 +223,7 @@ export function ChatsScreen() {
             </View>
           }
           className="p-3"
+          contentContainerClassName="pb-20"
         />
       </View>
 

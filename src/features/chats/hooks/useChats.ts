@@ -17,6 +17,16 @@ import {
   SendMessageDto,
   UpdateReceiptDto,
   UserSearchResponseDto,
+  CreateGroupConversationDto,
+  GroupConversationResponseDto,
+  UpdateGroupConversationDto,
+  AddGroupMembersDto,
+  UpdateGroupMemberRoleDto,
+  TransferGroupOwnershipDto,
+  UpdateConversationSettingsDto,
+  ConversationSettingsResponseDto,
+  MuteConversationDto,
+  ClearConversationMessagesResponseDto,
 } from "../types";
 
 export const chatsKeys = {
@@ -25,6 +35,8 @@ export const chatsKeys = {
   search: (q: string) => [...chatsKeys.discovery(), "search", q] as const,
   conversations: () => [...chatsKeys.all, "conversations"] as const,
   list: () => [...chatsKeys.conversations(), "list"] as const,
+  archived: () => [...chatsKeys.conversations(), "archived"] as const,
+  favorites: () => [...chatsKeys.conversations(), "favorites"] as const,
   detail: (id: string) => [...chatsKeys.conversations(), "detail", id] as const,
   messages: (id: string) =>
     [...chatsKeys.conversations(), "messages", id] as const,
@@ -228,5 +240,257 @@ export const useMarkReceiptRead = (conversationId: string) => {
   return useMutation({
     mutationFn: (data: UpdateReceiptDto) =>
       chatsApi.markReceiptRead(conversationId, data),
+  });
+};
+
+// Group Chat Hooks
+export const useCreateGroup = (options?: UseMutationOptions<GroupConversationResponseDto, Error, CreateGroupConversationDto>) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: chatsApi.createGroup,
+    onSuccess: (...args) => {
+      queryClient.invalidateQueries({ queryKey: chatsKeys.list() });
+      if (options?.onSuccess) options.onSuccess(...args);
+    },
+    ...options,
+  });
+};
+
+export const useUpdateGroup = (conversationId: string, options?: UseMutationOptions<GroupConversationResponseDto, Error, UpdateGroupConversationDto>) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data) => chatsApi.updateGroup(conversationId, data),
+    onSuccess: (...args) => {
+      queryClient.invalidateQueries({ queryKey: chatsKeys.detail(conversationId) });
+      queryClient.invalidateQueries({ queryKey: chatsKeys.list() });
+      if (options?.onSuccess) options.onSuccess(...args);
+    },
+    ...options,
+  });
+};
+
+export const useDeleteGroup = (conversationId: string, options?: UseMutationOptions<void, Error, void>) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => chatsApi.deleteGroup(conversationId),
+    onSuccess: (...args) => {
+      queryClient.invalidateQueries({ queryKey: chatsKeys.list() });
+      if (options?.onSuccess) options.onSuccess(...args);
+    },
+    ...options,
+  });
+};
+
+export const useAddGroupMembers = (conversationId: string, options?: UseMutationOptions<GroupConversationResponseDto, Error, AddGroupMembersDto>) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data) => chatsApi.addGroupMembers(conversationId, data),
+    onSuccess: (...args) => {
+      queryClient.invalidateQueries({ queryKey: chatsKeys.detail(conversationId) });
+      if (options?.onSuccess) options.onSuccess(...args);
+    },
+    ...options,
+  });
+};
+
+export const useRemoveGroupMember = (conversationId: string, options?: UseMutationOptions<void, Error, string>) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (memberId) => chatsApi.removeGroupMember(conversationId, memberId),
+    onSuccess: (...args) => {
+      queryClient.invalidateQueries({ queryKey: chatsKeys.detail(conversationId) });
+      if (options?.onSuccess) options.onSuccess(...args);
+    },
+    ...options,
+  });
+};
+
+export const useUpdateGroupMemberRole = (conversationId: string, options?: UseMutationOptions<GroupConversationResponseDto, Error, { memberId: string; data: UpdateGroupMemberRoleDto }>) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ memberId, data }) => chatsApi.updateGroupMemberRole(conversationId, memberId, data),
+    onSuccess: (...args) => {
+      queryClient.invalidateQueries({ queryKey: chatsKeys.detail(conversationId) });
+      if (options?.onSuccess) options.onSuccess(...args);
+    },
+    ...options,
+  });
+};
+
+export const useTransferGroupOwnership = (conversationId: string, options?: UseMutationOptions<GroupConversationResponseDto, Error, TransferGroupOwnershipDto>) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data) => chatsApi.transferGroupOwnership(conversationId, data),
+    onSuccess: (...args) => {
+      queryClient.invalidateQueries({ queryKey: chatsKeys.detail(conversationId) });
+      if (options?.onSuccess) options.onSuccess(...args);
+    },
+    ...options,
+  });
+};
+
+export const useLeaveGroup = (conversationId: string, options?: UseMutationOptions<void, Error, void>) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => chatsApi.leaveGroup(conversationId),
+    onSuccess: (...args) => {
+      queryClient.invalidateQueries({ queryKey: chatsKeys.list() });
+      if (options?.onSuccess) options.onSuccess(...args);
+    },
+    ...options,
+  });
+};
+
+// Conversation Settings & Status Hooks
+export const useUpdateConversationSettings = (conversationId: string, options?: UseMutationOptions<ConversationSettingsResponseDto, Error, UpdateConversationSettingsDto>) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data) => chatsApi.updateConversationSettings(conversationId, data),
+    onSuccess: (...args) => {
+      queryClient.invalidateQueries({ queryKey: chatsKeys.detail(conversationId) });
+      queryClient.invalidateQueries({ queryKey: chatsKeys.list() });
+      if (options?.onSuccess) options.onSuccess(...args);
+    },
+    ...options,
+  });
+};
+
+export const useArchiveConversation = (conversationId: string, options?: UseMutationOptions<ConversationSettingsResponseDto, Error, void>) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => chatsApi.archiveConversation(conversationId),
+    onSuccess: (...args) => {
+      queryClient.invalidateQueries({ queryKey: chatsKeys.detail(conversationId) });
+      queryClient.invalidateQueries({ queryKey: chatsKeys.list() });
+      queryClient.invalidateQueries({ queryKey: chatsKeys.archived() });
+      if (options?.onSuccess) options.onSuccess(...args);
+    },
+    ...options,
+  });
+};
+
+export const useUnarchiveConversation = (conversationId: string, options?: UseMutationOptions<ConversationSettingsResponseDto, Error, void>) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => chatsApi.unarchiveConversation(conversationId),
+    onSuccess: (...args) => {
+      queryClient.invalidateQueries({ queryKey: chatsKeys.detail(conversationId) });
+      queryClient.invalidateQueries({ queryKey: chatsKeys.list() });
+      queryClient.invalidateQueries({ queryKey: chatsKeys.archived() });
+      if (options?.onSuccess) options.onSuccess(...args);
+    },
+    ...options,
+  });
+};
+
+export const useMuteConversation = (conversationId: string, options?: UseMutationOptions<ConversationSettingsResponseDto, Error, MuteConversationDto>) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data) => chatsApi.muteConversation(conversationId, data),
+    onSuccess: (...args) => {
+      queryClient.invalidateQueries({ queryKey: chatsKeys.detail(conversationId) });
+      queryClient.invalidateQueries({ queryKey: chatsKeys.list() });
+      if (options?.onSuccess) options.onSuccess(...args);
+    },
+    ...options,
+  });
+};
+
+export const useUnmuteConversation = (conversationId: string, options?: UseMutationOptions<ConversationSettingsResponseDto, Error, void>) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => chatsApi.unmuteConversation(conversationId),
+    onSuccess: (...args) => {
+      queryClient.invalidateQueries({ queryKey: chatsKeys.detail(conversationId) });
+      queryClient.invalidateQueries({ queryKey: chatsKeys.list() });
+      if (options?.onSuccess) options.onSuccess(...args);
+    },
+    ...options,
+  });
+};
+
+export const useFavoriteConversation = (conversationId: string, options?: UseMutationOptions<ConversationSettingsResponseDto, Error, void>) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => chatsApi.favoriteConversation(conversationId),
+    onSuccess: (...args) => {
+      queryClient.invalidateQueries({ queryKey: chatsKeys.detail(conversationId) });
+      queryClient.invalidateQueries({ queryKey: chatsKeys.list() });
+      if (options?.onSuccess) options.onSuccess(...args);
+    },
+    ...options,
+  });
+};
+
+export const useUnfavoriteConversation = (conversationId: string, options?: UseMutationOptions<ConversationSettingsResponseDto, Error, void>) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => chatsApi.unfavoriteConversation(conversationId),
+    onSuccess: (...args) => {
+      queryClient.invalidateQueries({ queryKey: chatsKeys.detail(conversationId) });
+      queryClient.invalidateQueries({ queryKey: chatsKeys.list() });
+      if (options?.onSuccess) options.onSuccess(...args);
+    },
+    ...options,
+  });
+};
+
+export const useClearMessages = (conversationId: string, options?: UseMutationOptions<ClearConversationMessagesResponseDto, Error, void>) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => chatsApi.clearMessages(conversationId),
+    onSuccess: (...args) => {
+      queryClient.invalidateQueries({ queryKey: chatsKeys.messages(conversationId) });
+      if (options?.onSuccess) options.onSuccess(...args);
+    },
+    ...options,
+  });
+};
+
+export const useArchivedConversationsList = (params?: { limit?: number }) => {
+  const user = useAuthStore((state) => state.user);
+  return useInfiniteQuery({
+    queryKey: [...chatsKeys.archived(), user?.id],
+    queryFn: ({ pageParam }) => chatsApi.listArchived({ ...params, cursor: pageParam }),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => lastPage.pageInfo.nextCursor,
+    enabled: !!user?.id,
+  });
+};
+
+export const useFavoritesList = (params?: { limit?: number }) => {
+  const user = useAuthStore((state) => state.user);
+  return useInfiniteQuery({
+    queryKey: [...chatsKeys.favorites(), user?.id],
+    queryFn: ({ pageParam }) => chatsApi.listFavorites({ ...params, cursor: pageParam }),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => lastPage.pageInfo.nextCursor,
+    enabled: !!user?.id,
+  });
+};
+
+export const usePinConversation = (conversationId: string, options?: UseMutationOptions<ConversationSettingsResponseDto, Error, void>) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => chatsApi.pinConversation(conversationId),
+    onSuccess: (...args) => {
+      queryClient.invalidateQueries({ queryKey: chatsKeys.detail(conversationId) });
+      queryClient.invalidateQueries({ queryKey: chatsKeys.list() });
+      if (options?.onSuccess) options.onSuccess(...args);
+    },
+    ...options,
+  });
+};
+
+export const useUnpinConversation = (conversationId: string, options?: UseMutationOptions<ConversationSettingsResponseDto, Error, void>) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => chatsApi.unpinConversation(conversationId),
+    onSuccess: (...args) => {
+      queryClient.invalidateQueries({ queryKey: chatsKeys.detail(conversationId) });
+      queryClient.invalidateQueries({ queryKey: chatsKeys.list() });
+      if (options?.onSuccess) options.onSuccess(...args);
+    },
+    ...options,
   });
 };

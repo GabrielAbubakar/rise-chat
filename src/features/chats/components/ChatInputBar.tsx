@@ -1,7 +1,6 @@
-import React from "react";
-import { ActivityIndicator, Pressable, TextInput, View } from "react-native";
-import PaperClipIcon from "@/assets/icons/solid/paper-clip.svg";
 import PlaneIcon from "@/assets/icons/solid/paper-airplane.svg";
+import PaperClipIcon from "@/assets/icons/solid/paper-clip.svg";
+import { ActivityIndicator, Pressable, TextInput, View } from "react-native";
 
 export interface ChatInputBarProps {
   message: string;
@@ -34,7 +33,7 @@ export function ChatInputBar({
           />
         </Pressable>
         <TextInput
-          className="flex-1 text-label dark:text-label-dark font-sf-regular py-3 max-h-[120px]"
+          className="flex-1 text-label dark:text-label-dark text-body-lg py-3 max-h-[120px]"
           placeholder="Type your message..."
           placeholderTextColor={isDark ? "#9CA3AF" : "#9CA3AF"}
           value={message}

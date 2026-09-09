@@ -37,6 +37,7 @@
     "expo-location": "~57.0.8",
     "expo-media-library": "~57.0.3",
     "expo-notifications": "~57.0.9",
+    "expo-observe": "~57.0.20",
     "expo-router": "~57.0.10",
     "expo-secure-store": "~57.0.1",
     "expo-sharing": "~57.0.10",

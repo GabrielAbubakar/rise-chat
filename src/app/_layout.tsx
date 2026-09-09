@@ -9,23 +9,30 @@ import { useColorScheme } from "nativewind";
 import { useEffect } from "react";
 import "react-native-gesture-handler";
 import Toast from "react-native-toast-message";
+// import { ObserveRoot, useObserve } from "expo-observe";
 import "../global.css";
 
 SplashScreen.preventAutoHideAsync();
 
-export default function RootLayout() {
+function RootLayout() {
   const { colorScheme, setColorScheme } = useColorScheme();
   const themePreference = useThemeStore((state) => state.themePreference);
   const isDark = colorScheme === "dark";
   const isAppReady = useAppReady();
+  // const { markInteractive } = useObserve();
 
   // Enforce global routing based on authentication state
   useProtectedRoute(isAppReady);
 
   useEffect(() => {
     if (isAppReady) {
-      SplashScreen.hideAsync().catch(() => {});
+      SplashScreen.hideAsync()
+        .then(() => {
+          // markInteractive();
+        })
+        .catch(() => {});
     }
+    // }, [isAppReady, markInteractive]);
   }, [isAppReady]);
 
   useEffect(() => {
@@ -44,3 +51,6 @@ export default function RootLayout() {
     </AppProviders>
   );
 }
+
+// export default ObserveRoot.wrap(RootLayout);
+export default RootLayout;

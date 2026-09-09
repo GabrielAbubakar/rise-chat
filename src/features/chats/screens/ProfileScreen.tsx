@@ -60,10 +60,17 @@ export function ProfileScreen({ id }: ProfileScreenProps) {
     { enabled: !!conversationId },
   );
 
-  const otherParticipant = conversationDetail?.otherParticipant;
-  const name = otherParticipant?.displayName || "User";
-  const avatar = otherParticipant?.avatarUrl || undefined;
-  const isGroup = (conversationDetail?.type as any) === "group";
+  const isDirect = conversationDetail?.type === "direct";
+  const otherParticipant = isDirect
+    ? conversationDetail?.otherParticipant
+    : null;
+  const name = isDirect
+    ? otherParticipant?.displayName || "User"
+    : conversationDetail?.name || "Group";
+  const avatar = isDirect
+    ? otherParticipant?.avatarUrl
+    : conversationDetail?.avatarUrl;
+  const isGroup = conversationDetail?.type === "group";
   const lastSeenText = formatLastSeen(conversationDetail?.lastActivityAt);
 
   const previewPhotos = DUMMY_PHOTOS.slice(0, 5);
@@ -316,14 +323,22 @@ export function ProfileScreen({ id }: ProfileScreenProps) {
           ) : (
             /* ================= Individual User Profile View ================= */
             <View>
-              <View className="px-6">
+              <View className="px-6 py-4 gap-2">
                 {/* User Name / Info Block */}
-                <View className="py-2.5">
+                <View>
                   <BaseText className="text-neutral-900 dark:text-white font-sf-bold text-lg">
                     {name}
                   </BaseText>
                   <BaseText className="text-neutral-500 dark:text-neutral-400 font-sf-regular mt-0.5">
-                    User
+                    Phone Number
+                  </BaseText>
+                </View>
+                <View>
+                  <BaseText className="text-neutral-900 dark:text-white font-sf-bold text-lg">
+                    Busy
+                  </BaseText>
+                  <BaseText className="text-neutral-500 dark:text-neutral-400 font-sf-regular mt-0.5">
+                    Description
                   </BaseText>
                 </View>
               </View>

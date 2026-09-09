@@ -1,13 +1,13 @@
-import { useEffect, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
-import { useRealtime } from "@/core/providers/RealtimeProvider";
-import { chatsKeys } from "./useChats";
 import type {
   MessageCreatedEventPayload,
   PresenceChangedEventPayload,
   TypingStartedEventPayload,
   TypingStoppedEventPayload,
 } from "@/core/api/protocol";
+import { useRealtime } from "@/core/providers/RealtimeProvider";
+import { useQueryClient } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
+import { chatsKeys } from "./useChats";
 
 export function useChatRealtime(conversationId: string) {
   const { socket } = useRealtime();
