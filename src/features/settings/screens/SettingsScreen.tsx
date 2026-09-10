@@ -20,10 +20,12 @@ import EditIcon from "@/assets/icons/outline/pencil-alt.svg";
 import QrCodeIcon from "@/assets/icons/outline/qrcode.svg";
 
 import { useSettingsData } from "../constants/settingsData";
+import { useGetMe } from "../hooks/useProfile";
 
 export function SettingsScreen() {
   const router = useRouter();
-  const user = useAuthStore((state) => state.user);
+  
+  const { data: user } = useGetMe();
   const { mutate: logoutApi, isPending } = useLogout({
     onSettled: async () => {
       await useAuthStore.getState().logout();

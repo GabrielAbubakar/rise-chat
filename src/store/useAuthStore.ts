@@ -6,28 +6,23 @@ import { clientPersister, queryClient } from "@/core/queryClient";
 import { createZustandStorage } from "./storage";
 
 interface AuthState {
-  user: UserResponseDto | null;
-  setUser: (user: UserResponseDto) => void;
+  isAuthenticated: boolean;
+  setAuthenticated: (status: boolean) => void;
   logout: () => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
-      user: null,
-      setUser: (user) => {
-        const currentUser = useAuthStore.getState().user;
-        if (!currentUser || currentUser.id !== user.id) {
-          queryClient.clear();
-          clientPersister.removeClient();
-        }
-        set({ user });
+      isAuthenticated: false,
+      setAuthenticated: (status) => {
+        set({ isAuthenticated: status });
       },
       logout: async () => {
         await tokenStorage.clearTokens();
         queryClient.clear();
         await clientPersister.removeClient();
-        set({ user: null });
+        set({ isAuthenticated: false });
       },
     }),
     {

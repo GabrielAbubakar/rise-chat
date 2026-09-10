@@ -1,4 +1,5 @@
-import { useAuthStore } from "@/store/useAuthStore";
+import { useGetMe, profileKeys } from "@/features/settings/hooks/useProfile";
+import { ProfileResponseDto } from "@/features/settings/types";
 import {
   useInfiniteQuery,
   useMutation,
@@ -90,7 +91,7 @@ export const useCreateDirectConversation = (
 };
 
 export const useConversationsList = (params?: { limit?: number }) => {
-  const user = useAuthStore((state) => state.user);
+  const { data: user } = useGetMe();
   return useInfiniteQuery({
     queryKey: [...chatsKeys.list(), user?.id],
     queryFn: ({ pageParam }) => chatsApi.list({ ...params, cursor: pageParam }),
@@ -104,7 +105,7 @@ export const useConversationDetail = (
   conversationId: string,
   options?: Partial<UseQueryOptions<ConversationResponseDto, Error>>,
 ) => {
-  const user = useAuthStore((state) => state.user);
+  const { data: user } = useGetMe();
   return useQuery({
     queryKey: [...chatsKeys.detail(conversationId), user?.id],
     queryFn: () => chatsApi.get(conversationId),
@@ -117,7 +118,7 @@ export const useConversationMessages = (
   conversationId: string,
   params?: { limit?: number },
 ) => {
-  const user = useAuthStore((state) => state.user);
+  const { data: user } = useGetMe();
   return useInfiniteQuery({
     queryKey: [...chatsKeys.messages(conversationId), user?.id],
     queryFn: ({ pageParam }) =>
@@ -143,7 +144,7 @@ export const useSendMessage = (
     mutationFn: (data: SendMessageDto) =>
       chatsApi.sendMessage(conversationId, data),
     onMutate: async (newMessageDto) => {
-      const currentUser = useAuthStore.getState().user;
+      const currentUser = queryClient.getQueryData<ProfileResponseDto>(profileKeys.me());
       const msgKey = [...chatsKeys.messages(conversationId), currentUser?.id];
 
       await queryClient.cancelQueries({
@@ -185,7 +186,7 @@ export const useSendMessage = (
     },
     onSuccess: (realMsg, variables, context) => {
       console.log("✅ [SendMessage] Success:", realMsg);
-      const currentUser = useAuthStore.getState().user;
+      const currentUser = queryClient.getQueryData<ProfileResponseDto>(profileKeys.me());
       const msgKey = [...chatsKeys.messages(conversationId), currentUser?.id];
       queryClient.setQueryData(msgKey, (oldData: any) => {
         if (!oldData || !oldData.pages) return oldData;
@@ -205,7 +206,7 @@ export const useSendMessage = (
     onError: (err, newMsg, context: any) => {
       console.error("❌ [SendMessage] Error:", err);
       if (context?.previousData) {
-        const currentUser = useAuthStore.getState().user;
+        const currentUser = queryClient.getQueryData<ProfileResponseDto>(profileKeys.me());
         queryClient.setQueryData(
           [...chatsKeys.messages(conversationId), currentUser?.id],
           context.previousData,
@@ -448,7 +449,7 @@ export const useClearMessages = (conversationId: string, options?: UseMutationOp
 };
 
 export const useArchivedConversationsList = (params?: { limit?: number }) => {
-  const user = useAuthStore((state) => state.user);
+  const { data: user } = useGetMe();
   return useInfiniteQuery({
     queryKey: [...chatsKeys.archived(), user?.id],
     queryFn: ({ pageParam }) => chatsApi.listArchived({ ...params, cursor: pageParam }),
@@ -459,7 +460,7 @@ export const useArchivedConversationsList = (params?: { limit?: number }) => {
 };
 
 export const useFavoritesList = (params?: { limit?: number }) => {
-  const user = useAuthStore((state) => state.user);
+  const { data: user } = useGetMe();
   return useInfiniteQuery({
     queryKey: [...chatsKeys.favorites(), user?.id],
     queryFn: ({ pageParam }) => chatsApi.listFavorites({ ...params, cursor: pageParam }),

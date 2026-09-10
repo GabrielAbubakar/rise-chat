@@ -63,8 +63,9 @@ export const useUpdateProfile = (
     ...options,
     mutationFn: authApi.updateProfile,
     onSuccess: async (...args) => {
-      const { useAuthStore } = await import('@/store/useAuthStore');
-      useAuthStore.getState().setUser(args[0]);
+      const { queryClient } = await import('@/core/queryClient');
+      const { profileKeys } = await import('@/features/settings/hooks/useProfile');
+      queryClient.setQueryData(profileKeys.me(), args[0]);
 
       if (options?.onSuccess) {
         options.onSuccess(...args);

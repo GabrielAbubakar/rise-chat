@@ -2,10 +2,12 @@ import { useState, useEffect } from 'react';
 import { useNavigation } from 'expo-router';
 import { BackHandler } from 'react-native';
 import { useAuthStore } from '@/store/useAuthStore';
+import { useGetMe } from '@/features/settings/hooks/useProfile';
 
 export function useRegisterFlow() {
   const navigation = useNavigation();
-  const user = useAuthStore((state) => state.user);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const { data: user } = useGetMe({ enabled: isAuthenticated });
   
   // If we already have a user, it means they completed OTP but not profile (otherwise they wouldn't be here)
   const initialStep = user && (!user.profileComplete && !user.displayName) ? 3 : 1;
