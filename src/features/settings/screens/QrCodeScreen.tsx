@@ -1,5 +1,5 @@
 import CameraIcon from "@/assets/icons/outline/camera.svg";
-import { BaseText, BaseTouchableOpacity, ScreenHeader } from "@/shared/components";
+import { BaseText, BaseTouchableOpacity, ScreenHeader, ScreenContainer } from "@/shared/components";
 import { useGetMe } from "../hooks/useProfile";
 import { useRouter } from "expo-router";
 import React from "react";
@@ -14,8 +14,9 @@ export function QrCodeScreen() {
   const qrValue = user?.id ? `https://rise-chat.app/user/${user.id}` : "https://rise-chat.app/user/roberto";
 
   return (
-    <View className="flex-1 bg-app dark:bg-app-dark">
+    <ScreenContainer withPadding={false} isSafeArea={false} className="flex-1 bg-app dark:bg-app-dark">
       <ScreenHeader
+        className="pt-10"
         onBack={() => router.back()}
         useSafeArea
         withPadding
@@ -81,6 +82,6 @@ export function QrCodeScreen() {
           </BaseText>
         </BaseTouchableOpacity>
       </View>
-    </View>
+    </ScreenContainer>
   );
 }

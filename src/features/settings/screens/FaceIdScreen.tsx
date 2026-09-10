@@ -2,9 +2,11 @@ import { BaseText } from "@/shared/components";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
+import { useThemeColors } from "@/shared/hooks";
 
 export function FaceIdScreen() {
   // const router = useRouter();
+  const { primary } = useThemeColors();
   const [permission, requestPermission] = useCameraPermissions();
   const [isReady, setIsReady] = useState(false);
 
@@ -28,7 +30,7 @@ export function FaceIdScreen() {
               permission in your device settings.
             </BaseText>
           ) : (
-            <ActivityIndicator size="large" color="#57B77D" />
+            <ActivityIndicator size="large" color={primary} />
           )}
         </View>
       ) : (

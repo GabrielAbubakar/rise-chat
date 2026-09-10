@@ -1,4 +1,4 @@
-import { BaseText, ScreenHeader } from "@/shared/components";
+import { BaseText, ScreenContainer, ScreenHeader } from "@/shared/components";
 import { useRouter } from "expo-router";
 import { View } from "react-native";
 
@@ -6,8 +6,9 @@ export function LastCallScreen() {
   const router = useRouter();
 
   return (
-    <View className="flex-1 bg-app dark:bg-app-dark">
+    <ScreenContainer withPadding={false} isSafeArea={false} className="flex-1 bg-app dark:bg-app-dark">
       <ScreenHeader
+        className="pt-10"
         title="Last call"
         onBack={() => router.back()}
         useSafeArea
@@ -17,6 +18,6 @@ export function LastCallScreen() {
           Last call information will appear here.
         </BaseText>
       </View>
-    </View>
+    </ScreenContainer>
   );
 }

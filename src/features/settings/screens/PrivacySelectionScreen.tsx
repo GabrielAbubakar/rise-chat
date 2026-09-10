@@ -1,11 +1,13 @@
-import { BaseText, BaseTouchableOpacity, ScreenHeader } from "@/shared/components";
+import { BaseText, BaseTouchableOpacity, ScreenHeader, ScreenContainer } from "@/shared/components";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { useThemeColors } from "@/shared/hooks";
 import React, { useState } from "react";
 import { ScrollView, View } from "react-native";
 import CheckCircleIcon from "@/assets/icons/solid/check-circle.svg";
 
 export function PrivacySelectionScreen() {
   const router = useRouter();
+  const { primary } = useThemeColors();
   const { type } = useLocalSearchParams<{ type: string }>();
   
   // Default selected depending on type, simplified for mock
@@ -26,7 +28,7 @@ export function PrivacySelectionScreen() {
             {label}
           </BaseText>
           {isSelected ? (
-            <CheckCircleIcon width={24} height={24} color="#57B77D" />
+            <CheckCircleIcon width={24} height={24} color={primary} />
           ) : (
             <View className="w-6 h-6 rounded-full border-2 border-neutral-300 dark:border-neutral-600" />
           )}
@@ -52,8 +54,8 @@ export function PrivacySelectionScreen() {
   };
 
   return (
-    <View className="flex-1 bg-app dark:bg-app-dark">
-      <ScreenHeader title={type || "Privacy"} onBack={() => router.back()} useSafeArea />
+    <ScreenContainer withPadding={false} isSafeArea={false} className="flex-1 bg-app dark:bg-app-dark">
+      <ScreenHeader className="pt-10" title={type || "Privacy"} onBack={() => router.back()} useSafeArea />
       
       <ScrollView className="flex-1 mt-2">
         {options.map((option, index) => 
@@ -66,6 +68,6 @@ export function PrivacySelectionScreen() {
           </BaseText>
         </View>
       </ScrollView>
-    </View>
+    </ScreenContainer>
   );
 }
