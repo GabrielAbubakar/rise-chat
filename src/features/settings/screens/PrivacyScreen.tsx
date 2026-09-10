@@ -1,4 +1,4 @@
-import { BaseText, BaseTouchableOpacity, ScreenHeader } from "@/shared/components";
+import { BaseText, BaseTouchableOpacity, ScreenHeader, ScreenContainer } from "@/shared/components";
 import { useRouter } from "expo-router";
 import { ScrollView, View } from "react-native";
 import ChevronRightIcon from "@/assets/icons/outline/cheveron-right.svg";
@@ -34,8 +34,8 @@ export function PrivacyScreen() {
   );
 
   return (
-    <View className="flex-1 bg-app dark:bg-app-dark">
-      <ScreenHeader title="Privacy" onBack={() => router.back()} useSafeArea />
+    <ScreenContainer withPadding={false} isSafeArea={false} className="flex-1 bg-app dark:bg-app-dark">
+      <ScreenHeader className="pt-10" title="Privacy" onBack={() => router.back()} useSafeArea />
       
       <ScrollView className="flex-1" contentContainerStyle={{ paddingVertical: 10 }}>
         {renderItem("Last Seen", "Everyone", () => router.push({ pathname: "/settings/privacy-selection", params: { type: "Last Seen" } }))}
@@ -51,6 +51,6 @@ export function PrivacyScreen() {
           </BaseText>
         </View>
       </ScrollView>
-    </View>
+    </ScreenContainer>
   );
 }

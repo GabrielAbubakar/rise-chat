@@ -1,4 +1,4 @@
-import { BaseText, BaseTouchableOpacity, ScreenHeader } from "@/shared/components";
+import { BaseText, BaseTouchableOpacity, ScreenHeader, ScreenContainer } from "@/shared/components";
 import { useRouter } from "expo-router";
 import React from "react";
 import { Image, ScrollView, View } from "react-native";
@@ -29,8 +29,8 @@ export function BlockedContactScreen() {
   ];
 
   return (
-    <View className="flex-1 bg-app dark:bg-app-dark">
-      <ScreenHeader title="Blocked Contact" onBack={() => router.back()} useSafeArea />
+    <ScreenContainer withPadding={false} isSafeArea={false} className="flex-1 bg-app dark:bg-app-dark">
+      <ScreenHeader className="pt-10" title="Blocked Contact" onBack={() => router.back()} useSafeArea />
       
       <ScrollView className="flex-1 mt-2">
         {contacts.map((contact) => (
@@ -61,6 +61,6 @@ export function BlockedContactScreen() {
           </BaseText>
         </View>
       </ScrollView>
-    </View>
+    </ScreenContainer>
   );
 }
