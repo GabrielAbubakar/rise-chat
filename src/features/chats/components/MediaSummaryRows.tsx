@@ -7,6 +7,7 @@ import LinkIcon from "@/assets/icons/solid/link.svg";
 import PhotographIcon from "@/assets/icons/solid/photograph.svg";
 import StarIcon from "@/assets/icons/solid/star.svg";
 import { BaseText, BaseTouchableOpacity } from "@/shared/components";
+import { useThemeColors } from "@/shared/hooks";
 
 interface MediaSummaryRowsProps {
   photosCount?: number;
@@ -25,6 +26,7 @@ export function MediaSummaryRows({
   isDark,
   onOpenMediaTab,
 }: MediaSummaryRowsProps) {
+  const { primary } = useThemeColors();
   return (
     <View>
       {/* Photos Row */}
@@ -34,7 +36,7 @@ export function MediaSummaryRows({
         className="flex-row items-center justify-between py-3"
       >
         <View className="flex-row items-center">
-          <PhotographIcon width={22} height={22} color="#57B77D" />
+          <PhotographIcon width={22} height={22} color={primary} />
           <BaseText className="text-neutral-900 dark:text-white ml-3">
             {photosCount || 2238} photos
           </BaseText>
@@ -75,7 +77,7 @@ export function MediaSummaryRows({
         className="flex-row items-center justify-between py-3.5"
       >
         <View className="flex-row items-center">
-          <StarIcon width={22} height={22} color="#57B77D" />
+          <StarIcon width={22} height={22} color={primary} />
           <BaseText className="text-neutral-900 dark:text-white font-sf-medium ml-3">
             {starMessagesCount || 43} star messages
           </BaseText>
@@ -94,7 +96,7 @@ export function MediaSummaryRows({
         className="flex-row items-center justify-between py-3.5 border-t border-neutral-200 dark:border-neutral-700/50"
       >
         <View className="flex-row items-center">
-          <LinkIcon width={22} height={22} color="#57B77D" />
+          <LinkIcon width={22} height={22} color={primary} />
           <BaseText className="text-neutral-900 dark:text-white font-sf-medium text-base ml-3">
             {sharedLinksCount || 19} shared links
           </BaseText>

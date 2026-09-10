@@ -2,6 +2,17 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer base {
+  :root {
+    --color-primary-50: #DDF1E5;
+    --color-primary-100: #E8F5ED;
+    --color-primary-200: #ABDBBE;
+    --color-primary-300: #73C393;
+    --color-primary-400: #57B77D;
+    --color-primary-DEFAULT: #57B77D;
+  }
+}
+
 :root {
   --font-display: "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-text: "SF Pro Display Regular", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;

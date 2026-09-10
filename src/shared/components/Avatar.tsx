@@ -3,6 +3,7 @@ import ArchiveIcon from "@/assets/icons/solid/archive.svg";
 import { Image } from "expo-image";
 import { View, ViewProps } from "react-native";
 import { BaseText } from "./BaseText";
+import { useThemeColors } from "../hooks";
 
 export interface AvatarProps extends ViewProps {
   type?: "image" | "initials" | "group" | "archive";
@@ -17,13 +18,14 @@ export function Avatar({
   type = "image",
   source,
   initials,
-  backgroundColor = "#57B77D", // Default to primary-400
+  backgroundColor,
   size = 56, // Default to w-14 h-14
   isActive = false,
   className = "",
   style,
   ...props
 }: AvatarProps) {
+  const { primary } = useThemeColors();
   const isImage = Boolean(type === "image" && source);
   const activeIndicatorSize = Math.max(12, size * 0.25);
 
@@ -31,7 +33,7 @@ export function Avatar({
     width: size,
     height: size,
     borderRadius: size / 2,
-    backgroundColor: isImage ? "transparent" : (backgroundColor || "#57B77D"),
+    backgroundColor: isImage ? "transparent" : (backgroundColor || primary),
     overflow: "hidden" as const,
     alignItems: "center" as const,
     justifyContent: "center" as const,

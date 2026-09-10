@@ -7,11 +7,13 @@ import { Tabs, useRouter } from "expo-router";
 import { useColorScheme } from "nativewind";
 import { useState } from "react";
 import { View } from "react-native";
+import { useThemeColors } from "@/shared/hooks";
 
 export default function TabsLayout() {
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === "dark";
   const router = useRouter();
+  const { primary } = useThemeColors();
 
   const isPinSet = useSecurityStore((state) => state.isPinSet);
   const hasSkippedPinSetup = useSecurityStore(
@@ -43,7 +45,7 @@ export default function TabsLayout() {
       height: 95,
       paddingTop: 10,
     },
-    tabBarActiveTintColor: colors.primary.DEFAULT,
+    tabBarActiveTintColor: primary,
     tabBarInactiveTintColor: colors.neutral[300],
   };
 

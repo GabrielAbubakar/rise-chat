@@ -1,6 +1,7 @@
 import React from "react";
 import { Switch, View, ActivityIndicator } from "react-native";
 import { useRouter } from "expo-router";
+import { useThemeColors } from "@/shared/hooks";
 
 // Icons
 import BellIcon from "@/assets/icons/outline/bell.svg";
@@ -18,36 +19,37 @@ export const useSettingsData = (
   isPending: boolean
 ) => {
   const router = useRouter();
+  const { primary } = useThemeColors();
 
   const group1Data = [
     {
-      icon: <StarIcon width={20} height={20} color="#57B77D" />,
+      icon: <StarIcon width={20} height={20} color={primary} />,
       label: "Star messages",
       onPress: () => router.push("/settings"),
     },
     {
-      icon: <PhoneIcon width={20} height={20} color="#57B77D" />,
+      icon: <PhoneIcon width={20} height={20} color={primary} />,
       label: "Last call",
       onPress: () => router.push("/settings/last-call"),
     },
     {
-      icon: <FolderIcon width={20} height={20} color="#57B77D" />,
+      icon: <FolderIcon width={20} height={20} color={primary} />,
       label: "My folder",
       onPress: () => router.push("/settings/my-folder"),
     },
     {
-      icon: <AppearanceIcon width={20} height={20} color="#57B77D" />,
+      icon: <AppearanceIcon width={20} height={20} color={primary} />,
       label: "Appearance",
       onPress: () => router.push("/settings/appearance"),
     },
     {
-      icon: <BellIcon width={20} height={20} color="#57B77D" />,
+      icon: <BellIcon width={20} height={20} color={primary} />,
       label: "Notification",
       rightElement: (
         <Switch
           value={true}
           onValueChange={() => {}}
-          trackColor={{ false: "#DDE2E8", true: "#57B77D" }}
+          trackColor={{ false: "#DDE2E8", true: primary }}
           thumbColor={"#FFFFFF"}
         />
       ),
@@ -56,26 +58,26 @@ export const useSettingsData = (
 
   const group2Data = [
     {
-      icon: <LockIcon width={20} height={20} color="#57B77D" />,
+      icon: <LockIcon width={20} height={20} color={primary} />,
       label: "Privacy",
       onPress: () => router.push("/settings/privacy"),
     },
     {
-      icon: <DatabaseIcon width={20} height={20} color="#57B77D" />,
+      icon: <DatabaseIcon width={20} height={20} color={primary} />,
       label: "Data and storage",
       onPress: () => router.push("/settings/data-storage"),
     },
     {
-      icon: <QuestionMarkIcon width={20} height={20} color="#57B77D" />,
+      icon: <QuestionMarkIcon width={20} height={20} color={primary} />,
       label: "FAQ",
       onPress: () => router.push("/settings/faq"),
     },
     {
-      icon: <LogoutIcon width={20} height={20} color="#57B77D" />,
+      icon: <LogoutIcon width={20} height={20} color={primary} />,
       label: "Logout",
       onPress: confirmLogout,
       rightElement: isPending ? (
-        <ActivityIndicator size="small" color="#57B77D" />
+        <ActivityIndicator size="small" color={primary} />
       ) : (
         <View />
       ),

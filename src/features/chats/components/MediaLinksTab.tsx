@@ -5,6 +5,7 @@ import LinkIcon from "@/assets/icons/solid/link.svg";
 import VideoCameraIcon from "@/assets/icons/solid/video-camera.svg";
 import { DUMMY_SHARED_LINKS } from "@/constants/dummyData";
 import { BaseText } from "@/shared/components";
+import { useThemeColors } from "@/shared/hooks";
 
 export function MediaLinksTab({
   sections,
@@ -13,6 +14,7 @@ export function MediaLinksTab({
   sections: typeof DUMMY_SHARED_LINKS;
   onOpenLink: (url: string) => void;
 }) {
+  const { primary } = useThemeColors();
   return (
     <ScrollView
       showsVerticalScrollIndicator={false}
@@ -41,7 +43,7 @@ export function MediaLinksTab({
                     <LinkIcon
                       width={22}
                       height={22}
-                      color={link.badgeColor || "#57B77D"}
+                      color={link.badgeColor || primary}
                     />
                   )}
                 </View>
