@@ -10,6 +10,8 @@ interface ThemeState {
   setThemePreference: (theme: ThemePreference) => void;
   primaryColor: PrimaryColorTheme;
   setPrimaryColor: (color: PrimaryColorTheme) => void;
+  appIcon: string;
+  setAppIcon: (icon: string) => void;
 }
 
 export const useThemeStore = create<ThemeState>()(
@@ -19,6 +21,8 @@ export const useThemeStore = create<ThemeState>()(
       setThemePreference: (theme) => set({ themePreference: theme }),
       primaryColor: "green",
       setPrimaryColor: (color) => set({ primaryColor: color }),
+      appIcon: "green",
+      setAppIcon: (icon) => set({ appIcon: icon }),
     }),
     {
       name: "theme-preference",

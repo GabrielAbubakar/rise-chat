@@ -61,6 +61,27 @@
         {
           "contactsPermission": "Allow Rise Chat to access your contacts to easily connect with friends."
         }
+      ],
+      [
+        "@variant-systems/expo-dynamic-app-icon",
+        {
+          "green": {
+            "image": "./assets/images/icon.png",
+            "prerendered": true
+          },
+          "blue": {
+            "image": "./assets/images/icon-blue.png",
+            "prerendered": true
+          },
+          "red": {
+            "image": "./assets/images/icon-red.png",
+            "prerendered": true
+          },
+          "orange": {
+            "image": "./assets/images/icon-orange.png",
+            "prerendered": true
+          }
+        }
       ]
     ],
     "experiments": {
