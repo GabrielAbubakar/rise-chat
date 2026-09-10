@@ -1,9 +1,9 @@
 import { MessagePill } from "@/features/chats/components/MessagePill";
 import { BaseText, ScreenContainer, ScreenHeader } from "@/shared/components";
+import { useThemeColors } from "@/shared/hooks";
+import { useThemeStore } from "@/store";
 import { useRouter } from "expo-router";
 import { useColorScheme } from "nativewind";
-import { useThemeStore } from "@/store";
-import { useThemeColors } from "@/shared/hooks";
 import { useState } from "react";
 import {
   Image,
@@ -13,6 +13,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import ExpoDynamicAppIcon from "@variant-systems/expo-dynamic-app-icon";
 
 // Icons
 import LogoIcon from "@/assets/icons/Logo.svg";
@@ -43,7 +44,8 @@ export function AppearanceScreen() {
   const setPrimaryColor = useThemeStore((state) => state.setPrimaryColor);
   const { primary } = useThemeColors();
 
-  const [selectedIcon, setSelectedIcon] = useState("blue");
+  const selectedIcon = useThemeStore((state) => state.appIcon);
+  const setAppIcon = useThemeStore((state) => state.setAppIcon);
   const [isNightMode, setIsNightMode] = useState(true);
   const [isLargeEmoji, setIsLargeEmoji] = useState(false);
 
@@ -91,13 +93,13 @@ export function AppearanceScreen() {
             Select a Theme
           </BaseText>
           <View className="flex-row justify-between mb-8">
-              {THEMES.map((theme) => {
-                const isSelected = primaryColor === theme.id;
-                return (
-                  <TouchableOpacity
-                    key={theme.id}
-                    onPress={() => setPrimaryColor(theme.id as any)}
-                    activeOpacity={0.8}
+            {THEMES.map((theme) => {
+              const isSelected = primaryColor === theme.id;
+              return (
+                <TouchableOpacity
+                  key={theme.id}
+                  onPress={() => setPrimaryColor(theme.id as any)}
+                  activeOpacity={0.8}
                   className={`w-[22%] aspect-[3/4] rounded-2xl overflow-hidden relative bg-neutral-100 dark:bg-[#152433] ${
                     isSelected ? "border-[2px]" : "border-0"
                   }`}
@@ -194,7 +196,14 @@ export function AppearanceScreen() {
               return (
                 <TouchableOpacity
                   key={icon.id}
-                  onPress={() => setSelectedIcon(icon.id)}
+                  onPress={() => {
+                    setAppIcon(icon.id);
+                    try {
+                      ExpoDynamicAppIcon.setAppIcon(icon.id);
+                    } catch (error) {
+                      console.error("Failed to set app icon", error);
+                    }
+                  }}
                   activeOpacity={0.8}
                   className="items-center w-[22%]"
                 >
