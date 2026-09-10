@@ -6,6 +6,7 @@ import Svg, { Rect } from "react-native-svg";
 
 // Shared Components
 import { BaseText, ScreenContainer, ScreenHeader } from "@/shared/components";
+import { useThemeColors } from "@/shared/hooks";
 
 // Icons
 import ArrowLeftIcon from "@/assets/icons/solid/cheveron-left.svg";
@@ -21,6 +22,7 @@ export function QrCodeScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === "dark";
+  const { primary } = useThemeColors();
 
   const chat = DUMMY_CHATS.find((c) => c.id === id) || DUMMY_CHATS[0];
   const userAvatar =
@@ -151,7 +153,7 @@ export function QrCodeScreen() {
           <QrCodeIcon
             width={20}
             height={20}
-            color={isDark ? "#57B77D" : "#FFFFFF"}
+            color={isDark ? primary : "#FFFFFF"}
           />
           <BaseText className="text-white font-sf-semibold text-base ml-2.5">
             Scan QR code

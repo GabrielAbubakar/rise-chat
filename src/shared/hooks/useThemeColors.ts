@@ -1,5 +1,7 @@
 import { useColorScheme } from "nativewind";
 import { colors } from "@/shared/constants/tokens";
+import { useThemeStore } from "@/store";
+import { COLOR_SCHEMES } from "@/shared/constants/themes";
 
 const ThemeColors = {
   light: {
@@ -16,7 +18,11 @@ const ThemeColors = {
 
 export function useThemeColors() {
   const { colorScheme } = useColorScheme();
+  const primaryColorName = useThemeStore((state) => state.primaryColor);
   const isDark = colorScheme === "dark";
 
-  return ThemeColors[isDark ? "dark" : "light"];
+  return {
+    ...ThemeColors[isDark ? "dark" : "light"],
+    primary: COLOR_SCHEMES[primaryColorName].DEFAULT,
+  };
 }

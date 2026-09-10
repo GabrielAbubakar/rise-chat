@@ -22,6 +22,7 @@ import {
   BaseTouchableOpacity,
   ScreenContainer,
 } from "@/shared/components";
+import { useThemeColors } from "@/shared/hooks";
 
 // Icons
 import AdjustmentsIcon from "@/assets/icons/solid/adjustments.svg";
@@ -50,6 +51,7 @@ export function ProfileScreen({ id }: ProfileScreenProps) {
   const insets = useSafeAreaInsets();
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === "dark";
+  const { primary } = useThemeColors();
 
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
@@ -358,7 +360,7 @@ export function ProfileScreen({ id }: ProfileScreenProps) {
                 {/* Notifications Row with Switch */}
                 <View className="flex-row items-center justify-between py-3.5 border-t border-neutral-200 dark:border-neutral-700/50">
                   <View className="flex-row items-center">
-                    <BellIcon width={22} height={22} color="#57B77D" />
+                    <BellIcon width={22} height={22} color={primary} />
                     <BaseText className="text-neutral-900 dark:text-white font-sf-medium text-base ml-3">
                       Notifications
                     </BaseText>
@@ -368,7 +370,7 @@ export function ProfileScreen({ id }: ProfileScreenProps) {
                     onValueChange={setNotificationsEnabled}
                     trackColor={{
                       false: isDark ? "#3A566A" : "#E5E7EB",
-                      true: "#57B77D",
+                      true: primary,
                     }}
                     thumbColor="#FFFFFF"
                   />

@@ -7,6 +7,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { tv, type VariantProps } from "tailwind-variants";
 import { BaseText } from "./BaseText";
+import { useThemeColors } from "../hooks";
 
 const buttonVariants = tv({
   base: "w-full items-center justify-center py-5 rounded-2xl",
@@ -62,6 +63,7 @@ export function BaseButton({
 }: BaseButtonProps) {
   const scale = useSharedValue(1);
   const opacity = useSharedValue(1);
+  const { primary } = useThemeColors();
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
@@ -97,7 +99,7 @@ export function BaseButton({
         >
           {loading ? (
             <ActivityIndicator
-              color={variant === "primary" ? "white" : "#57B77D"}
+              color={variant === "primary" ? "white" : primary}
             />
           ) : (
             <BaseText type="button-big" className={textVariants({ variant })}>
