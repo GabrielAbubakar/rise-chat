@@ -5,7 +5,7 @@ import {
   generateUUID,
   isSameDay,
 } from "@/shared/utils";
-import { useAuthStore } from "@/store/useAuthStore";
+import { useGetMe } from "@/features/settings/hooks/useProfile";
 import { LegendList } from "@legendapp/list/react-native";
 import { useColorScheme } from "nativewind";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -52,7 +52,7 @@ export function ChatDetailScreen({ id, search }: ChatDetailScreenProps) {
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === "dark";
 
-  const user = useAuthStore((state) => state.user);
+  const { data: user } = useGetMe();
   const conversationId = id || "";
 
   // API Hooks

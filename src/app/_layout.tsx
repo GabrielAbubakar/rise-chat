@@ -14,7 +14,7 @@ import "../global.css";
 
 SplashScreen.preventAutoHideAsync();
 
-function RootLayout() {
+function RootLayoutNav() {
   const { colorScheme, setColorScheme } = useColorScheme();
   const themePreference = useThemeStore((state) => state.themePreference);
   const isDark = colorScheme === "dark";
@@ -44,13 +44,18 @@ function RootLayout() {
   }
 
   return (
-    <AppProviders>
+    <>
       <StatusBar style={isDark ? "light" : "dark"} />
       <Stack screenOptions={{ headerShown: false }} />
       <Toast config={toastConfig} position="top" topOffset={60} />
-    </AppProviders>
+    </>
   );
 }
 
-// export default ObserveRoot.wrap(RootLayout);
-export default RootLayout;
+export default function RootLayout() {
+  return (
+    <AppProviders>
+      <RootLayoutNav />
+    </AppProviders>
+  );
+}

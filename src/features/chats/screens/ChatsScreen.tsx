@@ -38,7 +38,7 @@ export function ChatsScreen() {
   const [selectedChats, setSelectedChats] = useState<Set<string>>(new Set());
   const newChatBottomSheetRef = useRef<BottomSheetModal>(null);
   const newGroupBottomSheetRef = useRef<BottomSheetModal>(null);
-  const { data: conversations, refetch, isPending } = useConversationsList();
+  const { data: conversations, refetch, isFetching } = useConversationsList();
   const { data: archivedConversations } = useArchivedConversationsList();
   // const userID = useAuthStore((state) => state.user?.id);
   const displayConversations =
@@ -200,7 +200,7 @@ export function ChatsScreen() {
           estimatedItemSize={80}
           refreshControl={
             <RefreshControl
-              refreshing={isPending}
+              refreshing={isFetching}
               onRefresh={() => refetch()}
               tintColor="#ffffff"
             />
