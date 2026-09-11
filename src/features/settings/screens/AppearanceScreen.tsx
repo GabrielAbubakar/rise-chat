@@ -1,7 +1,9 @@
 import { MessagePill } from "@/features/chats/components/MessagePill";
 import { BaseText, ScreenContainer, ScreenHeader } from "@/shared/components";
 import { useThemeColors } from "@/shared/hooks";
+import { showSuccessToast } from "@/shared/utils";
 import { useThemeStore } from "@/store";
+import ExpoDynamicAppIcon from "@variant-systems/expo-dynamic-app-icon";
 import { useRouter } from "expo-router";
 import { useColorScheme } from "nativewind";
 import { useState } from "react";
@@ -13,7 +15,6 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import ExpoDynamicAppIcon from "@variant-systems/expo-dynamic-app-icon";
 
 // Icons
 import LogoIcon from "@/assets/icons/Logo.svg";
@@ -200,6 +201,7 @@ export function AppearanceScreen() {
                     setAppIcon(icon.id);
                     try {
                       ExpoDynamicAppIcon.setAppIcon(icon.id);
+                      showSuccessToast(`App icon updated to ${icon.label}`);
                     } catch (error) {
                       console.error("Failed to set app icon", error);
                     }
