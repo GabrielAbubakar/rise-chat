@@ -24,5 +24,6 @@ export function useThemeColors() {
   return {
     ...ThemeColors[isDark ? "dark" : "light"],
     primary: COLOR_SCHEMES[primaryColorName].DEFAULT,
+    primaryShades: COLOR_SCHEMES[primaryColorName],
   };
 }

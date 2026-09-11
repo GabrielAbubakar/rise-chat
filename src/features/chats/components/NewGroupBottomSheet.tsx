@@ -24,7 +24,7 @@ import { Pressable, View } from "react-native";
 import CameraIcon from "@/assets/icons/solid/add-a-photo.svg";
 import CheckIcon from "@/assets/icons/solid/check.svg";
 import SearchIcon from "@/assets/icons/solid/search.svg";
-import { colors } from "@/shared/constants";
+import { useThemeColors } from "@/shared/hooks";
 import { useColorScheme } from "nativewind";
 import { ContactItem } from "./NewChatBottomSheet";
 
@@ -38,6 +38,7 @@ interface GroupContactCardProps {
 
 const GroupContactCard = React.memo(
   ({ item, isSelected, onToggle }: GroupContactCardProps) => {
+    const { primaryShades } = useThemeColors();
     return (
       <Pressable
         onPress={() => onToggle(item.id)}
@@ -45,11 +46,10 @@ const GroupContactCard = React.memo(
       >
         <View className="relative mb-2">
           <View
-            className={`rounded-full overflow-hidden ${
-              isSelected
-                ? "border-2 border-primary-400"
-                : "border-2 border-transparent"
-            }`}
+            className="rounded-full overflow-hidden border-2"
+            style={{
+              borderColor: isSelected ? primaryShades[400] : "transparent",
+            }}
           >
             <Avatar
               type={item.avatar ? "image" : "initials"}
@@ -61,8 +61,11 @@ const GroupContactCard = React.memo(
           {isSelected && (
             <View className="absolute inset-0 bg-black/40 rounded-full items-center justify-center m-[2px]">
               <View
-                className="w-6 h-6 bg-primary-400 items-center justify-center"
-                style={{ borderRadius: 12 }}
+                className="w-6 h-6 items-center justify-center"
+                style={{
+                  borderRadius: 12,
+                  backgroundColor: primaryShades[400],
+                }}
               >
                 <CheckIcon width={12} height={12} color="white" />
               </View>
@@ -94,6 +97,7 @@ export const NewGroupBottomSheet = forwardRef<
 >((props, ref) => {
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === "dark";
+  const { primary, primaryShades } = useThemeColors();
 
   const snapPoints = useMemo(() => ["85%"], []);
 
@@ -182,11 +186,7 @@ export const NewGroupBottomSheet = forwardRef<
             width={20}
             height={20}
             color={
-              searchQuery.length > 0
-                ? "#4ADE80"
-                : isDark
-                  ? "#6E8597"
-                  : "#9CA3AF"
+              searchQuery.length > 0 ? primary : isDark ? "#6E8597" : "#9CA3AF"
             }
             className="mr-2"
           />
@@ -224,8 +224,11 @@ export const NewGroupBottomSheet = forwardRef<
     <>
       <View className="items-center mb-10">
         <View className="relative">
-          <View className="w-32 h-32 rounded-full dark:bg-[#F5FEF8] bg-primary-50 items-center justify-center overflow-hidden border border-neutral-100 dark:border-neutral-700">
-            <CameraIcon width={36} height={36} color="#4ADE80" />
+          <View
+            className="w-32 h-32 rounded-full items-center justify-center overflow-hidden border border-neutral-100 dark:border-neutral-700"
+            style={{ backgroundColor: isDark ? "#F5FEF8" : primaryShades[50] }}
+          >
+            <CameraIcon width={36} height={36} color={primary} />
           </View>
         </View>
       </View>
@@ -307,7 +310,7 @@ export const NewGroupBottomSheet = forwardRef<
           <BaseText type="h4" className="font-sf-bold mb-5">
             {step === 1 ? "Add participants" : "New Group"}
             {step === 1 && selectedParticipants.size > 0 && (
-              <BaseText type="h4" style={{ color: colors.primary[400] }}>
+              <BaseText type="h4" style={{ color: primaryShades[400] }}>
                 {" "}
                 ({selectedParticipants.size})
               </BaseText>
@@ -316,12 +319,18 @@ export const NewGroupBottomSheet = forwardRef<
 
           <View className="flex-row items-center justify-center gap-2">
             <View
-              className="h-1 flex-1 rounded-full bg-primary-400"
-              style={{ opacity: step >= 1 ? 1 : 0.3 }}
+              className="h-1 flex-1 rounded-full"
+              style={{
+                opacity: step >= 1 ? 1 : 0.3,
+                backgroundColor: primaryShades[400],
+              }}
             />
             <View
-              className="h-1 flex-1 rounded-full bg-primary-400"
-              style={{ opacity: step >= 2 ? 1 : 0.3 }}
+              className="h-1 flex-1 rounded-full"
+              style={{
+                opacity: step >= 2 ? 1 : 0.3,
+                backgroundColor: primaryShades[400],
+              }}
             />
           </View>
         </View>

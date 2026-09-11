@@ -1,3 +1,4 @@
+import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import Animated, {
@@ -7,7 +8,6 @@ import Animated, {
   useSharedValue,
   withSpring,
 } from "react-native-reanimated";
-import { useRouter } from "expo-router";
 
 import { BaseText } from "@/shared/components";
 
@@ -17,6 +17,7 @@ import PlusIcon from "@/assets/icons/solid/plus.svg";
 import UserIcon from "@/assets/icons/solid/user.svg";
 import UsersIcon from "@/assets/icons/solid/users.svg";
 import XIcon from "@/assets/icons/solid/x.svg";
+import { useThemeColors } from "@/shared/hooks";
 
 type FabMenuItemProps = {
   label: string;
@@ -27,6 +28,8 @@ type FabMenuItemProps = {
   animation: any;
 };
 
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
 const FabMenuItem = ({
   label,
   icon: Icon,
@@ -35,6 +38,7 @@ const FabMenuItem = ({
   index,
   animation,
 }: FabMenuItemProps) => {
+  const { primary } = useThemeColors();
   const style = useAnimatedStyle(() => {
     const translateY = interpolate(
       animation.value,
@@ -54,27 +58,44 @@ const FabMenuItem = ({
       [0.8, 1],
       Extrapolation.CLAMP,
     );
+    const elevation = interpolate(
+      animation.value,
+      [0, 1],
+      [0, 6],
+      Extrapolation.CLAMP,
+    );
+    const shadowOpacity = interpolate(
+      animation.value,
+      [0, 1],
+      [0, 0.15],
+      Extrapolation.CLAMP,
+    );
 
     return {
       opacity,
       transform: [{ translateY }, { scale }],
+      elevation,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity,
+      shadowRadius: 8,
+      display: animation.value === 0 ? "none" : "flex",
     };
   });
 
   return (
-    <Animated.View style={style}>
-      <Pressable
-        className={`flex-row items-center w-44 bg-white dark:bg-neutral-800 p-4 gap-3  rounded-full shadow-lg ${
-          isLast ? "" : "mb-3"
-        }`}
-        onPress={onPress}
-      >
-        <Icon width={20} height={20} color="#4ADE80" className="mr-3" />
-        <BaseText className="text-neutral-900 dark:text-white font-sf-bold">
-          {label}
-        </BaseText>
-      </Pressable>
-    </Animated.View>
+    <AnimatedPressable
+      style={style}
+      className={`flex-row items-center w-44 bg-white dark:bg-neutral-800 p-4 gap-3 rounded-full ${
+        isLast ? "" : "mb-3"
+      }`}
+      onPress={onPress}
+    >
+      <Icon width={20} height={20} color={primary} className="mr-3" />
+      <BaseText className="text-neutral-900 dark:text-white font-sf-bold">
+        {label}
+      </BaseText>
+    </AnimatedPressable>
   );
 };
 
@@ -141,8 +162,6 @@ export function ChatFabMenu({
       opacity: animation.value, // direct binding to the spring
     };
   });
-
-
 
   return (
     <View
