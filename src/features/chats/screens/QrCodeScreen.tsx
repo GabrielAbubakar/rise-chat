@@ -12,7 +12,7 @@ import ArrowLeftIcon from "@/assets/icons/solid/cheveron-left.svg";
 import QrCodeIcon from "@/assets/icons/solid/qrcode.svg";
 
 // Dummy Data
-import { DUMMY_CHATS } from "@/constants/dummyData";
+import { DUMMY_CHATS } from "@shared/constants/dummyData";
 
 // const { width: windowWidth } = Dimensions.get("window");
 

@@ -3,7 +3,7 @@ import { Pressable, ScrollView, View } from "react-native";
 
 import LinkIcon from "@/assets/icons/solid/link.svg";
 import VideoCameraIcon from "@/assets/icons/solid/video-camera.svg";
-import { DUMMY_SHARED_LINKS } from "@/constants/dummyData";
+import { DUMMY_SHARED_LINKS } from "@shared/constants/dummyData";
 import { BaseText } from "@/shared/components";
 
 export function MediaLinksTab({

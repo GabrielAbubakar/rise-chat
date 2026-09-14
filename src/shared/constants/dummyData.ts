@@ -1,5 +1,3 @@
-import { ConversationResponseDto } from "@/features/chats/types";
-
 export const DUMMY_CHATS = [
   {
     id: "1",
@@ -26,7 +24,7 @@ export const DUMMY_CHATS = [
     name: "Jane Cooper",
     avatarType: "initials",
     initials: "JC",
-    avatarColor: "#F59E0B", // amber-500
+    avatarColor: "#F59E0B",
     lastMessage: "You: Can you sent the photo?",
     time: "11:23 PM",
     unreadCount: 0,
@@ -64,7 +62,7 @@ export const DUMMY_CHATS = [
     id: "4",
     name: "Work Team",
     avatarType: "group",
-    avatarColor: "#1E3A8A", // blue-900
+    avatarColor: "#1E3A8A",
     avatar: "https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=800",
     coverImage: "https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=800",
     lastMessage: "Wait, I am on my way!",
@@ -96,7 +94,7 @@ export const DUMMY_CHATS = [
     name: "Ronald Richards",
     avatarType: "initials",
     initials: "RR",
-    avatarColor: "#8B5CF6", // violet-500
+    avatarColor: "#8B5CF6",
     lastMessage: "You: Can you sent the photo?",
     time: "Yesterday",
     unreadCount: 0,
@@ -193,199 +191,6 @@ export const DUMMY_CHATS = [
     isPinned: false,
     isActive: false,
   },
-];
-
-export const DUMMY_MESSAGES = [
-  {
-    id: "m1",
-    text: "Habitant elit pellentesque curabitur morbi sit fusce elit",
-    time: "18:25",
-    isMe: false,
-  },
-  {
-    id: "m2",
-    text: "Gravida lectus semper orci",
-    time: "19:40",
-    isMe: true,
-  },
-  {
-    id: "m3",
-    text: "Egestas interdum orci commodo faucibus pretium, neque etiam",
-    time: "19:40",
-    isMe: false,
-  },
-  {
-    id: "m4",
-    text: "Orci maecenas hendrerit mattis consectetur. Mauris.",
-    time: "19:40",
-    isMe: false,
-  },
-  {
-    id: "m5",
-    text: "Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas.",
-    time: "19:42",
-    isMe: true,
-  },
-  {
-    id: "m6",
-    text: "Nulla facilisi. Nullam in magna id.",
-    time: "19:43",
-    isMe: false,
-  },
-  {
-    id: "m7",
-    text: "Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
-    time: "19:45",
-    isMe: true,
-  },
-  {
-    id: "m8",
-    text: "Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.",
-    time: "19:46",
-    isMe: false,
-  },
-  {
-    id: "m9",
-    text: "Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.",
-    time: "19:50",
-    isMe: true,
-  },
-  {
-    id: "m10",
-    text: "Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.",
-    time: "19:51",
-    isMe: false,
-  },
-  {
-    id: "m11",
-    text: "Yes, I agree completely.",
-    time: "19:55",
-    isMe: true,
-  },
-  {
-    id: "m12",
-    text: "Let me check and get back to you.",
-    time: "19:56",
-    isMe: false,
-  },
-  {
-    id: "m13",
-    text: "Take your time!",
-    time: "19:57",
-    isMe: true,
-  },
-  {
-    id: "m14",
-    text: "I found the document you mentioned.",
-    time: "20:05",
-    isMe: false,
-  },
-  {
-    id: "m15",
-    text: "Awesome, please send it over.",
-    time: "20:06",
-    isMe: true,
-  },
-  {
-    id: "m16",
-    text: "Here it is. Let me know if you have any questions.",
-    time: "20:07",
-    isMe: false,
-  },
-  {
-    id: "m17",
-    text: "Got it. I will review it tonight.",
-    time: "20:10",
-    isMe: true,
-  },
-  {
-    id: "m18",
-    text: "Great! Have a good evening.",
-    time: "20:12",
-    isMe: false,
-  },
-];
-
-export const DUMMY_ARCHIVED_CHATS: ConversationResponseDto[] = [
-  {
-    id: "a1",
-    type: "direct",
-    otherParticipant: {
-      id: "u-a1",
-      displayName: "Annie Miles",
-      avatarUrl: "https://i.pravatar.cc/150?u=a1",
-    },
-    latestMessage: {
-      id: "msg-a1",
-      senderId: "u-a1",
-      kind: "text",
-      preview: "Please, I don't know anything ab...",
-      createdAt: new Date().toISOString(),
-    },
-    settings: {
-      archived: true,
-      muted: false,
-      pinned: false,
-      favorited: false,
-      archivedAt: new Date().toISOString(),
-      mutedAt: null,
-      mutedUntil: null,
-      pinnedAt: null,
-      favoritedAt: null,
-      clearedAt: null,
-      clearedThroughMessageId: null,
-    },
-    unreadCount: 2,
-    lastActivityAt: new Date().toISOString(),
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: "a2",
-    type: "direct",
-    otherParticipant: {
-      id: "u-a2",
-      displayName: "Arlene McCoy",
-      avatarUrl: "https://i.pravatar.cc/150?u=a2",
-    },
-    latestMessage: {
-      id: "msg-a2",
-      senderId: "u-a2",
-      kind: "text",
-      preview: "Wow, it's very cool",
-      createdAt: new Date().toISOString(),
-    },
-    settings: {
-      archived: true,
-      muted: false,
-      pinned: false,
-      favorited: false,
-      archivedAt: new Date().toISOString(),
-      mutedAt: null,
-      mutedUntil: null,
-      pinnedAt: null,
-      favoritedAt: null,
-      clearedAt: null,
-      clearedThroughMessageId: null,
-    },
-    unreadCount: 0,
-    lastActivityAt: new Date().toISOString(),
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-];
-
-export const DUMMY_CONTACTS = [
-  { id: "c1", name: "Annette Black", phone: "+61-827-680-673", avatar: "https://i.pravatar.cc/150?u=5" },
-  { id: "c2", name: "Arlene McCoy", phone: "+61-123-753-555", avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800" },
-  { id: "c3", name: "Annie Miles", phone: "+61-827-680-673", avatar: "https://i.pravatar.cc/150?u=a1" },
-  { id: "c4", name: "Courtney Henry", phone: "+61-827-680-673", avatar: "https://i.pravatar.cc/150?u=15" },
-  { id: "c5", name: "Cianne Russell", phone: "+61-827-680-673", avatar: "https://i.pravatar.cc/150?u=c5" },
-  { id: "c6", name: "Cessie Cooper", phone: "+61-827-680-673", avatar: "https://i.pravatar.cc/150?u=c6" },
-  { id: "c7", name: "Craig Fatari", phone: "+61-827-680-673", avatar: "https://i.pravatar.cc/150?u=c7" },
-  { id: "c8", name: "Keanu Murphy", phone: "+61-827-680-673", avatar: "https://i.pravatar.cc/150?u=c8" },
-  { id: "c9", name: "Kemal Pahlevi", phone: "+61-827-680-673", avatar: "https://i.pravatar.cc/150?u=c9" },
-  { id: "c10", name: "Kemana Malik", phone: "+61-827-680-673", avatar: "https://i.pravatar.cc/150?u=c10" },
 ];
 
 export const DUMMY_PHOTOS = [
@@ -601,4 +406,3 @@ export const DUMMY_GROUP_MEMBERS = [
     role: "Member",
   },
 ];
-

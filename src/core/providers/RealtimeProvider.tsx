@@ -10,7 +10,7 @@ import {
   type PropsWithChildren,
 } from "react";
 import { io } from "socket.io-client";
-import type { ChatSocket } from "../api/protocol";
+import type { ChatSocket } from "@/types/realtime";
 
 export type RealtimeStatus =
   | "connecting"

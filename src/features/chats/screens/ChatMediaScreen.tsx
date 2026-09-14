@@ -16,7 +16,7 @@ import {
   DUMMY_PHOTOS,
   DUMMY_SHARED_LINKS,
   DUMMY_STARRED_MESSAGES,
-} from "@/constants/dummyData";
+} from "@shared/constants/dummyData";
 
 // Feature Components
 import {

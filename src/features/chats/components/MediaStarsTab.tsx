@@ -4,7 +4,7 @@ import { View } from "react-native";
 
 import ChevronRightIcon from "@/assets/icons/solid/cheveron-right.svg";
 import StarIcon from "@/assets/icons/solid/star.svg";
-import { DUMMY_STARRED_MESSAGES } from "@/constants/dummyData";
+import { DUMMY_STARRED_MESSAGES } from "@shared/constants/dummyData";
 import { BaseText } from "@/shared/components";
 
 export function MediaStarsTab({

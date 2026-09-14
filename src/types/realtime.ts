@@ -1,11 +1,11 @@
-import type { Socket } from 'socket.io-client';
+import type { Socket } from "socket.io-client";
 
 export type RealtimeErrorCode =
-  | 'AUTH_ACCESS_TOKEN_INVALID'
-  | 'REALTIME_PAYLOAD_INVALID'
-  | 'REALTIME_CONVERSATION_NOT_FOUND'
-  | 'REALTIME_RATE_LIMITED'
-  | 'REALTIME_INTERNAL_ERROR';
+  | "AUTH_ACCESS_TOKEN_INVALID"
+  | "REALTIME_PAYLOAD_INVALID"
+  | "REALTIME_CONVERSATION_NOT_FOUND"
+  | "REALTIME_RATE_LIMITED"
+  | "REALTIME_INTERNAL_ERROR";
 
 export type RealtimeAck<T> =
   | { ok: true; data: T }
@@ -23,7 +23,7 @@ export interface ConversationCommandPayload {
 
 export interface PresenceParticipantState {
   userId: string;
-  status: 'online' | 'offline';
+  status: "online" | "offline";
 }
 
 export interface PresenceSubscriptionData {
@@ -53,7 +53,7 @@ export interface MessageCreatedEventPayload {
   conversationId: string;
   clientMessageId: string;
   senderId: string;
-  kind: 'text';
+  kind: "text";
   text: string;
   createdAt: string;
 }
@@ -77,7 +77,7 @@ export interface ReceiptUpdatedEventPayload {
 export interface PresenceChangedEventPayload {
   conversationId: string;
   userId: string;
-  status: 'online' | 'offline';
+  status: "online" | "offline";
   occurredAt: string;
 }
 
@@ -94,28 +94,28 @@ export interface TypingStoppedEventPayload {
 }
 
 export interface ChatServerToClientEvents {
-  'message.created': (payload: MessageCreatedEventPayload) => void;
-  'receipt.delivered': (payload: ReceiptUpdatedEventPayload) => void;
-  'receipt.read': (payload: ReceiptUpdatedEventPayload) => void;
-  'presence.changed': (payload: PresenceChangedEventPayload) => void;
-  'typing.started': (payload: TypingStartedEventPayload) => void;
-  'typing.stopped': (payload: TypingStoppedEventPayload) => void;
+  "message.created": (payload: MessageCreatedEventPayload) => void;
+  "receipt.delivered": (payload: ReceiptUpdatedEventPayload) => void;
+  "receipt.read": (payload: ReceiptUpdatedEventPayload) => void;
+  "presence.changed": (payload: PresenceChangedEventPayload) => void;
+  "typing.started": (payload: TypingStartedEventPayload) => void;
+  "typing.stopped": (payload: TypingStoppedEventPayload) => void;
 }
 
 export interface ChatClientToServerEvents {
-  'presence.subscribe': (
+  "presence.subscribe": (
     payload: ConversationCommandPayload,
     ack: (response: RealtimeAck<PresenceSubscriptionData>) => void,
   ) => void;
-  'presence.unsubscribe': (
+  "presence.unsubscribe": (
     payload: ConversationCommandPayload,
     ack: (response: RealtimeAck<PresenceUnsubscriptionData>) => void,
   ) => void;
-  'typing.start': (
+  "typing.start": (
     payload: ConversationCommandPayload,
     ack: (response: RealtimeAck<TypingStartedData>) => void,
   ) => void;
-  'typing.stop': (
+  "typing.stop": (
     payload: ConversationCommandPayload,
     ack: (response: RealtimeAck<TypingStoppedData>) => void,
   ) => void;
