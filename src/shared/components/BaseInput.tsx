@@ -1,6 +1,8 @@
 import React, { forwardRef, useState } from "react";
 import { TextInput, TextInputProps, View } from "react-native";
 import { tv, type VariantProps } from "tailwind-variants";
+import { useColorScheme } from "nativewind";
+import { useThemeColors } from "../hooks";
 import { BaseText } from "./BaseText";
 
 const containerVariants = tv({
@@ -8,7 +10,7 @@ const containerVariants = tv({
   variants: {
     state: {
       default: "border-divider dark:border-divider-dark bg-transparent",
-      active: "border-primary-400 bg-primary-50 dark:bg-neutral-800",
+      active: "dark:bg-neutral-800",
     },
     size: {
       default: "px-[12px] py-[18px]",
@@ -50,6 +52,16 @@ export const BaseInput = forwardRef<TextInput, BaseInputProps>(
   ) => {
     const Comp = InputComponent || TextInput;
     const [isFocused, setIsFocused] = useState(false);
+    const { primary, primaryShades } = useThemeColors();
+    const { colorScheme } = useColorScheme();
+    const isDark = colorScheme === "dark";
+
+    const activeContainerStyle = isFocused
+      ? {
+          borderColor: primary,
+          backgroundColor: isDark ? undefined : primaryShades[50],
+        }
+      : undefined;
 
     return (
       <View>
@@ -58,12 +70,17 @@ export const BaseInput = forwardRef<TextInput, BaseInputProps>(
             {label}
           </BaseText>
         )}
-        <View className={containerVariants({ size, state: isFocused ? "active" : "default", className })}>
+        <View
+          className={containerVariants({ size, state: isFocused ? "active" : "default", className })}
+          style={activeContainerStyle}
+        >
           {leftComponent}
           <Comp
             ref={ref as any}
             className={inputVariants({ size, className: inputClassName })}
             placeholderTextColor={props.placeholderTextColor || "#9ca3af"}
+            selectionColor={props.selectionColor || primary}
+            cursorColor={props.cursorColor || primary}
             onFocus={(e: any) => {
               setIsFocused(true);
               props.onFocus?.(e);

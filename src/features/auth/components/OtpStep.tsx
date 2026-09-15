@@ -1,4 +1,5 @@
 import { BaseButton, BaseText, OtpInput } from "@/shared/components";
+import { useThemeColors } from "@/shared/hooks";
 import { Pressable, View } from "react-native";
 import { useOtpStep } from "../hooks/useOtpStep";
 
@@ -27,7 +28,13 @@ export function OtpStep({
     isActive,
     handleVerify,
     handleResend,
-  } = useOtpStep(challengeId, initialResendSeconds, onSuccess, onChallengeIdChanged);
+  } = useOtpStep(
+    challengeId,
+    initialResendSeconds,
+    onSuccess,
+    onChallengeIdChanged,
+  );
+  const { primary } = useThemeColors();
 
   return (
     <View className="flex-1 pb-10">
@@ -68,7 +75,7 @@ export function OtpStep({
         <Pressable onPress={handleResend} disabled={isActive || isResendingOtp}>
           <BaseText
             type="body-md"
-            color={isActive ? "primary50" : "primary"}
+            style={{ color: primary, opacity: isActive ? 0.5 : 1 }}
             className="font-bold"
           >
             {isResendingOtp ? "Resending..." : "Resend code"}

@@ -18,15 +18,15 @@ import {
 
 // Icons
 import LogoIcon from "@/assets/icons/Logo.svg";
-import EmojiHappyIcon from "@/assets/icons/outline/emoji-happy.svg";
-import MoonIcon from "@/assets/icons/outline/moon.svg";
 import CheckCircleIcon from "@/assets/icons/solid/check-circle.svg";
+import EmojiHappyIcon from "@/assets/icons/solid/emoji-happy.svg";
+import MoonIcon from "@/assets/icons/solid/moon.svg";
 
 const THEMES = [
-  { id: "green", label: "Green", color: "#57B77D" },
-  { id: "blue", label: "Blue", color: "#3B82F6" },
-  { id: "red", label: "Red", color: "#EF4444" },
-  { id: "orange", label: "Orange", color: "#F59E0B" },
+  { id: "green", label: "Green", color: "#57B77D", bgColor: "#F5FBF7" },
+  { id: "blue", label: "Blue", color: "#3B82F6", bgColor: "#ECF5FF" },
+  { id: "red", label: "Red", color: "#EF4444", bgColor: "#FFF5F5" },
+  { id: "orange", label: "Orange", color: "#F59E0B", bgColor: "#FFF0D9" },
 ];
 
 const ICONS = [
@@ -82,8 +82,16 @@ export function AppearanceScreen() {
           />
 
           <View className="mt-8 px-2">
-            <MessagePill isMe={false} text="Wie geht es Ihnen?" time="18:25" />
-            <MessagePill isMe={true} text="Gut, danke!" time="19:40" />
+            <MessagePill
+              isMe={false}
+              text="Haben Sie genug Geld, um etwas zu kaufen?"
+              time="18:25"
+            />
+            <MessagePill
+              isMe={true}
+              text="Ja, ich habe genug Geld"
+              time="19:40"
+            />
           </View>
         </View>
 
@@ -106,12 +114,13 @@ export function AppearanceScreen() {
                   }`}
                   style={{
                     borderColor: isSelected ? theme.color : "transparent",
+                    backgroundColor: isDark ? "#0F2637" : theme.bgColor,
                   }}
                 >
                   <View className="flex-1 justify-center px-2 py-3 gap-y-2">
-                    <View className="w-8 h-3 rounded-lg rounded-bl-sm bg-white dark:bg-neutral-800 self-start shadow-sm" />
+                    <View className="w-8 h-3 rounded-md rounded-bl-sm bg-white dark:bg-neutral-700 self-start shadow-sm" />
                     <View
-                      className="w-10 h-3 rounded-lg rounded-br-sm self-end shadow-sm"
+                      className="w-10 h-3 rounded-md rounded-br-sm self-end shadow-sm"
                       style={{ backgroundColor: theme.color }}
                     />
                   </View>
@@ -129,7 +138,7 @@ export function AppearanceScreen() {
                     </BaseText>
                   </View>
                   {isSelected && (
-                    <View className="absolute top-1 right-1 bg-white rounded-full">
+                    <View className="absolute top-1 right-1 rounded-full">
                       <CheckCircleIcon
                         width={16}
                         height={16}
