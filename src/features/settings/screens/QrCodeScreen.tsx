@@ -1,6 +1,6 @@
 import CameraIcon from "@/assets/icons/outline/camera.svg";
-import { BaseText, BaseTouchableOpacity, ScreenHeader } from "@/shared/components";
-import { useAuthStore } from "@/store/useAuthStore";
+import { BaseText, BaseTouchableOpacity, ScreenHeader, ScreenContainer } from "@/shared/components";
+import { useGetMe } from "../hooks/useProfile";
 import { useRouter } from "expo-router";
 import React from "react";
 import { Image, ScrollView, View } from "react-native";
@@ -8,14 +8,15 @@ import QRCode from "react-native-qrcode-svg";
 
 export function QrCodeScreen() {
   const router = useRouter();
-  const user = useAuthStore((state) => state.user);
+  const { data: user } = useGetMe();
 
   // Default to something, could be a user deep link in a real app
   const qrValue = user?.id ? `https://rise-chat.app/user/${user.id}` : "https://rise-chat.app/user/roberto";
 
   return (
-    <View className="flex-1 bg-app dark:bg-app-dark">
+    <ScreenContainer withPadding={false} isSafeArea={false} className="flex-1 bg-app dark:bg-app-dark">
       <ScreenHeader
+        className="pt-10"
         onBack={() => router.back()}
         useSafeArea
         withPadding
@@ -81,6 +82,6 @@ export function QrCodeScreen() {
           </BaseText>
         </BaseTouchableOpacity>
       </View>
-    </View>
+    </ScreenContainer>
   );
 }

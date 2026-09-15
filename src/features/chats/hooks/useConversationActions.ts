@@ -1,4 +1,5 @@
-import { useAuthStore } from "@/store/useAuthStore";
+import { profileKeys, useGetMe } from "@/features/settings/hooks/useProfile";
+import { ProfileResponseDto } from "@/features/settings/types";
 import {
   useMutation,
   UseMutationOptions,
@@ -55,12 +56,14 @@ export const useSendMessage = (
   >,
 ) => {
   const queryClient = useQueryClient();
+  const { data: user } = useGetMe();
 
   return useMutation({
     mutationFn: (data: SendMessageDto) =>
       chatsApi.sendMessage(conversationId, data),
     onMutate: async (newMessageDto) => {
-      const currentUser = useAuthStore.getState().user;
+      const currentUser =
+        user ?? queryClient.getQueryData<ProfileResponseDto>(profileKeys.me());
       const msgKey = [...chatsKeys.messages(conversationId), currentUser?.id];
 
       await queryClient.cancelQueries({
@@ -101,7 +104,8 @@ export const useSendMessage = (
       return { previousData };
     },
     onSuccess: (realMsg, variables, context, mutation) => {
-      const currentUser = useAuthStore.getState().user;
+      const currentUser =
+        user ?? queryClient.getQueryData<ProfileResponseDto>(profileKeys.me());
       const msgKey = [...chatsKeys.messages(conversationId), currentUser?.id];
       queryClient.setQueryData(msgKey, (oldData: any) => {
         if (!oldData || !oldData.pages) return oldData;
@@ -123,7 +127,8 @@ export const useSendMessage = (
     },
     onError: (err, variables, context: any, mutation) => {
       if (context?.previousData) {
-        const currentUser = useAuthStore.getState().user;
+        const currentUser =
+          user ?? queryClient.getQueryData<ProfileResponseDto>(profileKeys.me());
         queryClient.setQueryData(
           [...chatsKeys.messages(conversationId), currentUser?.id],
           context.previousData,

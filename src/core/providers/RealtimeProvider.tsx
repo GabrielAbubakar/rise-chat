@@ -35,7 +35,7 @@ export function RealtimeProvider({
   children,
   enabled = true,
 }: RealtimeProviderProps) {
-  const user = useAuthStore((state) => state.user);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const [socket, setSocket] = useState<ChatSocket | null>(null);
   const [status, setStatus] = useState<RealtimeStatus>("disconnected");
   const [activityVersion, setActivityVersion] = useState(0);
@@ -44,7 +44,7 @@ export function RealtimeProvider({
   useEffect(() => {
     let active = true;
 
-    if (!enabled || !user) {
+    if (!enabled || !isAuthenticated) {
       return;
     }
 
@@ -110,7 +110,7 @@ export function RealtimeProvider({
         return null;
       });
     };
-  }, [enabled, user]);
+  }, [enabled, isAuthenticated]);
 
   const value = useMemo<RealtimeContextValue>(
     () => ({ socket, status, activityVersion, reconcileVersion }),
