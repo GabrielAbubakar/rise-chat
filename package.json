@@ -90,7 +90,8 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "lint": "expo lint",
-    "lint-fix": "expo lint --fix"
+    "lint-fix": "expo lint --fix",
+    "type-check": "tsc --noEmit"
   },
   "private": true
 }

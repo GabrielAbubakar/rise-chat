@@ -1,4 +1,4 @@
-import { useAuthStore } from "@/store/useAuthStore";
+import { useGetMe } from "@/features/settings/hooks/useProfile";
 import {
   useInfiniteQuery,
   useQuery,
@@ -9,7 +9,7 @@ import { ConversationResponseDto } from "../types";
 import { chatsKeys } from "./chatsKeys";
 
 export const useConversationsList = (params?: { limit?: number }) => {
-  const user = useAuthStore((state) => state.user);
+  const { data: user } = useGetMe();
   return useInfiniteQuery({
     queryKey: [...chatsKeys.list(), user?.id],
     queryFn: ({ pageParam }) => chatsApi.list({ ...params, cursor: pageParam }),
@@ -23,7 +23,7 @@ export const useConversationDetail = (
   conversationId: string,
   options?: Partial<UseQueryOptions<ConversationResponseDto, Error>>,
 ) => {
-  const user = useAuthStore((state) => state.user);
+  const { data: user } = useGetMe();
   return useQuery({
     queryKey: [...chatsKeys.detail(conversationId), user?.id],
     queryFn: () => chatsApi.get(conversationId),
@@ -36,7 +36,7 @@ export const useConversationMessages = (
   conversationId: string,
   params?: { limit?: number },
 ) => {
-  const user = useAuthStore((state) => state.user);
+  const { data: user } = useGetMe();
   return useInfiniteQuery({
     queryKey: [...chatsKeys.messages(conversationId), user?.id],
     queryFn: ({ pageParam }) =>
@@ -48,7 +48,7 @@ export const useConversationMessages = (
 };
 
 export const useArchivedConversationsList = (params?: { limit?: number }) => {
-  const user = useAuthStore((state) => state.user);
+  const { data: user } = useGetMe();
   return useInfiniteQuery({
     queryKey: [...chatsKeys.archived(), user?.id],
     queryFn: ({ pageParam }) =>
@@ -60,7 +60,7 @@ export const useArchivedConversationsList = (params?: { limit?: number }) => {
 };
 
 export const useFavoritesList = (params?: { limit?: number }) => {
-  const user = useAuthStore((state) => state.user);
+  const { data: user } = useGetMe();
   return useInfiniteQuery({
     queryKey: [...chatsKeys.favorites(), user?.id],
     queryFn: ({ pageParam }) =>

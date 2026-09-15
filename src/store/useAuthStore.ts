@@ -1,6 +1,5 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
-import { UserResponseDto } from "@/features/auth/types";
 import { tokenStorage } from "@/services/api/token";
 import { clientPersister, queryClient } from "@/core/queryClient";
 import { createZustandStorage } from "./storage";

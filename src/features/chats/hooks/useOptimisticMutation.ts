@@ -1,5 +1,6 @@
+import { profileKeys, useGetMe } from "@/features/settings/hooks/useProfile";
+import { ProfileResponseDto } from "@/features/settings/types";
 import { showInfoToast } from "@/shared/utils";
-import { useAuthStore } from "@/store/useAuthStore";
 import {
   QueryClient,
   useMutation,
@@ -32,21 +33,23 @@ export function useOptimisticMutation<
   options,
 }: UseOptimisticMutationConfig<TData, TVariables, TContext>) {
   const queryClient = useQueryClient();
-  const user = useAuthStore((state) => state.user);
+  const { data: user } = useGetMe();
 
   return useMutation<TData, Error, TVariables, TContext>({
     mutationFn,
     onMutate: (variables) => onMutate(queryClient, user?.id, variables),
     onError: (err, variables, context, mutation) => {
+      const currentUser =
+        user ?? queryClient.getQueryData<ProfileResponseDto>(profileKeys.me());
       if (context && (context as any).previousList) {
         queryClient.setQueryData(
-          [...chatsKeys.list(), user?.id],
+          [...chatsKeys.list(), currentUser?.id],
           (context as any).previousList,
         );
       }
       if (context && (context as any).previousArchived) {
         queryClient.setQueryData(
-          [...chatsKeys.archived(), user?.id],
+          [...chatsKeys.archived(), currentUser?.id],
           (context as any).previousArchived,
         );
       }
