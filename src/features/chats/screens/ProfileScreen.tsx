@@ -38,7 +38,7 @@ import UserIcon from "@/assets/icons/solid/user.svg";
 import { formatLastSeen } from "@/shared/utils";
 
 // API Hooks & Dummy Media
-import { DUMMY_GROUP_MEMBERS, DUMMY_PHOTOS } from "@/constants/dummyData";
+import { DUMMY_GROUP_MEMBERS, DUMMY_PHOTOS } from "@shared/constants/dummyData";
 import { useConversationDetail } from "../hooks/useChats";
 
 export interface ProfileScreenProps {

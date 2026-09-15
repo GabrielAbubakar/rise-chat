@@ -3,7 +3,7 @@ import type {
   PresenceChangedEventPayload,
   TypingStartedEventPayload,
   TypingStoppedEventPayload,
-} from "@/core/api/protocol";
+} from "@/types/realtime";
 import { useRealtime } from "@/core/providers/RealtimeProvider";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";

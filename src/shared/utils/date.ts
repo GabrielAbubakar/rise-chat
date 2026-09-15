@@ -68,3 +68,29 @@ export const formatChatDateSeparator = (isoString?: string | null): string => {
     return "";
   }
 };
+
+export const formatLastMessageTime = (isoString?: string | null): string => {
+  if (!isoString) return "";
+  try {
+    const date = new Date(isoString);
+    const now = new Date();
+
+    if (isSameDay(date, now)) {
+      return "Today";
+    }
+
+    const yesterday = new Date(now);
+    yesterday.setDate(yesterday.getDate() - 1);
+    if (isSameDay(date, yesterday)) {
+      return "Yesterday";
+    }
+
+    return date.toLocaleDateString([], {
+      day: "2-digit",
+      month: "2-digit",
+      year: "2-digit",
+    });
+  } catch {
+    return "";
+  }
+};

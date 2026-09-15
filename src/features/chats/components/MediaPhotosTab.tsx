@@ -2,7 +2,7 @@ import { Image } from "expo-image";
 import React from "react";
 import { Dimensions, ScrollView, View } from "react-native";
 
-import { DUMMY_PHOTOS } from "@/constants/dummyData";
+import { DUMMY_PHOTOS } from "@shared/constants/dummyData";
 
 const { width: windowWidth } = Dimensions.get("window");
 

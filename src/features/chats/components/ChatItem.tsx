@@ -1,6 +1,7 @@
 import { Avatar, BaseText } from "@/shared/components";
+import { formatLastMessageTime } from "@/shared/utils";
 import { useColorScheme } from "nativewind";
-import React, { ComponentRef, useRef } from "react";
+import React, { ComponentRef, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, View } from "react-native";
 import { Pressable as RNGHPressable } from "react-native-gesture-handler";
 import Swipeable from "react-native-gesture-handler/ReanimatedSwipeable";
@@ -64,24 +65,35 @@ interface ChatItemProps {
   onLongPress?: () => void;
 }
 
+let activeSwipeable: ComponentRef<typeof Swipeable> | null = null;
+
+const setActiveSwipeable = (ref: ComponentRef<typeof Swipeable> | null) => {
+  if (activeSwipeable && activeSwipeable !== ref) {
+    activeSwipeable.close();
+  }
+  activeSwipeable = ref;
+};
+
+const clearActiveSwipeable = (ref: ComponentRef<typeof Swipeable> | null) => {
+  if (activeSwipeable === ref) {
+    activeSwipeable = null;
+  }
+};
+
 export function ChatItem({
   data,
   isSelected,
   onPress,
   onLongPress,
 }: ChatItemProps) {
+  const [isActionActive, setIsActionActive] = useState(false);
   const isDirect = data.type === "direct";
   const displayName = isDirect ? data.otherParticipant.displayName : data.name;
   const avatarUrl = isDirect ? data.otherParticipant.avatarUrl : data.avatarUrl;
   const { latestMessage, unreadCount, lastActivityAt } = data;
 
   const lastMessage = latestMessage?.preview || "";
-  const time = lastActivityAt
-    ? new Date(lastActivityAt).toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
-      })
-    : "";
+  const time = formatLastMessageTime(lastActivityAt);
 
   const isPinned = data.settings?.pinned ?? false;
   const isArchived = data.settings?.archived ?? false;
@@ -91,37 +103,49 @@ export function ChatItem({
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === "dark";
 
-  const { mutate: archive, isPending: isArchiving } = useArchiveConversation(
-    data.id,
-  );
-  const { mutate: unarchive, isPending: isUnarchiving } =
-    useUnarchiveConversation(data.id);
+  const { mutate: archive } = useArchiveConversation(data.id);
+  const { mutate: unarchive } = useUnarchiveConversation(data.id);
   const { mutate: clearMessages, isPending: isClearing } = useClearMessages(
     data.id,
   );
   const { mutate: mute, isPending: isMuting } = useMuteConversation(data.id);
-  const { mutate: unmute, isPending: isUnmuting } = useUnmuteConversation(
+  const { mutate: unmute, isPending: isUnmuteConversation } = useUnmuteConversation(
     data.id,
   );
-  const { mutate: pin, isPending: isPinning } = usePinConversation(data.id);
-  const { mutate: unpin, isPending: isUnpinning } = useUnpinConversation(
-    data.id,
-  );
+  const { mutate: pin } = usePinConversation(data.id);
+  const { mutate: unpin } = useUnpinConversation(data.id);
 
-  const isArchivePending = isArchiving || isUnarchiving;
-  const isMutePending = isMuting || isUnmuting;
-  const isPinPending = isPinning || isUnpinning;
+  const isMutePending = isMuting || isUnmuteConversation;
 
   const swipeableRef = useRef<ComponentRef<typeof Swipeable>>(null);
   const closeSwipeable = () => swipeableRef.current?.close();
 
+  const handleWillOpen = () => {
+    setActiveSwipeable(swipeableRef.current);
+  };
+
+  const handleClose = () => {
+    clearActiveSwipeable(swipeableRef.current);
+  };
+
+  const handleSwipeAction = (action: () => void) => {
+    setIsActionActive(true);
+    closeSwipeable();
+    clearActiveSwipeable(swipeableRef.current);
+    setTimeout(() => {
+      action();
+      setTimeout(() => {
+        setIsActionActive(false);
+      }, 150);
+    }, 200);
+  };
+
   const renderRightActions = () => {
+    if (isActionActive) return null;
     return (
       <View className="flex-row gap-x-2">
         <SwipeableActionButton
-          onPress={() =>
-            clearMessages(undefined, { onSuccess: closeSwipeable })
-          }
+          onPress={() => handleSwipeAction(() => clearMessages())}
           bgColorClass="bg-red-500"
           isPending={isClearing}
           icon={<TrashIcon width={24} height={24} color="white" />}
@@ -129,12 +153,9 @@ export function ChatItem({
         />
         <SwipeableActionButton
           onPress={() =>
-            isArchived
-              ? unarchive(undefined, { onSuccess: closeSwipeable })
-              : archive(undefined, { onSuccess: closeSwipeable })
+            handleSwipeAction(() => (isArchived ? unarchive() : archive()))
           }
           bgColorClass="bg-neutral-300 dark:bg-neutral-600"
-          isPending={isArchivePending}
           icon={<ArchiveIcon width={24} height={24} color="white" />}
           title={isArchived ? "Unarchive" : "Archive"}
         />
@@ -148,13 +169,14 @@ export function ChatItem({
   };
 
   const renderLeftActions = () => {
+    if (isActionActive) return null;
     return (
       <View className="flex-row gap-x-2">
         <SwipeableActionButton
           onPress={() =>
-            isMuted
-              ? unmute(undefined, { onSuccess: closeSwipeable })
-              : mute({ duration: "always" }, { onSuccess: closeSwipeable })
+            handleSwipeAction(() =>
+              isMuted ? unmute() : mute({ duration: "always" }),
+            )
           }
           bgColorClass="bg-orange-400"
           isPending={isMutePending}
@@ -163,12 +185,9 @@ export function ChatItem({
         />
         <SwipeableActionButton
           onPress={() =>
-            isPinned
-              ? unpin(undefined, { onSuccess: closeSwipeable })
-              : pin(undefined, { onSuccess: closeSwipeable })
+            handleSwipeAction(() => (isPinned ? unpin() : pin()))
           }
           bgColorClass="bg-neutral-300 dark:bg-neutral-600"
-          isPending={isPinPending}
           icon={<PinIcon width={24} height={24} color="white" />}
           title={isPinned ? "Unpin" : "Pin"}
         />
@@ -183,11 +202,17 @@ export function ChatItem({
   const initials = displayName ? displayName.charAt(0).toUpperCase() : "?";
 
   return (
-    <Animated.View layout={LinearTransition} exiting={FadeOut.duration(200)}>
+    <Animated.View
+      layout={LinearTransition}
+      exiting={FadeOut.duration(200)}
+      className="overflow-hidden rounded-lg"
+    >
       <Swipeable
         ref={swipeableRef}
         renderRightActions={renderRightActions}
         renderLeftActions={renderLeftActions}
+        onSwipeableWillOpen={handleWillOpen}
+        onSwipeableClose={handleClose}
         friction={2.5}
         overshootFriction={4}
       >

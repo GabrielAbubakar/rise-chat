@@ -1,7 +1,7 @@
 import { Image } from "expo-image";
 import { View } from "react-native";
 
-import { DUMMY_GROUP_MEMBERS } from "@/constants/dummyData";
+import { DUMMY_GROUP_MEMBERS } from "@shared/constants/dummyData";
 import { BaseText } from "@/shared/components";
 
 interface GroupMembersListProps {
