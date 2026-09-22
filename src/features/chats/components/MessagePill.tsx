@@ -6,7 +6,7 @@ import { MessageAttachmentDto } from "../types";
 
 export interface MessagePillProps {
   isMe: boolean;
-  text: string;
+  text?: string;
   time: string;
   searchQuery?: string;
   isCurrentMatch?: boolean;
@@ -15,7 +15,7 @@ export interface MessagePillProps {
 
 export function MessagePill({
   isMe,
-  text,
+  text = "",
   time,
   searchQuery,
   isCurrentMatch = false,

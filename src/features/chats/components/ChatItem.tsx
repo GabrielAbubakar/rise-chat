@@ -216,7 +216,7 @@ export function ChatItem({
         renderLeftActions={renderLeftActions}
         onSwipeableWillOpen={handleWillOpen}
         onSwipeableClose={handleClose}
-        friction={2.5}
+        friction={2}
         overshootFriction={4}
       >
         <Pressable

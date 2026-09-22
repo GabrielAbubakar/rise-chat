@@ -102,7 +102,19 @@ export interface ConversationListResponseDto {
 
 export interface SendMessageDto {
   clientMessageId: string;
-  text: string;
+  text?: string;
+  attachmentMediaIds?: string[];
+}
+
+export interface MessageAttachmentResponseDto {
+  mediaId: string;
+  type: "image" | "audio" | "video" | "document";
+  contentType: string;
+  sizeBytes: number;
+  width?: number | null;
+  height?: number | null;
+  durationMs?: number | null;
+  url: string;
 }
 
 export interface MessageAttachmentDto {
@@ -116,8 +128,9 @@ export interface MessageResponseDto {
   conversationId: string;
   clientMessageId: string;
   senderId: string;
-  kind: 'text';
-  text: string;
+  kind: "text" | "image" | "audio" | "video" | "document";
+  text?: string;
+  attachments?: MessageAttachmentResponseDto[];
   createdAt: string;
   attachments?: MessageAttachmentDto[];
 }

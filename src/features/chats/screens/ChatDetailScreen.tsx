@@ -1,3 +1,4 @@
+import { mediaApi } from "@/features/media/api";
 import { useGetMe } from "@/features/settings/hooks/useProfile";
 import { BaseText, ScreenContainer } from "@/shared/components";
 import {
@@ -5,8 +6,13 @@ import {
   formatTime,
   generateUUID,
   isSameDay,
+  showApiErrorToast,
+  showInfoToast
 } from "@/shared/utils";
 import { LegendList } from "@legendapp/list/react-native";
+import axios from "axios";
+import * as DocumentPicker from "expo-document-picker";
+import * as ImagePicker from "expo-image-picker";
 import { useColorScheme } from "nativewind";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -25,10 +31,13 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import ChevronDownIcon from "@/assets/icons/solid/cheveron-down.svg";
 import {
+  AttachmentPickerMenu,
+  AttachmentPreviewBar,
   ChatHeader,
   ChatInputBar,
   ChatSearchNavigator,
   MessagePill,
+  SelectedAttachment,
 } from "../components";
 import { useChatRealtime } from "../hooks/useChatRealtime";
 import { useChatSearch } from "../hooks/useChatSearch";
@@ -96,6 +105,73 @@ export function ChatDetailScreen({ id, search }: ChatDetailScreenProps) {
   const [message, setMessage] = useState("");
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const [isAtBottom, setIsAtBottom] = useState(true);
+  const [isAttachmentMenuOpen, setIsAttachmentMenuOpen] = useState(false);
+  const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
+  const [selectedAttachment, setSelectedAttachment] =
+    useState<SelectedAttachment | null>(null);
+
+  // Attachment Handlers
+  const handleSelectAttachment = (
+    uri: string,
+    fileName?: string,
+    mimeType?: string,
+    fileSize?: number,
+  ) => {
+    setSelectedAttachment({
+      uri,
+      fileName,
+      mimeType,
+      fileSize,
+    });
+  };
+
+  const handlePickPhotoOrGallery = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ["images"],
+        quality: 0.9,
+      });
+      if (!result.canceled && result.assets[0]) {
+        const asset = result.assets[0];
+        handleSelectAttachment(
+          asset.uri,
+          asset.fileName || undefined,
+          asset.mimeType || undefined,
+          asset.fileSize || undefined,
+        );
+      }
+    } catch (error) {
+      console.log("Error picking from gallery:", error);
+    }
+  };
+
+  const handlePickDocument = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: "*/*",
+        copyToCacheDirectory: true,
+      });
+      if (!result.canceled && result.assets[0]) {
+        const doc = result.assets[0];
+        handleSelectAttachment(
+          doc.uri,
+          doc.name,
+          doc.mimeType || undefined,
+          doc.size || undefined,
+        );
+      }
+    } catch (error) {
+      console.log("Error picking document:", error);
+    }
+  };
+
+  const handlePickLocation = () => {
+    showInfoToast("Location sharing selected");
+  };
+
+  const handlePickContact = () => {
+    showInfoToast("Contact sharing selected");
+  };
 
   // Refs
   const listRef = useRef<any>(null);
@@ -170,14 +246,73 @@ export function ChatDetailScreen({ id, search }: ChatDetailScreenProps) {
     ? participantName.charAt(0).toUpperCase()
     : "?";
 
-  const handleSendMessage = () => {
-    if (!message.trim() || !conversationId) return;
+  const handleSendMessage = async () => {
+    if ((!message.trim() && !selectedAttachment) || !conversationId) return;
+
     const textToSend = message.trim();
+    const currentAttachment = selectedAttachment;
+
     setMessage("");
+    setSelectedAttachment(null);
     sendTypingStop();
+
+    let uploadedMediaId: string | undefined = undefined;
+
+    if (currentAttachment) {
+      try {
+        setIsUploadingAttachment(true);
+        const name =
+          currentAttachment.fileName || `attachment_${Date.now()}.jpg`;
+        const type = (currentAttachment.mimeType ||
+          (currentAttachment.uri.endsWith(".png")
+            ? "image/png"
+            : currentAttachment.uri.endsWith(".webp")
+              ? "image/webp"
+              : "image/jpeg")) as any;
+        const size = currentAttachment.fileSize || 500000;
+
+        const uploadAuth = await mediaApi.createUpload({
+          clientUploadId: generateUUID(),
+          purpose: "message_attachment",
+          contentType: type,
+          sizeBytes: size,
+          originalFilename: name,
+        });
+
+        if (uploadAuth.upload) {
+          const formData = new FormData();
+          if (uploadAuth.upload.fields) {
+            Object.entries(uploadAuth.upload.fields).forEach(([key, val]) => {
+              formData.append(key, String(val));
+            });
+          }
+
+          formData.append("file", {
+            uri: currentAttachment.uri,
+            name: name,
+            type: type,
+          } as any);
+
+          await axios.post(uploadAuth.upload.url, formData, {
+            headers: { "Content-Type": "multipart/form-data" },
+          });
+
+          await mediaApi.completeUpload(uploadAuth.media.id);
+          uploadedMediaId = uploadAuth.media.id;
+        }
+      } catch (error: any) {
+        showApiErrorToast(error, "Failed to upload attachment");
+        setIsUploadingAttachment(false);
+        return;
+      } finally {
+        setIsUploadingAttachment(false);
+      }
+    }
+
     sendMessageMutation.mutate({
       clientMessageId: generateUUID(),
-      text: textToSend,
+      text: textToSend || undefined,
+      attachmentMediaIds: uploadedMediaId ? [uploadedMediaId] : undefined,
     });
   };
 
@@ -215,7 +350,7 @@ export function ChatDetailScreen({ id, search }: ChatDetailScreenProps) {
           )}
           <MessagePill
             isMe={item.senderId === user?.id}
-            text={item.text}
+            text={item.text || ""}
             time={formatTime(item.createdAt)}
             searchQuery={isSearching ? searchQuery : undefined}
             isCurrentMatch={isCurrentMatch}
@@ -335,15 +470,42 @@ export function ChatDetailScreen({ id, search }: ChatDetailScreenProps) {
         </Pressable>
       )}
 
+      {/* Attachment Picker Popup Menu */}
+      {!isSearching && (
+        <AttachmentPickerMenu
+          isOpen={isAttachmentMenuOpen}
+          onClose={() => setIsAttachmentMenuOpen(false)}
+          onSelectPhotoUri={(uri) => handleSelectAttachment(uri)}
+          onPickPhotoOrGallery={handlePickPhotoOrGallery}
+          onPickDocument={handlePickDocument}
+          onPickLocation={handlePickLocation}
+          onPickContact={handlePickContact}
+          isDark={isDark}
+        />
+      )}
+
+      {/* Attachment Preview Banner */}
+      {!isSearching && selectedAttachment && (
+        <AttachmentPreviewBar
+          attachment={selectedAttachment}
+          onRemove={() => setSelectedAttachment(null)}
+          isDark={isDark}
+        />
+      )}
+
       {/* Input Area */}
       {!isSearching && (
         <ChatInputBar
           message={message}
           onChangeText={handleTextChange}
           onSend={handleSendMessage}
-          isPending={sendMessageMutation.isPending}
+          isPending={sendMessageMutation.isPending || isUploadingAttachment}
           insetsBottom={insets.bottom}
           isDark={isDark}
+          onToggleAttachmentMenu={() =>
+            setIsAttachmentMenuOpen((prev) => !prev)
+          }
+          isAttachmentMenuOpen={isAttachmentMenuOpen}
         />
       )}
     </ScreenContainer>
