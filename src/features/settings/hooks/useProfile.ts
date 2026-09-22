@@ -25,13 +25,14 @@ export const useUpdateMe = (
 
   return useMutation({
     mutationFn: profileApi.updateMe,
-    onSuccess: (...args) => {
-      queryClient.setQueryData(profileKeys.me(), args[0]);
+    ...options,
+    onSuccess: (data, variables, context) => {
+      queryClient.setQueryData(profileKeys.me(), data);
+      queryClient.invalidateQueries({ queryKey: profileKeys.me() });
       if (options?.onSuccess) {
-        options.onSuccess(...args);
+        (options.onSuccess as Function)(data, variables, context);
       }
     },
-    ...options,
   });
 };
 
@@ -47,13 +48,13 @@ export const useBlockUser = (options?: UseMutationOptions<BlockResponseDto, Erro
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: profileApi.blockUser,
-    onSuccess: (...args) => {
+    ...options,
+    onSuccess: (data, variables, context) => {
       queryClient.invalidateQueries({ queryKey: profileKeys.blocks() });
       if (options?.onSuccess) {
-        options.onSuccess(...args);
+        (options.onSuccess as Function)(data, variables, context);
       }
     },
-    ...options,
   });
 };
 
@@ -61,13 +62,13 @@ export const useUnblockUser = (options?: UseMutationOptions<void, Error, string>
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: profileApi.unblockUser,
-    onSuccess: (...args) => {
+    ...options,
+    onSuccess: (data, variables, context) => {
       queryClient.invalidateQueries({ queryKey: profileKeys.blocks() });
       if (options?.onSuccess) {
-        options.onSuccess(...args);
+        (options.onSuccess as Function)(data, variables, context);
       }
     },
-    ...options,
   });
 };
 
@@ -78,13 +79,14 @@ export const useSetAvatar = (
 
   return useMutation({
     mutationFn: profileApi.setAvatar,
-    onSuccess: (...args) => {
-      queryClient.setQueryData(profileKeys.me(), args[0]);
+    ...options,
+    onSuccess: (data, variables, context) => {
+      queryClient.setQueryData(profileKeys.me(), data);
+      queryClient.invalidateQueries({ queryKey: profileKeys.me() });
       if (options?.onSuccess) {
-        options.onSuccess(...args);
+        (options.onSuccess as Function)(data, variables, context);
       }
     },
-    ...options,
   });
 };
 
@@ -95,12 +97,12 @@ export const useRemoveAvatar = (
 
   return useMutation({
     mutationFn: profileApi.removeAvatar,
-    onSuccess: (...args) => {
+    ...options,
+    onSuccess: (data, variables, context) => {
       queryClient.invalidateQueries({ queryKey: profileKeys.me() });
       if (options?.onSuccess) {
-        options.onSuccess(...args);
+        (options.onSuccess as Function)(data, variables, context);
       }
     },
-    ...options,
   });
 };

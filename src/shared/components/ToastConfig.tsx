@@ -5,7 +5,7 @@ import { BaseText } from "./BaseText";
 
 export const toastConfig: ToastConfig = {
   success: (props) => (
-    <View className="w-[90%] bg-surface dark:bg-surface-dark rounded-xl px-4 py-3 shadow-sm border-l-4 border-primary flex-row items-center">
+    <View className="w-[90%] bg-surface dark:bg-surface-dark rounded-xl px-4 py-3 shadow-sm border-l-4 border-green-500 flex-row items-center">
       <View className="flex-1">
         <BaseText
           type="body-md"

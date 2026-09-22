@@ -13,3 +13,5 @@ export * from "./GroupMembersList";
 export * from "./ChatHeader";
 export * from "./ChatSearchNavigator";
 export * from "./ChatInputBar";
+export * from "./AttachmentPickerMenu";
+export * from "./AttachmentPreviewBar";

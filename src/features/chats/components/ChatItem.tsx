@@ -109,9 +109,8 @@ export function ChatItem({
     data.id,
   );
   const { mutate: mute, isPending: isMuting } = useMuteConversation(data.id);
-  const { mutate: unmute, isPending: isUnmuteConversation } = useUnmuteConversation(
-    data.id,
-  );
+  const { mutate: unmute, isPending: isUnmuteConversation } =
+    useUnmuteConversation(data.id);
   const { mutate: pin } = usePinConversation(data.id);
   const { mutate: unpin } = useUnpinConversation(data.id);
 
@@ -184,9 +183,7 @@ export function ChatItem({
           title={isMuted ? "Unmute" : "Mute"}
         />
         <SwipeableActionButton
-          onPress={() =>
-            handleSwipeAction(() => (isPinned ? unpin() : pin()))
-          }
+          onPress={() => handleSwipeAction(() => (isPinned ? unpin() : pin()))}
           bgColorClass="bg-neutral-300 dark:bg-neutral-600"
           icon={<PinIcon width={24} height={24} color="white" />}
           title={isPinned ? "Unpin" : "Pin"}
@@ -213,7 +210,7 @@ export function ChatItem({
         renderLeftActions={renderLeftActions}
         onSwipeableWillOpen={handleWillOpen}
         onSwipeableClose={handleClose}
-        friction={2.5}
+        friction={2}
         overshootFriction={4}
       >
         <Pressable

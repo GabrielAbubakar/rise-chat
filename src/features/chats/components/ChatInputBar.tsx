@@ -9,6 +9,8 @@ export interface ChatInputBarProps {
   isPending: boolean;
   insetsBottom: number;
   isDark: boolean;
+  onToggleAttachmentMenu?: () => void;
+  isAttachmentMenuOpen?: boolean;
 }
 
 export function ChatInputBar({
@@ -18,6 +20,8 @@ export function ChatInputBar({
   isPending,
   insetsBottom,
   isDark,
+  onToggleAttachmentMenu,
+  isAttachmentMenuOpen = false,
 }: ChatInputBarProps) {
   return (
     <View
@@ -25,11 +29,25 @@ export function ChatInputBar({
       style={{ paddingBottom: Math.max(insetsBottom, 12) }}
     >
       <View className="flex-1 flex-row items-end bg-app dark:bg-neutral-700 rounded-[24px] px-4 py-2 border border-divider dark:border-neutral-600">
-        <Pressable className="mr-3 mb-[14px]">
+        <Pressable
+          className={`mr-3 mb-[14px] p-1 rounded-full ${
+            isAttachmentMenuOpen
+              ? "bg-emerald-100 dark:bg-emerald-900/40"
+              : ""
+          }`}
+          onPress={onToggleAttachmentMenu}
+          hitSlop={8}
+        >
           <PaperClipIcon
             width={20}
             height={20}
-            color={isDark ? "#9CA3AF" : "#6B7280"}
+            color={
+              isAttachmentMenuOpen
+                ? "#10B981"
+                : isDark
+                  ? "#9CA3AF"
+                  : "#6B7280"
+            }
           />
         </Pressable>
         <TextInput

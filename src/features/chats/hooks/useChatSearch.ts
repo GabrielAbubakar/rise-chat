@@ -22,7 +22,7 @@ export function useChatSearch({
     if (!query) return [];
     const indices: number[] = [];
     messages.forEach((item, index) => {
-      if (item.text.toLowerCase().includes(query)) {
+      if ((item.text || "").toLowerCase().includes(query)) {
         indices.push(index);
       }
     });
