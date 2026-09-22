@@ -39,7 +39,7 @@ import UserIcon from "@/assets/icons/solid/user.svg";
 import { formatLastSeen } from "@/shared/utils";
 
 // API Hooks & Dummy Media
-import { DUMMY_GROUP_MEMBERS, DUMMY_PHOTOS } from "@shared/constants/dummyData";
+import { DUMMY_PHOTOS } from "@shared/constants/dummyData";
 import { useConversationDetail } from "../hooks/useChats";
 
 export interface ProfileScreenProps {
@@ -285,7 +285,11 @@ export function ProfileScreen({ id }: ProfileScreenProps) {
               <View className="p-6">
                 <View className="flex-row items-center justify-between mb-4">
                   <BaseText className="text-neutral-900 dark:text-white font-sf-bold text-lg">
-                    Members
+                    Members (
+                    {isGroup && conversationDetail?.participants
+                      ? conversationDetail.participants.length
+                      : 0}
+                    )
                   </BaseText>
                   <View className="flex-row items-center gap-4">
                     <Pressable className="p-1">
@@ -306,7 +310,9 @@ export function ProfileScreen({ id }: ProfileScreenProps) {
                 </View>
 
                 {/* Members List */}
-                <GroupMembersList members={DUMMY_GROUP_MEMBERS} />
+                <GroupMembersList
+                  members={isGroup ? conversationDetail?.participants : []}
+                />
               </View>
 
               <View className="bg-neutral-200 dark:bg-neutral-700 h-3 w-full mt-2" />

@@ -2,12 +2,13 @@ import { PinSetupPromptModal } from "@/features/security/components/PinSetupProm
 import { BaseText } from "@/shared/components";
 import { tabs } from "@/shared/constants/tabs";
 import { colors } from "@/shared/constants/tokens";
+import { useThemeColors } from "@/shared/hooks";
 import { useSecurityStore } from "@/store/useSecurityStore";
 import { Tabs, useRouter } from "expo-router";
+import { BottomTabNavigationOptions } from "expo-router/build/react-navigation/bottom-tabs";
 import { useColorScheme } from "nativewind";
 import { useState } from "react";
 import { View } from "react-native";
-import { useThemeColors } from "@/shared/hooks";
 
 export default function TabsLayout() {
   const { colorScheme } = useColorScheme();
@@ -36,7 +37,7 @@ export default function TabsLayout() {
     setHasDismissedPrompt(true);
   };
 
-  const screenOptions = {
+  const screenOptions: BottomTabNavigationOptions = {
     headerShown: false,
     tabBarStyle: {
       backgroundColor: isDark ? colors.neutral[700] : "white",
@@ -47,6 +48,7 @@ export default function TabsLayout() {
     },
     tabBarActiveTintColor: primary,
     tabBarInactiveTintColor: colors.neutral[300],
+    animation: "shift",
   };
 
   function renderTabBarIcon(

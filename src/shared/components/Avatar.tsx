@@ -1,9 +1,9 @@
-import UserGroupIcon from "@/assets/icons/solid/user-group.svg";
 import ArchiveIcon from "@/assets/icons/solid/archive.svg";
+import UsersIcon from "@/assets/icons/solid/users.svg";
 import { Image } from "expo-image";
 import { View, ViewProps } from "react-native";
-import { BaseText } from "./BaseText";
 import { useThemeColors } from "../hooks";
+import { BaseText } from "./BaseText";
 
 export interface AvatarProps extends ViewProps {
   type?: "image" | "initials" | "group" | "archive";
@@ -33,16 +33,22 @@ export function Avatar({
     width: size,
     height: size,
     borderRadius: size / 2,
-    backgroundColor: isImage ? "transparent" : (backgroundColor || primary),
+    backgroundColor: isImage ? "transparent" : backgroundColor || primary,
     overflow: "hidden" as const,
     alignItems: "center" as const,
     justifyContent: "center" as const,
   };
 
-  const formattedInitials = initials ? initials.substring(0, 2).toUpperCase() : "";
+  const formattedInitials = initials
+    ? initials.substring(0, 2).toUpperCase()
+    : "";
 
   return (
-    <View className={`relative ${className}`} style={{ width: size, height: size }} {...props}>
+    <View
+      className={`relative ${className}`}
+      style={{ width: size, height: size }}
+      {...props}
+    >
       <View
         style={[containerStyle, style]}
         className="rounded-full overflow-hidden items-center justify-center"
@@ -53,6 +59,10 @@ export function Avatar({
             style={{ width: "100%", height: "100%", borderRadius: size / 2 }}
             contentFit="cover"
           />
+        ) : type === "group" ? (
+          <UsersIcon width={size * 0.5} height={size * 0.5} color="white" />
+        ) : type === "archive" ? (
+          <ArchiveIcon width={size * 0.5} height={size * 0.5} color="white" />
         ) : formattedInitials ? (
           <BaseText
             className="text-white font-sf-bold text-center"
@@ -60,17 +70,19 @@ export function Avatar({
           >
             {formattedInitials}
           </BaseText>
-        ) : type === "archive" ? (
-          <ArchiveIcon width={size * 0.5} height={size * 0.5} color="white" />
         ) : (
-          <UserGroupIcon width={size * 0.5} height={size * 0.5} color="white" />
+          <UsersIcon width={size * 0.5} height={size * 0.5} color="white" />
         )}
       </View>
 
       {isActive && (
         <View
           className="absolute bottom-0 right-0 bg-primary-400 border-2 border-app dark:border-app-dark rounded-full"
-          style={{ width: activeIndicatorSize, height: activeIndicatorSize, borderRadius: activeIndicatorSize / 2 }}
+          style={{
+            width: activeIndicatorSize,
+            height: activeIndicatorSize,
+            borderRadius: activeIndicatorSize / 2,
+          }}
         />
       )}
     </View>

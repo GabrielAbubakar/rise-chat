@@ -8,6 +8,7 @@ import {
 import {
   BottomSheetFlatList,
   BottomSheetModal,
+  BottomSheetScrollView,
   BottomSheetTextInput,
 } from "@gorhom/bottom-sheet";
 import * as Contacts from "expo-contacts/legacy";
@@ -19,13 +20,20 @@ import React, {
   useMemo,
   useState,
 } from "react";
-import { Pressable, View } from "react-native";
+import { ActivityIndicator, Pressable, View } from "react-native";
 
 import CameraIcon from "@/assets/icons/solid/add-a-photo.svg";
 import CheckIcon from "@/assets/icons/solid/check.svg";
 import SearchIcon from "@/assets/icons/solid/search.svg";
 import { useThemeColors } from "@/shared/hooks";
+import { useRouter } from "expo-router";
 import { useColorScheme } from "nativewind";
+import {
+  useCreateGroup,
+  useMatchContacts,
+  useSearchUsers,
+} from "../hooks/useChats";
+import { ContactMatchDto } from "../types";
 import { ContactItem } from "./NewChatBottomSheet";
 
 export type NewGroupBottomSheetProps = object;
@@ -41,8 +49,9 @@ const GroupContactCard = React.memo(
     const { primaryShades } = useThemeColors();
     return (
       <Pressable
-        onPress={() => onToggle(item.id)}
-        className="items-center w-16"
+        onPress={() => onToggle(item.participantId || item.id)}
+        disabled={!item.participantId}
+        className={`items-center w-16 ${!item.participantId ? "opacity-40" : ""}`}
       >
         <View className="relative mb-2">
           <View
@@ -85,6 +94,7 @@ const GroupContactCard = React.memo(
   (prevProps, nextProps) =>
     prevProps.isSelected === nextProps.isSelected &&
     prevProps.item.id === nextProps.item.id &&
+    prevProps.item.participantId === nextProps.item.participantId &&
     prevProps.item.name === nextProps.item.name &&
     prevProps.item.avatar === nextProps.item.avatar,
 );
@@ -95,6 +105,7 @@ export const NewGroupBottomSheet = forwardRef<
   BottomSheetModal,
   NewGroupBottomSheetProps
 >((props, ref) => {
+  const router = useRouter();
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === "dark";
   const { primary, primaryShades } = useThemeColors();
@@ -110,10 +121,32 @@ export const NewGroupBottomSheet = forwardRef<
   const [groupDescription, setGroupDescription] = useState("");
 
   const [contacts, setContacts] = useState<ContactItem[]>([]);
+  const [matchedUsers, setMatchedUsers] = useState<ContactMatchDto[]>([]);
   const [permissionStatus, setPermissionStatus] =
     useState<Contacts.PermissionStatus | null>(null);
 
   const [resetKey, setResetKey] = useState(0); // Used to remount uncontrolled inputs on dismiss
+
+  const matchContactsMutation = useMatchContacts({
+    onSuccess: (data) => {
+      setMatchedUsers(data.matches || []);
+    },
+  });
+
+  const createGroupMutation = useCreateGroup({
+    onSuccess: (conversation) => {
+      (ref as any)?.current?.dismiss();
+      setTimeout(() => {
+        setStep(1);
+        setSelectedParticipants(new Set());
+        setGroupName("");
+        setGroupDescription("");
+        setSearchQuery("");
+        setResetKey((prev) => prev + 1);
+        router.push(`/chat/${conversation.id}`);
+      }, 300);
+    },
+  });
 
   useEffect(() => {
     (async () => {
@@ -136,10 +169,39 @@ export const NewGroupBottomSheet = forwardRef<
             }));
 
           setContacts(mappedContacts);
+
+          const phoneNumbers = data
+            .flatMap((c) => c.phoneNumbers?.map((p) => p.number))
+            .filter((num): num is string => Boolean(num));
+
+          if (phoneNumbers.length > 0) {
+            matchContactsMutation.mutate({ phoneNumbers });
+          }
         }
       }
     })();
   }, []);
+
+  const processedContacts = useMemo(() => {
+    const matchedPhoneMap = new Map<string, string>();
+    matchedUsers.forEach((m) => {
+      if (m.matchedPhoneNumber) {
+        const cleanPhone = m.matchedPhoneNumber.replace(/\D/g, "");
+        matchedPhoneMap.set(cleanPhone, m.user.id);
+      }
+    });
+
+    return contacts.map((c) => {
+      const cleanPhone = (c.phone || "").replace(/\D/g, "");
+      const participantId = cleanPhone
+        ? matchedPhoneMap.get(cleanPhone)
+        : undefined;
+      return {
+        ...c,
+        participantId: participantId || c.participantId,
+      };
+    });
+  }, [contacts, matchedUsers]);
 
   const toggleParticipant = useCallback((id: string) => {
     setSelectedParticipants((prev) => {
@@ -155,20 +217,58 @@ export const NewGroupBottomSheet = forwardRef<
 
   const deferredSearchQuery = useDeferredValue(searchQuery);
 
+  const { data: globalSearchResults, isLoading: isGlobalSearching } =
+    useSearchUsers(
+      { q: deferredSearchQuery },
+      { enabled: deferredSearchQuery.trim().length >= 3 },
+    );
+
   const filteredContacts = useMemo(() => {
-    return contacts.filter((c) =>
+    const localFiltered = processedContacts.filter((c) =>
       c.name.toLowerCase().includes(deferredSearchQuery.toLowerCase()),
     );
-  }, [contacts, deferredSearchQuery]);
+
+    if (deferredSearchQuery.trim().length >= 3) {
+      const globalItems: ContactItem[] =
+        globalSearchResults?.items?.map((user) => ({
+          id: `global-${user.id}`,
+          name: user.displayName || "User",
+          avatar: user.avatarUrl || undefined,
+          participantId: user.id,
+        })) || [];
+
+      // Combine and remove duplicates by participantId
+      const map = new Map<string, ContactItem>();
+      localFiltered.forEach((c) => {
+        if (c.participantId) {
+          map.set(c.participantId, c);
+        } else {
+          map.set(c.id, c);
+        }
+      });
+      globalItems.forEach((c) => {
+        if (c.participantId) {
+          map.set(c.participantId, c);
+        }
+      });
+
+      return Array.from(map.values());
+    }
+
+    return localFiltered;
+  }, [processedContacts, deferredSearchQuery, globalSearchResults]);
 
   const renderContact = useCallback(
-    ({ item }: { item: ContactItem }) => (
-      <GroupContactCard
-        item={item}
-        isSelected={selectedParticipants.has(item.id)}
-        onToggle={toggleParticipant}
-      />
-    ),
+    ({ item }: { item: ContactItem }) => {
+      const idToToggle = item.participantId || item.id;
+      return (
+        <GroupContactCard
+          item={item}
+          isSelected={selectedParticipants.has(idToToggle)}
+          onToggle={toggleParticipant}
+        />
+      );
+    },
     [selectedParticipants, toggleParticipant],
   );
 
@@ -200,6 +300,10 @@ export const NewGroupBottomSheet = forwardRef<
             enable it in your device settings.
           </BaseText>
         </View>
+      ) : isGlobalSearching ? (
+        <View className="flex-1 items-center justify-center py-8">
+          <ActivityIndicator size="small" color={primary} />
+        </View>
       ) : (
         <BottomSheetFlatList
           data={filteredContacts}
@@ -221,65 +325,68 @@ export const NewGroupBottomSheet = forwardRef<
   );
 
   const renderStep2 = () => (
-    <>
-      <View className="items-center mb-10">
-        <View className="relative">
-          <View
-            className="w-32 h-32 rounded-full items-center justify-center overflow-hidden border border-neutral-100 dark:border-neutral-700"
-            style={{ backgroundColor: isDark ? "#F5FEF8" : primaryShades[50] }}
-          >
-            <CameraIcon width={36} height={36} color={primary} />
+    <View className="flex-1">
+      <BottomSheetScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ flexGrow: 1 }}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View className="items-center mb-6">
+          <View className="relative">
+            <View
+              className="w-32 h-32 rounded-full items-center justify-center overflow-hidden border border-neutral-100 dark:border-neutral-700"
+              style={{
+                backgroundColor: isDark ? "#F5FEF8" : primaryShades[50],
+              }}
+            >
+              <CameraIcon width={36} height={36} color={primary} />
+            </View>
           </View>
         </View>
-      </View>
 
-      <View className="flex-1">
-        <BaseInput
-          key={`name-${resetKey}`}
-          label="Name of group"
-          placeholder="Name group"
-          defaultValue=""
-          onChangeText={setGroupName}
-          InputComponent={BottomSheetTextInput}
-        />
+        <View className="flex-1">
+          <BaseInput
+            key={`name-${resetKey}`}
+            label="Name of group"
+            placeholder="Name group"
+            defaultValue=""
+            onChangeText={setGroupName}
+            InputComponent={BottomSheetTextInput}
+          />
 
-        <BaseInput
-          key={`desc-${resetKey}`}
-          label="Description (Optional)"
-          placeholder="Type description..."
-          defaultValue=""
-          onChangeText={setGroupDescription}
-          InputComponent={BottomSheetTextInput}
-          multiline
-          numberOfLines={4}
-          inputClassName="min-h-[80px]"
-          style={{ textAlignVertical: "top" }}
-        />
-      </View>
+          <BaseInput
+            key={`desc-${resetKey}`}
+            label="Description (Optional)"
+            placeholder="Type description..."
+            defaultValue=""
+            onChangeText={setGroupDescription}
+            InputComponent={BottomSheetTextInput}
+            multiline
+            numberOfLines={4}
+            inputClassName="min-h-[80px]"
+            style={{ textAlignVertical: "top" }}
+          />
+        </View>
+      </BottomSheetScrollView>
 
       <View className="py-4 mt-auto">
         <BaseButton
-          title="Create"
+          title={createGroupMutation.isPending ? "Creating..." : "Create"}
+          disabled={
+            createGroupMutation.isPending || groupName.trim().length === 0
+          }
           onPress={() => {
-            console.log("Create Group", {
-              groupName,
-              groupDescription,
-              selectedParticipants: Array.from(selectedParticipants),
+            const participantIds = Array.from(selectedParticipants);
+            if (groupName.trim() === "" || participantIds.length === 0) return;
+
+            createGroupMutation.mutate({
+              name: groupName.trim(),
+              participantIds: participantIds,
             });
-            (ref as any)?.current?.dismiss();
-            // Reset state after closing animation
-            setTimeout(() => {
-              setStep(1);
-              setSelectedParticipants(new Set());
-              setGroupName("");
-              setGroupDescription("");
-              setSearchQuery("");
-              setResetKey((prev) => prev + 1);
-            }, 300);
           }}
         />
       </View>
-    </>
+    </View>
   );
 
   return (

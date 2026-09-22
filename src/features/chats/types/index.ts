@@ -105,6 +105,12 @@ export interface SendMessageDto {
   text: string;
 }
 
+export interface MessageAttachmentDto {
+  id?: string;
+  url: string;
+  type?: string;
+}
+
 export interface MessageResponseDto {
   id: string;
   conversationId: string;
@@ -113,6 +119,7 @@ export interface MessageResponseDto {
   kind: 'text';
   text: string;
   createdAt: string;
+  attachments?: MessageAttachmentDto[];
 }
 
 export interface MessagePageInfoDto {

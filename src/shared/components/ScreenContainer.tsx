@@ -1,6 +1,10 @@
 import React from "react";
 import { ScrollView, View, ViewProps } from "react-native";
-import { KeyboardAvoidingView } from "react-native-keyboard-controller";
+import {
+  KeyboardAvoidingView,
+  KeyboardAwareScrollView,
+  KeyboardToolbar,
+} from "react-native-keyboard-controller";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export interface ScreenContainerProps extends ViewProps {
@@ -35,21 +39,34 @@ export function ScreenContainer({
   let content = children;
 
   if (isScrollable) {
-    content = (
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerClassName={`${paddingClasses} ${contentContainerClassName}`}
-        keyboardShouldPersistTaps="handled"
-      >
-        {content}
-      </ScrollView>
-    );
+    if (isKeyboardAvoiding) {
+      content = (
+        <>
+          <KeyboardAwareScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerClassName={`${paddingClasses} ${contentContainerClassName}`}
+            keyboardShouldPersistTaps="handled"
+            bottomOffset={80} // Offset to ensure input scrolls past the KeyboardToolbar
+          >
+            {content}
+          </KeyboardAwareScrollView>
+          <KeyboardToolbar />
+        </>
+      );
+    } else {
+      content = (
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerClassName={`${paddingClasses} ${contentContainerClassName}`}
+          keyboardShouldPersistTaps="handled"
+        >
+          {content}
+        </ScrollView>
+      );
+    }
   } else if (isKeyboardAvoiding) {
-    // Wrap with padding inner view if avoiding keyboard, to prevent padding conflicts
+    // Wrap with padding inner view if avoiding keyboard without scroll
     content = <View className={`flex-1 ${paddingClasses}`}>{content}</View>;
-  }
-
-  if (isKeyboardAvoiding) {
     content = (
       <KeyboardAvoidingView
         behavior={keyboardBehavior}
@@ -57,6 +74,7 @@ export function ScreenContainer({
         style={{ flex: 1 }}
       >
         {content}
+        <KeyboardToolbar />
       </KeyboardAvoidingView>
     );
   }

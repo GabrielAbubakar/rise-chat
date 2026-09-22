@@ -6,11 +6,11 @@ import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { useColorScheme, vars } from "nativewind";
-import { COLOR_SCHEMES } from "../shared/constants/themes";
 import { useEffect } from "react";
 import { View } from "react-native";
 import "react-native-gesture-handler";
 import Toast from "react-native-toast-message";
+import { COLOR_SCHEMES } from "../shared/constants/themes";
 // import { ObserveRoot, useObserve } from "expo-observe";
 import "../global.css";
 

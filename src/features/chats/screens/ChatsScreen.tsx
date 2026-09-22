@@ -23,7 +23,6 @@ import BookmarkIcon from "@/assets/icons/solid/bookmark.svg";
 import TrashIcon from "@/assets/icons/solid/trash.svg";
 import VolumeOffIcon from "@/assets/icons/solid/volume-off.svg";
 
-// Dummy Data
 import {
   useArchivedConversationsList,
   useConversationsList,

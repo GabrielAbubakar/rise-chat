@@ -109,9 +109,8 @@ export function ChatItem({
     data.id,
   );
   const { mutate: mute, isPending: isMuting } = useMuteConversation(data.id);
-  const { mutate: unmute, isPending: isUnmuteConversation } = useUnmuteConversation(
-    data.id,
-  );
+  const { mutate: unmute, isPending: isUnmuteConversation } =
+    useUnmuteConversation(data.id);
   const { mutate: pin } = usePinConversation(data.id);
   const { mutate: unpin } = useUnpinConversation(data.id);
 
@@ -184,9 +183,7 @@ export function ChatItem({
           title={isMuted ? "Unmute" : "Mute"}
         />
         <SwipeableActionButton
-          onPress={() =>
-            handleSwipeAction(() => (isPinned ? unpin() : pin()))
-          }
+          onPress={() => handleSwipeAction(() => (isPinned ? unpin() : pin()))}
           bgColorClass="bg-neutral-300 dark:bg-neutral-600"
           icon={<PinIcon width={24} height={24} color="white" />}
           title={isPinned ? "Unpin" : "Pin"}
@@ -196,10 +193,16 @@ export function ChatItem({
   };
 
   const hasAvatar = Boolean(avatarUrl);
-  const avatarType =
-    data.type === "direct" ? (hasAvatar ? "image" : "initials") : "group";
+  const avatarType = hasAvatar
+    ? "image"
+    : data.type === "direct"
+      ? "initials"
+      : "group";
 
-  const initials = displayName ? displayName.charAt(0).toUpperCase() : "?";
+  const initials =
+    data.type === "direct" && displayName
+      ? displayName.charAt(0).toUpperCase()
+      : undefined;
 
   return (
     <Animated.View

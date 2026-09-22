@@ -1,7 +1,7 @@
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { useRouter } from "expo-router";
 import { useState } from "react";
-import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import {
@@ -87,7 +87,12 @@ export function NewContactScreen() {
   }
 
   return (
-    <ScreenContainer isSafeArea={false} withPadding={false} isKeyboardAvoiding>
+    <ScreenContainer
+      isSafeArea={false}
+      withPadding={false}
+      isScrollable
+      isKeyboardAvoiding
+    >
       {/* Header section */}
       <View className="z-10">
         <ScreenHeader
@@ -122,11 +127,12 @@ export function NewContactScreen() {
         keyboardVerticalOffset={5}
         style={{ flex: 1 }}
       > */}
-      <ScrollView
+      {/* <ScrollView
         className="flex-1 px-6 pt-4"
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 70 }}
-      >
+      > */}
+      <View className="px-6 pt-4">
         <BaseInput
           label="First Name"
           value={firstName}
@@ -167,7 +173,7 @@ export function NewContactScreen() {
           placeholder="Phone number"
         />
 
-        <View className="items-center mt-6">
+        <View className="items-center mb-6">
           <Pressable onPress={handleQRScan} className="items-center">
             <QRCodeIcon
               width={32}
@@ -180,12 +186,7 @@ export function NewContactScreen() {
             </BaseText>
           </Pressable>
         </View>
-      </ScrollView>
 
-      <View
-        className="px-6 bg-app dark:bg-app-dark"
-        style={{ paddingBottom: Math.max(insets.bottom, 24), paddingTop: 16 }}
-      >
         <BaseButton
           title="Save"
           onPress={() => {
@@ -193,6 +194,7 @@ export function NewContactScreen() {
             router.back();
           }}
         />
+        {/* </ScrollView> */}
       </View>
       {/* </KeyboardAvoidingView> */}
     </ScreenContainer>

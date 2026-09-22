@@ -1,3 +1,4 @@
+import { useGetMe } from "@/features/settings/hooks/useProfile";
 import { BaseText, ScreenContainer } from "@/shared/components";
 import {
   formatChatDateSeparator,
@@ -5,7 +6,6 @@ import {
   generateUUID,
   isSameDay,
 } from "@/shared/utils";
-import { useGetMe } from "@/features/settings/hooks/useProfile";
 import { LegendList } from "@legendapp/list/react-native";
 import { useColorScheme } from "nativewind";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -19,7 +19,7 @@ import {
   Platform,
   Pressable,
   TextInput,
-  View
+  View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -123,6 +123,8 @@ export function ChatDetailScreen({ id, search }: ChatDetailScreenProps) {
     onScrollToIndex: handleScrollToIndex,
   });
 
+  console.log(messages);
+
   useEffect(() => {
     if (search === "true") {
       setTimeout(() => searchInputRef.current?.focus(), 250);
@@ -217,6 +219,7 @@ export function ChatDetailScreen({ id, search }: ChatDetailScreenProps) {
             time={formatTime(item.createdAt)}
             searchQuery={isSearching ? searchQuery : undefined}
             isCurrentMatch={isCurrentMatch}
+            attachments={item.attachments}
           />
         </View>
       );
@@ -259,6 +262,7 @@ export function ChatDetailScreen({ id, search }: ChatDetailScreenProps) {
         isOtherTyping={isOtherTyping}
         conversationId={conversationId}
         searchInputRef={searchInputRef}
+        isGroup={conversationDetail?.type === "group"}
       />
 
       {/* Messages List */}

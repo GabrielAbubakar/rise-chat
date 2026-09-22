@@ -1,6 +1,8 @@
 import { BaseText } from "@/shared/components";
+import { Image } from "expo-image";
 import React from "react";
 import { View } from "react-native";
+import { MessageAttachmentDto } from "../types";
 
 export interface MessagePillProps {
   isMe: boolean;
@@ -8,6 +10,7 @@ export interface MessagePillProps {
   time: string;
   searchQuery?: string;
   isCurrentMatch?: boolean;
+  attachments?: MessageAttachmentDto[];
 }
 
 export function MessagePill({
@@ -16,6 +19,7 @@ export function MessagePill({
   time,
   searchQuery,
   isCurrentMatch = false,
+  attachments,
 }: MessagePillProps) {
   const renderMessageContent = () => {
     const trimmedQuery = searchQuery?.trim();
@@ -89,7 +93,15 @@ export function MessagePill({
           elevation: 1,
         }}
       >
-        {renderMessageContent()}
+        {attachments?.map((attachment, index) => (
+          <Image
+            key={attachment.id || index}
+            source={attachment.url}
+            style={{ width: 200, height: 200, marginBottom: text ? 8 : 0 }}
+            contentFit="cover"
+          />
+        ))}
+        {!!text && renderMessageContent()}
       </View>
 
       {!isMe && (
