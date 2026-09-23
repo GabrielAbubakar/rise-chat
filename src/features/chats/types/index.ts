@@ -35,7 +35,7 @@ export interface ConversationParticipantDto {
 export interface ConversationLatestMessageDto {
   id: string;
   senderId: string;
-  kind: 'text';
+  kind: "text";
   preview: string;
   createdAt: string;
 }
@@ -56,7 +56,7 @@ export interface ConversationMemberSettingsDto {
 
 export interface DirectConversationResponseDto {
   id: string;
-  type: 'direct';
+  type: "direct";
   otherParticipant: ConversationParticipantDto;
   latestMessage: ConversationLatestMessageDto | null;
   unreadCount: number;
@@ -70,16 +70,16 @@ export interface GroupConversationParticipantDto {
   id: string;
   displayName: string | null;
   avatarUrl: string | null;
-  role: 'owner' | 'admin' | 'member';
+  role: "owner" | "admin" | "member";
 }
 
 export interface GroupConversationResponseDto {
   id: string;
-  type: 'group';
+  type: "group";
   name: string;
   avatarUrl: string | null;
   participants: GroupConversationParticipantDto[];
-  role: 'owner' | 'admin' | 'member';
+  role: "owner" | "admin" | "member";
   latestMessage: ConversationLatestMessageDto | null;
   unreadCount: number;
   settings: ConversationMemberSettingsDto;
@@ -88,7 +88,9 @@ export interface GroupConversationResponseDto {
   updatedAt: string;
 }
 
-export type ConversationResponseDto = DirectConversationResponseDto | GroupConversationResponseDto;
+export type ConversationResponseDto =
+  | DirectConversationResponseDto
+  | GroupConversationResponseDto;
 
 export interface ConversationPageInfoDto {
   nextCursor: string | null;
@@ -102,7 +104,25 @@ export interface ConversationListResponseDto {
 
 export interface SendMessageDto {
   clientMessageId: string;
-  text: string;
+  text?: string;
+  attachmentMediaIds?: string[];
+}
+
+export interface MessageAttachmentResponseDto {
+  mediaId: string;
+  type: "image" | "audio" | "video" | "document";
+  contentType: string;
+  sizeBytes: number;
+  width?: number | null;
+  height?: number | null;
+  durationMs?: number | null;
+  url: string;
+}
+
+export interface MessageAttachmentDto {
+  id?: string;
+  url: string;
+  type?: string;
 }
 
 export interface MessageResponseDto {
@@ -110,8 +130,9 @@ export interface MessageResponseDto {
   conversationId: string;
   clientMessageId: string;
   senderId: string;
-  kind: 'text';
-  text: string;
+  kind: "text" | "image" | "audio" | "video" | "document";
+  text?: string;
+  attachments?: MessageAttachmentResponseDto[];
   createdAt: string;
 }
 
@@ -142,7 +163,7 @@ export interface ReceiptBoundaryResponseDto {
 
 export interface ReceiptUpdateResponseDto {
   conversationId: string;
-  status: 'delivered' | 'read';
+  status: "delivered" | "read";
   throughMessageId: string;
   at: string;
   changed: boolean;
@@ -175,12 +196,16 @@ export interface UpdateGroupConversationDto {
   avatarUrl?: string | null;
 }
 
+export interface SetGroupAvatarDto {
+  mediaId: string;
+}
+
 export interface AddGroupMembersDto {
   participantIds: string[];
 }
 
 export interface UpdateGroupMemberRoleDto {
-  role: 'admin' | 'member';
+  role: "admin" | "member";
 }
 
 export interface TransferGroupOwnershipDto {
@@ -209,7 +234,7 @@ export interface ConversationSettingsResponseDto {
 }
 
 export interface MuteConversationDto {
-  duration: '8_hours' | '24_hours' | '7_days' | 'always';
+  duration: "8_hours" | "24_hours" | "7_days" | "always";
 }
 
 export interface ClearConversationMessagesResponseDto {

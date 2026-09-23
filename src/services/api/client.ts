@@ -34,6 +34,7 @@ apiClient.interceptors.request.use(
   async (config: InternalAxiosRequestConfig) => {
     const token = await tokenStorage.getAccessToken();
     if (token && config.headers) {
+      // console.log(token);
       config.headers.Authorization = `Bearer ${token}`;
     } else if (config.headers) {
       delete config.headers.Authorization;

@@ -25,6 +25,7 @@ export interface ChatHeaderProps {
   isOtherTyping: boolean;
   conversationId: string;
   searchInputRef: React.RefObject<TextInput | null>;
+  isGroup?: boolean;
 }
 
 export function ChatHeader({
@@ -40,8 +41,16 @@ export function ChatHeader({
   isOtherTyping,
   conversationId,
   searchInputRef,
+  isGroup = false,
 }: ChatHeaderProps) {
   const router = useRouter();
+
+  const avatarType = participantAvatar
+    ? "image"
+    : isGroup
+      ? "group"
+      : "initials";
+  const avatarInitials = isGroup ? undefined : participantInitials;
 
   return (
     <ScreenHeader useSafeArea withPadding={false} className="z-10 shadow-sm pt-4">
@@ -93,9 +102,9 @@ export function ChatHeader({
               className="flex-row items-center flex-1"
             >
               <Avatar
-                type={participantAvatar ? "image" : "initials"}
+                type={avatarType}
                 source={participantAvatar}
-                initials={participantInitials}
+                initials={avatarInitials}
                 size={40}
                 className="ml-2"
               />

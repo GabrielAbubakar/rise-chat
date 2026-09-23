@@ -1,3 +1,4 @@
+import { useGetMe } from "@/features/settings/hooks/useProfile";
 import { Avatar, BaseText } from "@/shared/components";
 import { formatLastMessageTime } from "@/shared/utils";
 import { useColorScheme } from "nativewind";
@@ -87,12 +88,31 @@ export function ChatItem({
   onLongPress,
 }: ChatItemProps) {
   const [isActionActive, setIsActionActive] = useState(false);
+  const { data: user } = useGetMe();
   const isDirect = data.type === "direct";
   const displayName = isDirect ? data.otherParticipant.displayName : data.name;
   const avatarUrl = isDirect ? data.otherParticipant.avatarUrl : data.avatarUrl;
   const { latestMessage, unreadCount, lastActivityAt } = data;
 
-  const lastMessage = latestMessage?.preview || "";
+  const displayMessage = (() => {
+    const preview = latestMessage?.preview || "";
+    if (!latestMessage) return preview;
+
+    if (latestMessage.senderId === user?.id) return `You: ${preview}`;
+
+    if (data.type === "group") {
+      const sender = data.participants.find(
+        (p) => p.id === latestMessage.senderId,
+      );
+
+      if (sender?.displayName) {
+        return `${sender.displayName.split(" ")[0]}: ${preview}`;
+      }
+    }
+
+    return preview;
+  })();
+
   const time = formatLastMessageTime(lastActivityAt);
 
   const isPinned = data.settings?.pinned ?? false;
@@ -109,9 +129,8 @@ export function ChatItem({
     data.id,
   );
   const { mutate: mute, isPending: isMuting } = useMuteConversation(data.id);
-  const { mutate: unmute, isPending: isUnmuteConversation } = useUnmuteConversation(
-    data.id,
-  );
+  const { mutate: unmute, isPending: isUnmuteConversation } =
+    useUnmuteConversation(data.id);
   const { mutate: pin } = usePinConversation(data.id);
   const { mutate: unpin } = useUnpinConversation(data.id);
 
@@ -184,9 +203,7 @@ export function ChatItem({
           title={isMuted ? "Unmute" : "Mute"}
         />
         <SwipeableActionButton
-          onPress={() =>
-            handleSwipeAction(() => (isPinned ? unpin() : pin()))
-          }
+          onPress={() => handleSwipeAction(() => (isPinned ? unpin() : pin()))}
           bgColorClass="bg-neutral-300 dark:bg-neutral-600"
           icon={<PinIcon width={24} height={24} color="white" />}
           title={isPinned ? "Unpin" : "Pin"}
@@ -196,10 +213,16 @@ export function ChatItem({
   };
 
   const hasAvatar = Boolean(avatarUrl);
-  const avatarType =
-    data.type === "direct" ? (hasAvatar ? "image" : "initials") : "group";
+  const avatarType = hasAvatar
+    ? "image"
+    : data.type === "direct"
+      ? "initials"
+      : "group";
 
-  const initials = displayName ? displayName.charAt(0).toUpperCase() : "?";
+  const initials =
+    data.type === "direct" && displayName
+      ? displayName.charAt(0).toUpperCase()
+      : undefined;
 
   return (
     <Animated.View
@@ -213,7 +236,7 @@ export function ChatItem({
         renderLeftActions={renderLeftActions}
         onSwipeableWillOpen={handleWillOpen}
         onSwipeableClose={handleClose}
-        friction={2.5}
+        friction={2}
         overshootFriction={4}
       >
         <Pressable
@@ -252,7 +275,7 @@ export function ChatItem({
               numberOfLines={1}
               className="text-neutral-500 dark:text-neutral-300 mt-1"
             >
-              {lastMessage}
+              {displayMessage}
             </BaseText>
           </View>
 

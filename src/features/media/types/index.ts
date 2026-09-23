@@ -1,4 +1,4 @@
-export type MediaPurpose = "profile_avatar" | "message_attachment";
+export type MediaPurpose = "profile_avatar" | "group_avatar" | "message_attachment";
 
 export type MediaContentType =
   | "image/jpeg"
@@ -11,7 +11,15 @@ export type MediaContentType =
   | "audio/mpeg"
   | "audio/ogg"
   | "audio/wav"
-  | "audio/x-wav";
+  | "audio/x-wav"
+  | "video/mp4"
+  | "video/quicktime"
+  | "video/webm"
+  | "application/pdf"
+  | "text/plain"
+  | "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+  | "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+  | "application/vnd.openxmlformats-officedocument.presentationml.presentation";
 
 export interface CreateMediaUploadDto {
   clientUploadId: string;
