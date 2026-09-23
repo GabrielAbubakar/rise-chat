@@ -92,6 +92,7 @@ export function NewContactScreen() {
       withPadding={false}
       isScrollable
       isKeyboardAvoiding
+      showKeyboardToolbar
     >
       {/* Header section */}
       <View className="z-10">
@@ -189,6 +190,7 @@ export function NewContactScreen() {
 
         <BaseButton
           title="Save"
+          disabled={!isValidPhone}
           onPress={() => {
             console.log("Save contact", { firstName, lastName, phoneNumber });
             router.back();

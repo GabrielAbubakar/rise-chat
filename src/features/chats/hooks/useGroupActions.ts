@@ -54,6 +54,28 @@ export const useUpdateGroup = (
   });
 };
 
+export const useSetGroupAvatar = (
+  conversationId: string,
+  options?: UseMutationOptions<
+    GroupConversationResponseDto,
+    Error,
+    { mediaId: string }
+  >,
+) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data) => chatsApi.setGroupAvatar(conversationId, data),
+    onSuccess: (...args) => {
+      queryClient.invalidateQueries({
+        queryKey: chatsKeys.detail(conversationId),
+      });
+      queryClient.invalidateQueries({ queryKey: chatsKeys.list() });
+      if (options?.onSuccess) options.onSuccess(...args);
+    },
+    ...options,
+  });
+};
+
 export const useDeleteGroup = (
   conversationId: string,
   options?: UseMutationOptions<void, Error, void>,

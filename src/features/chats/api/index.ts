@@ -113,6 +113,11 @@ export const chatsApi = {
     return response.data;
   },
 
+  setGroupAvatar: async (conversationId: string, data: { mediaId: string }): Promise<GroupConversationResponseDto> => {
+    const response = await apiClient.put<GroupConversationResponseDto>(`/conversations/${conversationId}/avatar`, data);
+    return response.data;
+  },
+
   deleteGroup: async (conversationId: string): Promise<void> => {
     await apiClient.delete(`/conversations/${conversationId}`);
   },

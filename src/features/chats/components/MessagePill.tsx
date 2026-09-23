@@ -2,6 +2,7 @@ import { BaseText } from "@/shared/components";
 import { Image } from "expo-image";
 import React from "react";
 import { View } from "react-native";
+import Animated, { FadeInDown } from "react-native-reanimated";
 import { MessageAttachmentDto } from "../types";
 
 export interface MessagePillProps {
@@ -69,7 +70,8 @@ export function MessagePill({
   };
 
   return (
-    <View
+    <Animated.View
+      entering={FadeInDown.duration(250)}
       className={`flex-row mb-4 px-4 ${isMe ? "justify-end" : "justify-start"}`}
     >
       {isMe && (
@@ -109,6 +111,6 @@ export function MessagePill({
           {time}
         </BaseText>
       )}
-    </View>
+    </Animated.View>
   );
 }

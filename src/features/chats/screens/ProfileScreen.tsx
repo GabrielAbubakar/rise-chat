@@ -251,7 +251,7 @@ export function ProfileScreen({ id }: ProfileScreenProps) {
                   >
                     Group conversation
                   </BaseText>
-                  <Pressable
+                  {/* <Pressable
                     onPress={() =>
                       setIsDescriptionExpanded(!isDescriptionExpanded)
                     }
@@ -260,7 +260,7 @@ export function ProfileScreen({ id }: ProfileScreenProps) {
                     <BaseText className="text-primary-400 font-sf-bold text-sm">
                       {isDescriptionExpanded ? "Show less" : "Read more"}
                     </BaseText>
-                  </Pressable>
+                  </Pressable> */}
                 </View>
               </View>
 

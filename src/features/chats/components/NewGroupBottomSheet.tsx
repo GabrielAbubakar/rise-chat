@@ -1,3 +1,9 @@
+import * as ImagePicker from "expo-image-picker";
+import { Image } from "expo-image";
+import { mediaApi } from "@/features/media/api";
+import axios from "axios";
+import { generateUUID, showApiErrorToast } from "@/shared/utils";
+import { chatsApi } from "../api";
 import {
   Avatar,
   BaseBottomSheet,
@@ -119,6 +125,23 @@ export const NewGroupBottomSheet = forwardRef<
   const [searchQuery, setSearchQuery] = useState("");
   const [groupName, setGroupName] = useState("");
   const [groupDescription, setGroupDescription] = useState("");
+  const [groupAvatarUri, setGroupAvatarUri] = useState<string | null>(null);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+
+  const handlePickAvatar = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ["images"],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        setGroupAvatarUri(result.assets[0].uri);
+      }
+    } catch (error) {
+      console.log("Error picking avatar:", error);
+    }
+  };
 
   const [contacts, setContacts] = useState<ContactItem[]>([]);
   const [matchedUsers, setMatchedUsers] = useState<ContactMatchDto[]>([]);
@@ -133,8 +156,66 @@ export const NewGroupBottomSheet = forwardRef<
     },
   });
 
-  const createGroupMutation = useCreateGroup({
-    onSuccess: (conversation) => {
+  const createGroupMutation = useCreateGroup();
+
+  const handleCreateGroup = async () => {
+    const participantIds = Array.from(selectedParticipants);
+    if (groupName.trim() === "" || participantIds.length === 0) return;
+
+    try {
+      if (groupAvatarUri) {
+        setIsUploadingAvatar(true);
+      }
+      
+      const conversation = await createGroupMutation.mutateAsync({
+        name: groupName.trim(),
+        participantIds: participantIds,
+      });
+
+      if (groupAvatarUri) {
+        try {
+          const type = groupAvatarUri.endsWith(".png")
+            ? "image/png"
+            : groupAvatarUri.endsWith(".webp")
+              ? "image/webp"
+              : "image/jpeg";
+
+          const uploadAuth = await mediaApi.createUpload({
+            clientUploadId: generateUUID(),
+            purpose: "group_avatar",
+            contentType: type as any,
+            sizeBytes: 500000,
+            originalFilename: `avatar_${Date.now()}.jpg`,
+          });
+
+          if (uploadAuth.upload) {
+            const formData = new FormData();
+            if (uploadAuth.upload.fields) {
+              Object.entries(uploadAuth.upload.fields).forEach(([key, val]) => {
+                formData.append(key, String(val));
+              });
+            }
+
+            formData.append("file", {
+              uri: groupAvatarUri,
+              name: `avatar_${Date.now()}.jpg`,
+              type: type,
+            } as any);
+
+            await axios.post(uploadAuth.upload.url, formData, {
+              headers: { "Content-Type": "multipart/form-data" },
+            });
+
+            await mediaApi.completeUpload(uploadAuth.media.id);
+            await chatsApi.setGroupAvatar(conversation.id, { mediaId: uploadAuth.media.id });
+          }
+        } catch (error: any) {
+          showApiErrorToast(error, "Failed to upload group photo");
+        } finally {
+          setIsUploadingAvatar(false);
+        }
+      }
+
       (ref as any)?.current?.dismiss();
       setTimeout(() => {
         setStep(1);
@@ -142,11 +223,15 @@ export const NewGroupBottomSheet = forwardRef<
         setGroupName("");
         setGroupDescription("");
         setSearchQuery("");
+        setGroupAvatarUri(null);
         setResetKey((prev) => prev + 1);
         router.push(`/chat/${conversation.id}`);
       }, 300);
-    },
-  });
+
+    } catch (e) {
+      setIsUploadingAvatar(false);
+    }
+  };
 
   useEffect(() => {
     (async () => {
@@ -332,16 +417,24 @@ export const NewGroupBottomSheet = forwardRef<
         keyboardShouldPersistTaps="handled"
       >
         <View className="items-center mb-6">
-          <View className="relative">
+          <Pressable className="relative" onPress={handlePickAvatar}>
             <View
               className="w-32 h-32 rounded-full items-center justify-center overflow-hidden border border-neutral-100 dark:border-neutral-700"
               style={{
                 backgroundColor: isDark ? "#F5FEF8" : primaryShades[50],
               }}
             >
-              <CameraIcon width={36} height={36} color={primary} />
+              {groupAvatarUri ? (
+                <Image
+                  source={groupAvatarUri}
+                  style={{ width: "100%", height: "100%" }}
+                  contentFit="cover"
+                />
+              ) : (
+                <CameraIcon width={36} height={36} color={primary} />
+              )}
             </View>
-          </View>
+          </Pressable>
         </View>
 
         <View className="flex-1">
@@ -371,19 +464,11 @@ export const NewGroupBottomSheet = forwardRef<
 
       <View className="py-4 mt-auto">
         <BaseButton
-          title={createGroupMutation.isPending ? "Creating..." : "Create"}
+          title={createGroupMutation.isPending || isUploadingAvatar ? "Creating..." : "Create"}
           disabled={
-            createGroupMutation.isPending || groupName.trim().length === 0
+            createGroupMutation.isPending || isUploadingAvatar || groupName.trim().length === 0
           }
-          onPress={() => {
-            const participantIds = Array.from(selectedParticipants);
-            if (groupName.trim() === "" || participantIds.length === 0) return;
-
-            createGroupMutation.mutate({
-              name: groupName.trim(),
-              participantIds: participantIds,
-            });
-          }}
+          onPress={handleCreateGroup}
         />
       </View>
     </View>
@@ -408,6 +493,8 @@ export const NewGroupBottomSheet = forwardRef<
           setGroupName("");
           setGroupDescription("");
           setSearchQuery("");
+          setGroupAvatarUri(null);
+          setIsUploadingAvatar(false);
           setResetKey((prev) => prev + 1);
         }, 300);
       }}

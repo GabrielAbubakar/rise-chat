@@ -7,7 +7,7 @@ import {
   generateUUID,
   isSameDay,
   showApiErrorToast,
-  showInfoToast
+  showInfoToast,
 } from "@/shared/utils";
 import { LegendList } from "@legendapp/list/react-native";
 import axios from "axios";
@@ -199,8 +199,6 @@ export function ChatDetailScreen({ id, search }: ChatDetailScreenProps) {
     onScrollToIndex: handleScrollToIndex,
   });
 
-  console.log(messages);
-
   useEffect(() => {
     if (search === "true") {
       setTimeout(() => searchInputRef.current?.focus(), 250);
@@ -314,6 +312,11 @@ export function ChatDetailScreen({ id, search }: ChatDetailScreenProps) {
       text: textToSend || undefined,
       attachmentMediaIds: uploadedMediaId ? [uploadedMediaId] : undefined,
     });
+
+    // Give the list a brief moment to process the optimistic update, then scroll down
+    setTimeout(() => {
+      listRef.current?.scrollToEnd({ animated: true });
+    }, 100);
   };
 
   const handleTextChange = (text: string) => {
