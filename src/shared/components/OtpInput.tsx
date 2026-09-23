@@ -2,13 +2,14 @@ import React, { useRef, useState } from "react";
 import { View, TextInput, Pressable } from "react-native";
 import { BaseText } from "./BaseText";
 import { tv } from "tailwind-variants";
+import { useThemeColors } from "@/shared/hooks";
 
 const boxVariants = tv({
   base: "h-16 flex-1 border rounded-2xl items-center justify-center bg-transparent",
   variants: {
     state: {
       default: "border-divider dark:border-divider-dark",
-      active: "border-primary-400 bg-primary-50 dark:bg-neutral-800",
+      active: "bg-primary-50 dark:bg-neutral-800",
       error: "border-red-500 bg-red-50 dark:bg-red-900/20",
     },
   },
@@ -27,19 +28,22 @@ export interface OtpInputProps {
 export function OtpInput({ length = 4, value, onChangeText, isError }: OtpInputProps) {
   const inputRef = useRef<TextInput>(null);
   const [isFocused, setIsFocused] = useState(false);
+  const { primary } = useThemeColors();
 
   const boxes = Array.from({ length }).map((_, index) => {
     const char = value[index] || "";
     // Box is active if it's the current one to be typed into, or if it already has a value
     const isCurrent = isFocused && (value.length === index || (index === length - 1 && value.length === length));
     const hasValue = char !== "";
+    const isActiveState = !isError && (isCurrent || hasValue);
 
     return (
       <View
         key={index}
         className={boxVariants({
-          state: isError ? "error" : isCurrent || hasValue ? "active" : "default",
+          state: isError ? "error" : isActiveState ? "active" : "default",
         })}
+        style={isActiveState ? { borderColor: primary } : undefined}
       >
         <BaseText className="text-3xl font-display text-black dark:text-white">{char}</BaseText>
       </View>

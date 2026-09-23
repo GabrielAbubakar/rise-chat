@@ -9,10 +9,14 @@ export function useTimer(initialSeconds: number = 0) {
 
     if (isActive && timeLeft > 0) {
       interval = setInterval(() => {
-        setTimeLeft((time) => time - 1);
+        setTimeLeft((time) => {
+          if (time <= 1) {
+            setIsActive(false);
+            return 0;
+          }
+          return time - 1;
+        });
       }, 1000);
-    } else if (timeLeft === 0) {
-      setIsActive(false);
     }
 
     return () => {

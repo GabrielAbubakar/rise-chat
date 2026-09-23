@@ -1,5 +1,5 @@
 import { BottomSheetModal } from "@gorhom/bottom-sheet";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { Keyboard, Pressable } from "react-native";
 import { BaseInput, BaseInputProps } from "./BaseInput";
 import { BaseText } from "./BaseText";
@@ -16,16 +16,18 @@ export interface PhoneInputProps extends Omit<
     isValid: boolean,
   ) => void;
   defaultCountryCode?: string;
+  disabled?: boolean;
 }
 
 export function PhoneInput({
   value,
   onChangePhoneNumber,
   defaultCountryCode = "NG",
+  disabled = false,
   ...props
 }: PhoneInputProps) {
   const bottomSheetRef = useRef<BottomSheetModal>(null);
-  
+
   const [selectedCountry, setSelectedCountry] = useState<Country>({
     name: "Nigeria",
     dialCode: "234",
@@ -34,6 +36,7 @@ export function PhoneInput({
   });
 
   const handleChangeText = (text: string) => {
+    if (disabled) return;
     // Only allow numbers
     const cleaned = text.replace(/[^\d]/g, "");
 
@@ -46,11 +49,11 @@ export function PhoneInput({
 
   const handleCountrySelect = (country: Country) => {
     setSelectedCountry(country);
-    
+
     const cleaned = value ? value.replace(/[^\d]/g, "") : "";
     const isValid = cleaned.length >= 10;
     const fullNumber = `+${country.dialCode}${cleaned}`;
-    
+
     onChangePhoneNumber(cleaned, fullNumber, isValid);
   };
 
@@ -58,6 +61,8 @@ export function PhoneInput({
     <>
       <BaseInput
         {...props}
+        editable={!disabled && props.editable !== false}
+        className={disabled ? "opacity-60" : undefined}
         value={value}
         onChangeText={handleChangeText}
         keyboardType="phone-pad"
@@ -66,6 +71,7 @@ export function PhoneInput({
             hitSlop={10}
             className="flex-row items-center border-r border-divider dark:border-divider-dark pr-3 mr-3"
             onPress={() => {
+              if (disabled) return;
               Keyboard.dismiss();
               bottomSheetRef.current?.present();
             }}

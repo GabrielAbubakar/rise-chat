@@ -4,6 +4,7 @@ import { useRouter } from "expo-router";
 import { useColorScheme } from "nativewind";
 import { Image, View } from "react-native";
 
+import { useAppStore } from "@/store";
 import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
 
 export function WelcomeScreen() {
@@ -57,7 +58,10 @@ export function WelcomeScreen() {
           animated
           entering={FadeInDown.delay(1600).duration(800).springify()}
           title="Get Started"
-          onPress={() => router.push("/(auth)/register")}
+          onPress={() => {
+            useAppStore.getState().setHasSeenOnboarding(true);
+            router.push("/(auth)/register");
+          }}
         />
       </View>
     </ScreenContainer>

@@ -1,20 +1,12 @@
 import { useLogout } from "@/features/auth/hooks/useAuth";
 import { tokenStorage } from "@/services/api/token";
-import { BaseText, BaseTouchableOpacity } from "@/shared/components";
+import { Avatar, BaseText, BaseTouchableOpacity } from "@/shared/components";
 import { showApiErrorToast, showSuccessToast } from "@/shared/utils";
 import { useSecurityStore } from "@/store";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useRouter } from "expo-router";
-import {
-  ActivityIndicator,
-  Alert,
-  Image,
-  ScrollView,
-  Switch,
-  TouchableOpacity,
-  View,
-} from "react-native";
 import React from "react";
+import { Alert, ScrollView, TouchableOpacity, View } from "react-native";
 
 // Icons
 import ChevronRightIcon from "@/assets/icons/outline/cheveron-right.svg";
@@ -22,10 +14,14 @@ import EditIcon from "@/assets/icons/outline/pencil-alt.svg";
 import QrCodeIcon from "@/assets/icons/outline/qrcode.svg";
 
 import { useSettingsData } from "../constants/settingsData";
+import { useGetMe } from "../hooks/useProfile";
+import { useThemeColors } from "@/shared/hooks";
 
 export function SettingsScreen() {
   const router = useRouter();
-  const user = useAuthStore((state) => state.user);
+  const { primary } = useThemeColors();
+
+  const { data: user } = useGetMe();
   const { mutate: logoutApi, isPending } = useLogout({
     onSettled: async () => {
       await useAuthStore.getState().logout();
@@ -80,7 +76,7 @@ export function SettingsScreen() {
             <View className="w-10 h-10 rounded-full bg-primary-50 dark:bg-neutral-700 items-center justify-center mr-4">
               {icon}
             </View>
-            <BaseText className="text-[17px] font-medium text-black dark:text-white">
+            <BaseText className="text-[17px] font-sf-medium text-black dark:text-white">
               {label}
             </BaseText>
           </View>
@@ -106,22 +102,25 @@ export function SettingsScreen() {
           <BaseText className="text-3xl font-bold text-black dark:text-white">
             Settings
           </BaseText>
-          <BaseTouchableOpacity onPress={() => router.push("/settings/edit-profile")}>
-            <EditIcon width={24} height={24} color="#57B77D" />
+          <BaseTouchableOpacity
+            onPress={() => router.push("/settings/edit-profile")}
+          >
+            <EditIcon width={24} height={24} color={primary} />
           </BaseTouchableOpacity>
         </View>
 
         {/* Profile Section */}
         <View className="flex-row items-center justify-between px-6 pb-6">
           <View className="flex-row items-center">
-            <Image
-              source={
-                user?.avatarUrl
-                  ? { uri: user.avatarUrl }
-                  : require("@/assets/images/default-avatar.png")
-              }
-              className="w-16 h-16 rounded-full mr-4"
-              defaultSource={require("@/assets/images/default-avatar.png")}
+            <Avatar
+              type={user?.avatarUrl ? "image" : "initials"}
+              source={user?.avatarUrl || undefined}
+              initials={(user?.displayName || "Roberto William")
+                .split(" ")
+                .map((n) => n[0])
+                .join("")}
+              size={64}
+              className="mr-4"
             />
             <View>
               <BaseText className="text-xl font-bold text-black dark:text-white mb-1">
@@ -132,8 +131,10 @@ export function SettingsScreen() {
               </BaseText>
             </View>
           </View>
-          <BaseTouchableOpacity onPress={() => router.push("/settings/qr-code")}>
-            <QrCodeIcon width={28} height={28} color="#57B77D" />
+          <BaseTouchableOpacity
+            onPress={() => router.push("/settings/qr-code")}
+          >
+            <QrCodeIcon width={28} height={28} color={primary} />
           </BaseTouchableOpacity>
         </View>
 
@@ -147,7 +148,7 @@ export function SettingsScreen() {
               item.label,
               item.onPress,
               item.rightElement,
-              index === group1Data.length - 1
+              index === group1Data.length - 1,
             )}
           </React.Fragment>
         ))}
@@ -162,7 +163,7 @@ export function SettingsScreen() {
               item.label,
               item.onPress,
               item.rightElement,
-              index === group2Data.length - 1
+              index === group2Data.length - 1,
             )}
           </React.Fragment>
         ))}

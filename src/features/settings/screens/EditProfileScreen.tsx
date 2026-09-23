@@ -1,35 +1,160 @@
 import CameraIcon from "@/assets/icons/solid/camera.svg";
 import UserIcon from "@/assets/icons/solid/user.svg";
-import { BaseButton, BaseInput, PhoneInput, ScreenHeader } from "@/shared/components";
-import { useAuthStore } from "@/store/useAuthStore";
+import { mediaApi } from "@/features/media/api";
+import {
+  BaseButton,
+  BaseInput,
+  PhoneInput,
+  ScreenContainer,
+  ScreenHeader,
+} from "@/shared/components";
+import { showApiErrorToast, showSuccessToast } from "@/shared/utils";
+import axios from "axios";
+import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
-import React, { useState } from "react";
-import { Image, KeyboardAvoidingView, Platform, ScrollView, TouchableOpacity, View } from "react-native";
+import { useState } from "react";
+import {
+  ActivityIndicator,
+  Image,
+  Platform,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { useGetMe, useSetAvatar, useUpdateMe } from "../hooks/useProfile";
+
+const generateUUID = () => {
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === "x" ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+};
 
 export function EditProfileScreen() {
   const router = useRouter();
-  const user = useAuthStore((state) => state.user);
-  
+  const { data: user } = useGetMe();
+  const setAvatarMutation = useSetAvatar();
+
   const [name, setName] = useState(user?.displayName || "Roberto William");
-  // In the real app, value might be just the raw number, but let's prepopulate it to match the UI if empty
-  const [phoneNumber, setPhoneNumber] = useState(user?.phoneNumber || "85830544382");
+  const [phoneNumber, setPhoneNumber] = useState(
+    user?.phoneNumber || "85830544382",
+  );
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+
+  const { mutate: updateProfile, isPending } = useUpdateMe({
+    onSuccess: (data) => {
+      showSuccessToast("Profile updated successfully");
+      router.back();
+    },
+    onError: (error) => {
+      showApiErrorToast(error, "Failed to update profile");
+    },
+  });
+
+  const handlePickAndUploadAvatar = async () => {
+    try {
+      // Step 1: Pick Image from gallery
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ["images"],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.9,
+      });
+
+      if (result.canceled || !result.assets[0]) {
+        return;
+      }
+
+      setIsUploadingAvatar(true);
+      const asset = result.assets[0];
+
+      const fileName = asset.fileName || `avatar_${Date.now()}.jpg`;
+      const mimeType = (asset.mimeType ||
+        (asset.uri.endsWith(".png")
+          ? "image/png"
+          : asset.uri.endsWith(".webp")
+            ? "image/webp"
+            : "image/jpeg")) as any;
+      const sizeBytes = asset.fileSize || 500000;
+
+      // Step 2: Authorize Upload (POST /v1/media/uploads)
+      const uploadAuth = await mediaApi.createUpload({
+        clientUploadId: generateUUID(),
+        purpose: "profile_avatar",
+        contentType: mimeType,
+        sizeBytes: sizeBytes,
+        originalFilename: fileName,
+      });
+
+      if (!uploadAuth.upload) {
+        // Media asset was already uploaded/ready
+        await setAvatarMutation.mutateAsync({ mediaId: uploadAuth.media.id });
+        showSuccessToast("Profile picture updated successfully!");
+        return;
+      }
+
+      // Step 3: Direct Multipart Transfer to Cloudinary (POST upload.url) via standalone axios
+      const formData = new FormData();
+      if (uploadAuth.upload.fields) {
+        Object.entries(uploadAuth.upload.fields).forEach(([key, val]) => {
+          formData.append(key, String(val));
+        });
+      }
+
+      formData.append("file", {
+        uri: asset.uri,
+        name: fileName,
+        type: mimeType,
+      } as any);
+
+      await axios.post(uploadAuth.upload.url, formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
+
+      // Step 4: Complete Upload Verification & Set Profile Avatar
+      await mediaApi.completeUpload(uploadAuth.media.id);
+      await setAvatarMutation.mutateAsync({ mediaId: uploadAuth.media.id });
+
+      showSuccessToast("Profile picture updated successfully!");
+    } catch (error: any) {
+      console.log(error);
+      showApiErrorToast(error, "Failed to upload profile picture");
+    } finally {
+      setIsUploadingAvatar(false);
+    }
+  };
+
+  const handleSave = () => {
+    updateProfile({ displayName: name });
+  };
 
   return (
-    <KeyboardAvoidingView 
-      className="flex-1 bg-app dark:bg-app-dark" 
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
+    <ScreenContainer
+      withPadding={false}
+      isSafeArea={false}
+      isKeyboardAvoiding
+      isScrollable
+      keyboardBehavior={Platform.OS === "ios" ? "padding" : undefined}
+      className="flex-1 bg-app dark:bg-app-dark"
     >
-      <ScreenHeader 
-        title="Edit Profile" 
-        onBack={() => router.back()} 
-        useSafeArea 
-        className="pb-24" // Extra padding to allow for the overlap
+      <ScreenHeader
+        className="pt-10 pb-24"
+        title="Edit Profile"
+        onBack={() => router.back()}
+        useSafeArea
       />
-      
-      <ScrollView className="flex-1 px-6" showsVerticalScrollIndicator={false}>
+
+      <View className="flex-1 px-6">
         {/* Avatar Section */}
-        <View className="items-center -mt-20 mb-10 z-10">
-          <View className="relative">
+        <View className="items-center -mt-20 mb-10 z-20">
+          <TouchableOpacity
+            className="relative"
+            onPress={handlePickAndUploadAvatar}
+            disabled={isUploadingAvatar}
+            activeOpacity={0.8}
+          >
             <Image
               source={
                 user?.avatarUrl
@@ -39,10 +164,16 @@ export function EditProfileScreen() {
               className="w-32 h-32 rounded-full border-[4px] border-white bg-white"
               defaultSource={require("@/assets/images/default-avatar.png")}
             />
-            <TouchableOpacity className="absolute bottom-0 right-0 w-10 h-10 rounded-full bg-[#57B77D] items-center justify-center border-[4px] border-white">
-              <CameraIcon width={20} height={20} color="white" />
-            </TouchableOpacity>
-          </View>
+            {isUploadingAvatar ? (
+              <View className="absolute inset-0 rounded-full bg-black/40 items-center justify-center border-[4px] border-white">
+                <ActivityIndicator size="small" color="#ffffff" />
+              </View>
+            ) : (
+              <View className="absolute bottom-0 right-0 w-10 h-10 rounded-full bg-primary items-center justify-center border-[4px] border-white">
+                <CameraIcon width={20} height={20} color="white" />
+              </View>
+            )}
+          </TouchableOpacity>
         </View>
 
         {/* Form Fields */}
@@ -62,15 +193,21 @@ export function EditProfileScreen() {
             label="Phone Number"
             value={phoneNumber}
             onChangePhoneNumber={(raw) => setPhoneNumber(raw)}
-            defaultCountryCode="ID" // Assuming ID for +62 based on +62 85-830-544-382
+            defaultCountryCode="NG"
+            disabled={true}
           />
         </View>
-      </ScrollView>
+      </View>
 
       {/* Save Button */}
       <View className="p-6 pt-2 pb-8 bg-app dark:bg-app-dark">
-        <BaseButton title="Save" onPress={() => router.back()} className="bg-[#57B77D]" />
+        <BaseButton
+          title={isPending ? "Saving..." : "Save"}
+          onPress={handleSave}
+          className="bg-primary"
+          disabled={isPending || isUploadingAvatar}
+        />
       </View>
-    </KeyboardAvoidingView>
+    </ScreenContainer>
   );
 }

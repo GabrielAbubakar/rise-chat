@@ -1,16 +1,23 @@
-import { BaseText, BaseTouchableOpacity, ScreenHeader } from "@/shared/components";
+import ChevronRightIcon from "@/assets/icons/outline/cheveron-right.svg";
+import {
+  BaseText,
+  BaseTouchableOpacity,
+  ScreenContainer,
+  ScreenHeader,
+} from "@/shared/components";
 import { useRouter } from "expo-router";
 import { ScrollView, View } from "react-native";
-import ChevronRightIcon from "@/assets/icons/outline/cheveron-right.svg";
+import { useBlocksList } from "../hooks/useProfile";
 
 export function PrivacyScreen() {
   const router = useRouter();
+  const { data: blockedContacts } = useBlocksList();
 
   const renderItem = (
     label: string,
     value: string,
     onPress: () => void,
-    isLast: boolean = false
+    isLast: boolean = false,
   ) => (
     <View className="px-6">
       <BaseTouchableOpacity
@@ -34,16 +41,57 @@ export function PrivacyScreen() {
   );
 
   return (
-    <View className="flex-1 bg-app dark:bg-app-dark">
-      <ScreenHeader title="Privacy" onBack={() => router.back()} useSafeArea />
-      
-      <ScrollView className="flex-1" contentContainerStyle={{ paddingVertical: 10 }}>
-        {renderItem("Last Seen", "Everyone", () => router.push({ pathname: "/settings/privacy-selection", params: { type: "Last Seen" } }))}
-        {renderItem("Profile Photo", "My Contact", () => router.push({ pathname: "/settings/privacy-selection", params: { type: "Profile Photo" } }))}
-        {renderItem("About", "My Contact", () => router.push({ pathname: "/settings/privacy-selection", params: { type: "About" } }))}
-        {renderItem("Group", "Everyone", () => router.push({ pathname: "/settings/privacy-selection", params: { type: "Group" } }))}
-        {renderItem("Blocked Contact", "3 Contacts", () => router.push("/settings/blocked-contact"))}
-        {renderItem("Face ID", "", () => router.push("/settings/face-id"), true)}
+    <ScreenContainer
+      withPadding={false}
+      isSafeArea={false}
+      className="flex-1 bg-app dark:bg-app-dark"
+    >
+      <ScreenHeader
+        className="pt-10"
+        title="Privacy"
+        onBack={() => router.back()}
+        useSafeArea
+      />
+
+      <ScrollView
+        className="flex-1"
+        contentContainerStyle={{ paddingVertical: 10 }}
+      >
+        {renderItem("Last Seen", "Everyone", () =>
+          router.push({
+            pathname: "/settings/privacy-selection",
+            params: { type: "Last Seen" },
+          }),
+        )}
+        {renderItem("Profile Photo", "My Contact", () =>
+          router.push({
+            pathname: "/settings/privacy-selection",
+            params: { type: "Profile Photo" },
+          }),
+        )}
+        {renderItem("About", "My Contact", () =>
+          router.push({
+            pathname: "/settings/privacy-selection",
+            params: { type: "About" },
+          }),
+        )}
+        {renderItem("Group", "Everyone", () =>
+          router.push({
+            pathname: "/settings/privacy-selection",
+            params: { type: "Group" },
+          }),
+        )}
+        {renderItem(
+          "Blocked Contact",
+          ` ${blockedContacts?.items.length} Contacts` || "",
+          () => router.push("/settings/blocked-contact"),
+        )}
+        {renderItem(
+          "Face ID",
+          "",
+          () => router.push("/settings/face-id"),
+          true,
+        )}
 
         <View className="px-6 mt-4">
           <BaseText className="text-sm text-neutral-400 leading-5">
@@ -51,6 +99,6 @@ export function PrivacyScreen() {
           </BaseText>
         </View>
       </ScrollView>
-    </View>
+    </ScreenContainer>
   );
 }

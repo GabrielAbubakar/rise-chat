@@ -2,6 +2,8 @@ import { tokenStorage } from "@/services/api/token";
 import { showApiErrorToast } from "@/shared/utils";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useEffect, useState } from "react";
+import { queryClient } from "@/core/queryClient";
+import { profileKeys } from "@/features/settings/hooks/useProfile";
 import { useResendOtp, useVerifyOtp } from "./useAuth";
 import { useTimer } from "./useTimer";
 
@@ -15,10 +17,13 @@ export function useOtpStep(
   const [verificationCode, setVerificationCode] = useState("");
   const [otpError, setOtpError] = useState(false);
 
-  useEffect(() => {
+  const [prevChallengeId, setPrevChallengeId] = useState(challengeId);
+
+  if (challengeId !== prevChallengeId) {
+    setPrevChallengeId(challengeId);
     setCurrentChallengeId(challengeId);
-  }, [challengeId]);
-  const setUser = useAuthStore((state) => state.setUser);
+  }
+  const setAuthenticated = useAuthStore((state) => state.setAuthenticated);
 
   const { timeLeft, isActive, startTimer } = useTimer(initialResendSeconds);
 
@@ -30,7 +35,12 @@ export function useOtpStep(
     onSuccess: async (data) => {
       setOtpError(false);
       await tokenStorage.setTokens(data.accessToken, data.refreshToken);
-      setUser(data.user);
+      
+      // Update React Query cache directly
+      queryClient.setQueryData(profileKeys.me(), data.user);
+      
+      // Mark as authenticated in Zustand
+      setAuthenticated(true);
 
       const hasProfile = Boolean(data.user.displayName && data.user.avatarUrl);
       onSuccess(hasProfile);
@@ -74,15 +84,16 @@ export function useOtpStep(
     }
   };
 
-  useEffect(() => {
-    if (otpError && verificationCode.length > 0) {
+  const handleSetVerificationCode = (code: string) => {
+    setVerificationCode(code);
+    if (otpError && code.length > 0) {
       setOtpError(false);
     }
-  }, [verificationCode]);
+  };
 
   return {
     verificationCode,
-    setVerificationCode,
+    setVerificationCode: handleSetVerificationCode,
     isVerifyingOtp,
     isResendingOtp,
     otpError,

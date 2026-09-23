@@ -1,42 +1,43 @@
+import { PinSetupPromptModal } from "@/features/security/components/PinSetupPromptModal";
 import { BaseText } from "@/shared/components";
 import { tabs } from "@/shared/constants/tabs";
 import { colors } from "@/shared/constants/tokens";
-import { Tabs, useRouter } from "expo-router";
-import { useColorScheme } from "nativewind";
-import { View } from "react-native";
-import { useEffect, useState } from "react";
+import { useThemeColors } from "@/shared/hooks";
 import { useSecurityStore } from "@/store/useSecurityStore";
-import { PinSetupPromptModal } from "@/features/security/components/PinSetupPromptModal";
+import { Tabs, useRouter } from "expo-router";
+import { BottomTabNavigationOptions } from "expo-router/build/react-navigation/bottom-tabs";
+import { useColorScheme } from "nativewind";
+import { useState } from "react";
+import { View } from "react-native";
 
 export default function TabsLayout() {
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === "dark";
   const router = useRouter();
+  const { primary } = useThemeColors();
 
   const isPinSet = useSecurityStore((state) => state.isPinSet);
-  const hasSkippedPinSetup = useSecurityStore((state) => state.hasSkippedPinSetup);
-  const markPinSetupSkipped = useSecurityStore((state) => state.markPinSetupSkipped);
+  const hasSkippedPinSetup = useSecurityStore(
+    (state) => state.hasSkippedPinSetup,
+  );
+  const markPinSetupSkipped = useSecurityStore(
+    (state) => state.markPinSetupSkipped,
+  );
 
-  const [showPinPrompt, setShowPinPrompt] = useState(false);
-
-  useEffect(() => {
-    // When arriving at the tabs flow, check if we should prompt for PIN setup
-    if (!isPinSet && !hasSkippedPinSetup) {
-      setShowPinPrompt(true);
-    }
-  }, [isPinSet, hasSkippedPinSetup]);
+  const [hasDismissedPrompt, setHasDismissedPrompt] = useState(false);
+  const showPinPrompt = !isPinSet && !hasSkippedPinSetup && !hasDismissedPrompt;
 
   const handleAcceptPinSetup = () => {
-    setShowPinPrompt(false);
+    setHasDismissedPrompt(true);
     router.push("/setup-pin");
   };
 
   const handleDeclinePinSetup = () => {
     markPinSetupSkipped();
-    setShowPinPrompt(false);
+    setHasDismissedPrompt(true);
   };
 
-  const screenOptions = {
+  const screenOptions: BottomTabNavigationOptions = {
     headerShown: false,
     tabBarStyle: {
       backgroundColor: isDark ? colors.neutral[700] : "white",
@@ -45,8 +46,9 @@ export default function TabsLayout() {
       height: 95,
       paddingTop: 10,
     },
-    tabBarActiveTintColor: colors.primary.DEFAULT,
+    tabBarActiveTintColor: primary,
     tabBarInactiveTintColor: colors.neutral[300],
+    animation: "shift",
   };
 
   function renderTabBarIcon(

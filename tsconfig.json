@@ -13,6 +13,10 @@
       "@shared/*": ["./src/shared/*"],
       "@store": ["./src/store"],
       "@store/*": ["./src/store/*"],
+      "@services": ["./src/services"],
+      "@services/*": ["./src/services/*"],
+      "@types": ["./src/types"],
+      "@types/*": ["./src/types/*"],
       "@/assets/*": ["./assets/*"]
     }
   },

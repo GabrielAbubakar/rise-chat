@@ -7,10 +7,12 @@ module.exports = {
     extend: {
       colors: {
         primary: {
-          50: "#F5FBF7",
-          200: "#ABDBBE",
-          400: "#57B77D",
-          DEFAULT: "#57B77D",
+          50: "var(--color-primary-50)",
+          100: "var(--color-primary-100)",
+          200: "var(--color-primary-200)",
+          300: "var(--color-primary-300)",
+          400: "var(--color-primary-400)",
+          DEFAULT: "var(--color-primary-DEFAULT)",
         },
         neutral: {
           50: "#DDE2E8",

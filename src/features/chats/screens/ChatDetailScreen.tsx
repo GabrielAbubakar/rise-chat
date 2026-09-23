@@ -1,40 +1,46 @@
-import {
-  Avatar,
-  BaseText,
-  BaseTouchableOpacity,
-  ScreenContainer,
-  ScreenHeader,
-} from "@/shared/components";
+import { useGetMe } from "@/features/settings/hooks/useProfile";
+import { ScreenContainer } from "@/shared/components";
+import { isSameDay, showInfoToast } from "@/shared/utils";
 import { LegendList } from "@legendapp/list/react-native";
-import { useRouter } from "expo-router";
+import * as DocumentPicker from "expo-document-picker";
+import { Image } from "expo-image";
+import * as ImagePicker from "expo-image-picker";
 import { useColorScheme } from "nativewind";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   Dimensions,
-  Image,
   Keyboard,
   NativeScrollEvent,
   NativeSyntheticEvent,
   Platform,
   Pressable,
+  StyleSheet,
   TextInput,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-// Icons
 import ChevronDownIcon from "@/assets/icons/solid/cheveron-down.svg";
-import ArrowLeftIcon from "@/assets/icons/solid/cheveron-left.svg";
-import ChevronUpIcon from "@/assets/icons/solid/cheveron-up.svg";
-import PlaneIcon from "@/assets/icons/solid/paper-airplane.svg";
-import PaperClipIcon from "@/assets/icons/solid/paper-clip.svg";
-import PhoneIcon from "@/assets/icons/solid/phone.svg";
-import SearchIcon from "@/assets/icons/solid/search.svg";
-import VideoIcon from "@/assets/icons/solid/video-camera.svg";
 
-// Dummy Data
-import { DUMMY_CHATS, DUMMY_MESSAGES } from "@/constants/dummyData";
-import { MessagePill } from "../components";
+import {
+  AttachmentPickerMenu,
+  AttachmentPreviewBar,
+  ChatHeader,
+  ChatInputBar,
+  ChatMessageItem,
+  ChatSearchNavigator,
+} from "../components";
+import { useChatRealtime } from "../hooks/useChatRealtime";
+import { useChatSearch } from "../hooks/useChatSearch";
+import {
+  useConversationDetail,
+  useConversationMessages,
+  useMarkRead,
+  useSendMessage,
+} from "../hooks/useChats";
+import { useSendChatMessage } from "../hooks/useSendChatMessage";
+import { MessageResponseDto } from "../types";
 
 const { height: windowHeight } = Dimensions.get("window");
 
@@ -44,31 +50,178 @@ export interface ChatDetailScreenProps {
 }
 
 export function ChatDetailScreen({ id, search }: ChatDetailScreenProps) {
-  const router = useRouter();
   const insets = useSafeAreaInsets();
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === "dark";
 
-  const [message, setMessage] = useState("");
+  const { data: user } = useGetMe();
+  const conversationId = id || "";
+
+  // API Hooks
+  const { data: conversationDetail } = useConversationDetail(conversationId, {
+    enabled: !!conversationId,
+  });
+
+  const {
+    data: messagesData,
+    isLoading: isMessagesLoading,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useConversationMessages(conversationId);
+
+  const sendMessageMutation = useSendMessage(conversationId);
+  const { mutate: markRead } = useMarkRead(conversationId);
+
+  // Mark messages as read when opening the chat
+  useEffect(() => {
+    if (conversationId) {
+      markRead();
+    }
+  }, [conversationId, markRead]);
+
+  // WebSocket Hook (incoming messages, presence, typing indicators)
+  const { isOtherOnline, isOtherTyping, sendTypingStart, sendTypingStop } =
+    useChatRealtime(conversationId);
+
+  // Flatten and sort messages oldest first
+  const messages = useMemo(() => {
+    if (!messagesData) return [];
+    const allMessages = messagesData.pages.flatMap((page) => page.items);
+    const sorted = [...allMessages].sort(
+      (a, b) =>
+        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+    );
+    return sorted.map((msg, index) => {
+      const prevMessage = index > 0 ? sorted[index - 1] : null;
+      const showDateSeparator =
+        !prevMessage ||
+        !isSameDay(new Date(msg.createdAt), new Date(prevMessage.createdAt));
+      return { ...msg, showDateSeparator };
+    });
+  }, [messagesData]);
+
+  // Local UI State
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const [isAtBottom, setIsAtBottom] = useState(true);
+  const [isAttachmentMenuOpen, setIsAttachmentMenuOpen] = useState(false);
+
+  // Message Sending Hook
+  const {
+    message,
+    setMessage,
+    selectedAttachment,
+    setSelectedAttachment,
+    isUploadingAttachment,
+    handleSendMessage,
+  } = useSendChatMessage({
+    conversationId,
+    sendMessageMutation,
+    sendTypingStop,
+    onMessageSent: () => {
+      // Give the list a brief moment to process the optimistic update, then scroll down
+      setTimeout(() => {
+        listRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+    },
+  });
+
+  // Attachment Handlers
+  const handleSelectAttachment = useCallback(
+    (uri: string, fileName?: string, mimeType?: string, fileSize?: number) => {
+      setSelectedAttachment({
+        uri,
+        fileName,
+        mimeType,
+        fileSize,
+      });
+    },
+    [setSelectedAttachment],
+  );
+
+  const handlePickPhotoOrGallery = useCallback(async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ["images"],
+        quality: 0.9,
+      });
+      if (!result.canceled && result.assets[0]) {
+        const asset = result.assets[0];
+        handleSelectAttachment(
+          asset.uri,
+          asset.fileName || undefined,
+          asset.mimeType || undefined,
+          asset.fileSize || undefined,
+        );
+      }
+    } catch (error) {
+      console.log("Error picking from gallery:", error);
+    }
+  }, [handleSelectAttachment]);
+
+  const handlePickDocument = useCallback(async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: "*/*",
+        copyToCacheDirectory: true,
+      });
+      if (!result.canceled && result.assets[0]) {
+        const doc = result.assets[0];
+        handleSelectAttachment(
+          doc.uri,
+          doc.name,
+          doc.mimeType || undefined,
+          doc.size || undefined,
+        );
+      }
+    } catch (error) {
+      console.log("Error picking document:", error);
+    }
+  }, [handleSelectAttachment]);
+
+  const handlePickLocation = useCallback(() => {
+    showInfoToast("Location sharing selected");
+  }, []);
+
+  const handlePickContact = useCallback(() => {
+    showInfoToast("Contact sharing selected");
+  }, []);
+
+  // Refs
   const listRef = useRef<any>(null);
   const searchInputRef = useRef<TextInput>(null);
+  const composerRef = useRef<View>(null);
 
-  // Search feature states
-  const [isSearching, setIsSearching] = useState(search === "true");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
+
+  // Scroll to index helper for search
+  const handleScrollToIndex = useCallback((index: number) => {
+    listRef.current?.scrollToIndex({ index, animated: true });
+  }, []);
+
+  // Search Hook
+  const {
+    isSearching,
+    setIsSearching,
+    searchQuery,
+    setSearchQuery,
+    currentMatchIndex,
+    matchingIndices,
+    handlePrevMatch,
+    handleNextMatch,
+    handleExitSearch,
+  } = useChatSearch({
+    messages,
+    initialSearching: search === "true",
+    onScrollToIndex: handleScrollToIndex,
+  });
 
   useEffect(() => {
     if (search === "true") {
-      setIsSearching(true);
-      setTimeout(() => {
-        searchInputRef.current?.focus();
-      }, 250);
+      setTimeout(() => searchInputRef.current?.focus(), 250);
     }
   }, [search]);
 
+  // Keyboard visibility listener
   useEffect(() => {
     const showSub = Keyboard.addListener(
       Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow",
@@ -84,91 +237,72 @@ export function ChatDetailScreen({ id, search }: ChatDetailScreenProps) {
     };
   }, []);
 
-  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
-    const paddingToBottom = 100;
-    const isBottom =
-      layoutMeasurement.height + contentOffset.y >=
-      contentSize.height - paddingToBottom;
-    setIsAtBottom(isBottom);
-  };
+  const handleScroll = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const { layoutMeasurement, contentOffset, contentSize } =
+        event.nativeEvent;
+      const paddingToBottom = 100;
+      const isBottom =
+        layoutMeasurement.height + contentOffset.y >=
+        contentSize.height - paddingToBottom;
+      setIsAtBottom(isBottom);
+    },
+    [],
+  );
 
-  // Use dummy chat info
-  const chat = DUMMY_CHATS.find((c) => c.id === id) || DUMMY_CHATS[0];
+  const isDirect = conversationDetail?.type === "direct";
+  const otherParticipant = isDirect
+    ? conversationDetail?.otherParticipant
+    : null;
+  const participantName =
+    (isDirect ? otherParticipant?.displayName : conversationDetail?.name) ||
+    "Chat";
+  const participantAvatar =
+    (isDirect ? otherParticipant?.avatarUrl : conversationDetail?.avatarUrl) ||
+    undefined;
+  const participantInitials = participantName
+    ? participantName.charAt(0).toUpperCase()
+    : "?";
 
-  // Calculate matching messages for search
-  const matchingIndices = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase();
-    if (!query) return [];
-    const indices: number[] = [];
-    DUMMY_MESSAGES.forEach((item, index) => {
-      if (item.text.toLowerCase().includes(query)) {
-        indices.push(index);
+  const handleTextChange = useCallback(
+    (text: string) => {
+      setMessage(text);
+      if (text.length > 0) {
+        sendTypingStart();
+      } else {
+        sendTypingStop();
       }
-    });
-    return indices;
-  }, [searchQuery]);
+    },
+    [setMessage, sendTypingStart, sendTypingStop],
+  );
 
-  useEffect(() => {
-    setCurrentMatchIndex(0);
-    if (matchingIndices.length > 0) {
-      listRef.current?.scrollToIndex({
-        index: matchingIndices[0],
-        animated: true,
-      });
-    }
-  }, [searchQuery, matchingIndices]);
+  const renderMessage = useCallback(
+    ({
+      item,
+      index,
+    }: {
+      item: MessageResponseDto & { showDateSeparator?: boolean };
+      index: number;
+    }) => {
+      const isCurrentMatch =
+        isSearching &&
+        matchingIndices.length > 0 &&
+        matchingIndices[currentMatchIndex] === index;
 
-  const handlePrevMatch = () => {
-    if (matchingIndices.length === 0) return;
-    const nextIdx =
-      currentMatchIndex > 0 ? currentMatchIndex - 1 : matchingIndices.length - 1;
-    setCurrentMatchIndex(nextIdx);
-    listRef.current?.scrollToIndex({
-      index: matchingIndices[nextIdx],
-      animated: true,
-    });
-  };
+      return (
+        <ChatMessageItem
+          item={item}
+          isMe={item.senderId === user?.id}
+          isCurrentMatch={isCurrentMatch}
+          searchQuery={isSearching ? searchQuery : undefined}
+          showDateSeparator={item.showDateSeparator ?? false}
+        />
+      );
+    },
+    [user?.id, isSearching, matchingIndices, currentMatchIndex, searchQuery],
+  );
 
-  const handleNextMatch = () => {
-    if (matchingIndices.length === 0) return;
-    const nextIdx =
-      currentMatchIndex < matchingIndices.length - 1 ? currentMatchIndex + 1 : 0;
-    setCurrentMatchIndex(nextIdx);
-    listRef.current?.scrollToIndex({
-      index: matchingIndices[nextIdx],
-      animated: true,
-    });
-  };
-
-  const handleExitSearch = () => {
-    setIsSearching(false);
-    setSearchQuery("");
-    setCurrentMatchIndex(0);
-  };
-
-  const renderMessage = ({
-    item,
-    index,
-  }: {
-    item: (typeof DUMMY_MESSAGES)[0];
-    index: number;
-  }) => {
-    const isCurrentMatch =
-      isSearching &&
-      matchingIndices.length > 0 &&
-      matchingIndices[currentMatchIndex] === index;
-
-    return (
-      <MessagePill
-        isMe={item.isMe}
-        text={item.text}
-        time={item.time}
-        searchQuery={isSearching ? searchQuery : undefined}
-        isCurrentMatch={isCurrentMatch}
-      />
-    );
-  };
+  // console.log(messages);
 
   return (
     <ScreenContainer
@@ -182,98 +316,24 @@ export function ChatDetailScreen({ id, search }: ChatDetailScreenProps) {
       className="flex-1 bg-app dark:bg-app-dark"
     >
       {/* Header */}
-      <ScreenHeader
-        useSafeArea
-        withPadding={false}
-        className="z-10 shadow-sm pt-4"
-      >
-        {isSearching ? (
-          /* Search Header Bar */
-          <View className="flex-row items-center justify-between px-4 pb-4 pt-2 gap-3">
-            <View className="flex-1 flex-row items-center bg-black/15 dark:bg-neutral-700/80 rounded-full px-3 py-2 border border-white/20 dark:border-neutral-600">
-              <SearchIcon width={20} height={20} color="white" />
-              <TextInput
-                ref={searchInputRef}
-                className="flex-1 text-white font-sf-regular ml-2 text-base py-0"
-                placeholder="Search in chat..."
-                placeholderTextColor="rgba(255, 255, 255, 0.7)"
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-                autoFocus
-                returnKeyType="search"
-              />
-              {searchQuery.length > 0 && (
-                <Pressable onPress={() => setSearchQuery("")} className="p-1">
-                  <BaseText className="text-white/80 font-sf-bold text-xs">
-                    ✕
-                  </BaseText>
-                </Pressable>
-              )}
-            </View>
-            <Pressable onPress={handleExitSearch} className="px-2 py-1">
-              <BaseText className="text-white font-sf-medium text-base">
-                Cancel
-              </BaseText>
-            </Pressable>
-          </View>
-        ) : (
-          /* Default Chat Header */
-          <View className="flex-row items-center justify-between px-4 pb-4 pt-2">
-            <View className="flex-row items-center flex-1">
-              <Pressable onPress={() => router.back()} className="p-1">
-                <ArrowLeftIcon width={28} height={28} color="white" />
-              </Pressable>
-
-              <BaseTouchableOpacity
-                activeOpacity={0.8}
-                onPress={() =>
-                  router.push({
-                    pathname: "/chat/profile",
-                    params: { id: chat.id },
-                  })
-                }
-                className="flex-row items-center flex-1"
-              >
-                <Avatar
-                  type={(chat.avatarType as any) || "image"}
-                  source={chat.avatar}
-                  initials={chat.initials}
-                  backgroundColor={chat.avatarColor}
-                  size={40}
-                  className="ml-2"
-                />
-
-                <View className="ml-3 flex-1 justify-center">
-                  <BaseText className="text-white text-[18px] font-sf-bold">
-                    {chat.name}
-                  </BaseText>
-                  <BaseText type="body-md" className="text-white/80 mt-0.5">
-                    {chat.lastSeen || "Active 5 minutes ago"}
-                  </BaseText>
-                </View>
-              </BaseTouchableOpacity>
-            </View>
-
-            <View className="flex-row items-center gap-3">
-              <Pressable
-                onPress={() => {
-                  setIsSearching(true);
-                  setTimeout(() => searchInputRef.current?.focus(), 150);
-                }}
-                className="p-1"
-              >
-                <SearchIcon width={24} height={24} color="white" />
-              </Pressable>
-              <Pressable className="p-1">
-                <VideoIcon width={26} height={26} color="white" />
-              </Pressable>
-              <Pressable className="p-1">
-                <PhoneIcon width={24} height={24} color="white" />
-              </Pressable>
-            </View>
-          </View>
-        )}
-      </ScreenHeader>
+      <ChatHeader
+        isSearching={isSearching}
+        searchQuery={searchQuery}
+        onSearchQueryChange={setSearchQuery}
+        onExitSearch={handleExitSearch}
+        onStartSearch={() => {
+          setIsSearching(true);
+          setTimeout(() => searchInputRef.current?.focus(), 150);
+        }}
+        participantName={participantName}
+        participantAvatar={participantAvatar}
+        participantInitials={participantInitials}
+        isOtherOnline={isOtherOnline}
+        isOtherTyping={isOtherTyping}
+        conversationId={conversationId}
+        searchInputRef={searchInputRef}
+        isGroup={conversationDetail?.type === "group"}
+      />
 
       {/* Messages List */}
       <View className="flex-1 overflow-hidden">
@@ -283,61 +343,52 @@ export function ChatDetailScreen({ id, search }: ChatDetailScreenProps) {
               ? require("@/assets/images/chat-background-dark.png")
               : require("@/assets/images/chat-background-light.png")
           }
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            right: 0,
-            height: windowHeight,
-          }}
-          resizeMode="cover"
+          style={styles.backgroundImage}
+          contentFit="cover"
         />
-        <LegendList
-          ref={listRef}
-          data={DUMMY_MESSAGES}
-          renderItem={renderMessage}
-          keyExtractor={(item) => item.id}
-          estimatedItemSize={60}
-          contentContainerStyle={{ paddingTop: 20, paddingBottom: 20 }}
-          onScroll={handleScroll}
-          scrollEventThrottle={16}
-          recycleItems={true}
-        />
+        {isMessagesLoading ? (
+          <View className="flex-1 items-center justify-center">
+            <ActivityIndicator size="large" color="#4ADE80" />
+          </View>
+        ) : (
+          <LegendList
+            ref={listRef}
+            data={messages}
+            renderItem={renderMessage}
+            keyExtractor={(item) => item.id || item.clientMessageId}
+            estimatedItemSize={60}
+            contentContainerStyle={{ paddingTop: 20, paddingBottom: 20 }}
+            onScroll={handleScroll}
+            scrollEventThrottle={16}
+            recycleItems={true}
+            alignItemsAtEnd={true}
+            initialScrollAtEnd={true}
+            maintainScrollAtEnd={true}
+            maintainScrollAtEndThreshold={0.1}
+            maintainVisibleContentPosition={true}
+            onStartReached={() => {
+              if (hasNextPage && !isFetchingNextPage) {
+                fetchNextPage();
+              }
+            }}
+            onStartReachedThreshold={0.5}
+          />
+        )}
       </View>
 
-      {/* Search match navigator bar above bottom input */}
-      {isSearching && searchQuery.trim().length > 0 && (
-        <View className="bg-white dark:bg-neutral-800 border-t border-neutral-200 dark:border-neutral-700 px-4 py-2 flex-row items-center justify-between">
-          <BaseText className="text-neutral-900 dark:text-white font-sf-medium text-sm">
-            {matchingIndices.length > 0
-              ? `${currentMatchIndex + 1} from ${matchingIndices.length}`
-              : "0 results"}
-          </BaseText>
-          <View className="flex-row items-center gap-3">
-            <Pressable
-              onPress={handlePrevMatch}
-              disabled={matchingIndices.length === 0}
-              className={`p-1.5 rounded-full bg-neutral-100 dark:bg-neutral-700 ${
-                matchingIndices.length === 0 ? "opacity-40" : "active:bg-neutral-200 dark:active:bg-neutral-600"
-              }`}
-            >
-              <ChevronUpIcon width={18} height={18} color={isDark ? "white" : "#3A566A"} />
-            </Pressable>
-            <Pressable
-              onPress={handleNextMatch}
-              disabled={matchingIndices.length === 0}
-              className={`p-1.5 rounded-full bg-neutral-100 dark:bg-neutral-700 ${
-                matchingIndices.length === 0 ? "opacity-40" : "active:bg-neutral-200 dark:active:bg-neutral-600"
-              }`}
-            >
-              <ChevronDownIcon width={18} height={18} color={isDark ? "white" : "#3A566A"} />
-            </Pressable>
-          </View>
-        </View>
-      )}
+      {/* Search Match Navigator */}
+      {isSearching && searchQuery.trim().length > 0 ? (
+        <ChatSearchNavigator
+          totalMatches={matchingIndices.length}
+          currentMatchIndex={currentMatchIndex}
+          onPrevMatch={handlePrevMatch}
+          onNextMatch={handleNextMatch}
+          isDark={isDark}
+        />
+      ) : null}
 
-      {/* Scroll to bottom button */}
-      {isKeyboardVisible && !isAtBottom && !isSearching && (
+      {/* Scroll to Bottom Floating Button */}
+      {!isAtBottom && !isSearching ? (
         <Pressable
           className="absolute right-4 bg-primary-400 dark:bg-primary-500 rounded-full w-10 h-10 items-center justify-center shadow-lg z-20"
           style={{ bottom: Math.max(insets.bottom, 12) + 70 }}
@@ -347,43 +398,58 @@ export function ChatDetailScreen({ id, search }: ChatDetailScreenProps) {
         >
           <ChevronDownIcon width={24} height={24} color="white" />
         </Pressable>
-      )}
+      ) : null}
 
-      {/* Input Area (only shown when not searching) */}
-      {!isSearching && (
-        <View
-          className="bg-transparent px-4 py-3 flex-row items-end"
-          style={{ paddingBottom: Math.max(insets.bottom, 12) }}
-        >
-          <View className="flex-1 flex-row items-end bg-app dark:bg-neutral-700 rounded-[24px] px-4 py-2 border border-divider dark:border-neutral-600">
-            <Pressable className="mr-3 mb-[14px]">
-              <PaperClipIcon
-                width={20}
-                height={20}
-                color={isDark ? "#9CA3AF" : "#6B7280"}
+      {/* Attachment Picker Popup Menu */}
+      {!isSearching ? (
+        <AttachmentPickerMenu
+          isOpen={isAttachmentMenuOpen}
+          onClose={() => setIsAttachmentMenuOpen(false)}
+          onSelectPhotoUri={(uri) => handleSelectAttachment(uri)}
+          onPickPhotoOrGallery={handlePickPhotoOrGallery}
+          onPickDocument={handlePickDocument}
+          onPickLocation={handlePickLocation}
+          onPickContact={handlePickContact}
+          isDark={isDark}
+        />
+      ) : null}
+
+      {/* Input Area and Attachment Preview */}
+      {!isSearching ? (
+        <View style={{ width: '100%', backgroundColor: 'transparent' }}>
+          <View ref={composerRef}>
+            {selectedAttachment ? (
+              <AttachmentPreviewBar
+                attachment={selectedAttachment}
+                onRemove={() => setSelectedAttachment(null)}
+                isDark={isDark}
               />
-            </Pressable>
-            <TextInput
-              className="flex-1 text-label dark:text-label-dark font-sf-regular py-3 max-h-[120px]"
-              placeholder="Type your message..."
-              placeholderTextColor={isDark ? "#9CA3AF" : "#9CA3AF"}
-              value={message}
-              onChangeText={setMessage}
-              multiline
+            ) : null}
+            <ChatInputBar
+              message={message}
+              onChangeText={handleTextChange}
+              onSend={handleSendMessage}
+              isPending={sendMessageMutation.isPending || isUploadingAttachment}
+              insetsBottom={isKeyboardVisible ? 12 : insets.bottom}
+              isDark={isDark}
+              onToggleAttachmentMenu={() =>
+                setIsAttachmentMenuOpen((prev) => !prev)
+              }
+              isAttachmentMenuOpen={isAttachmentMenuOpen}
             />
-            <Pressable
-              className="w-12 h-12 bg-primary-400 rounded-full items-center justify-center ml-3"
-              onPress={() => {
-                // Send action
-                if (message.trim()) setMessage("");
-              }}
-            >
-              <PlaneIcon width={24} height={24} color="white" />
-            </Pressable>
           </View>
         </View>
-      )}
+      ) : null}
     </ScreenContainer>
   );
 }
 
+const styles = StyleSheet.create({
+  backgroundImage: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: windowHeight,
+  },
+});

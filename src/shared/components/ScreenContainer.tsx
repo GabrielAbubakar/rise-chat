@@ -1,6 +1,10 @@
 import React from "react";
 import { ScrollView, View, ViewProps } from "react-native";
-import { KeyboardAvoidingView } from "react-native-keyboard-controller";
+import {
+  KeyboardAvoidingView,
+  KeyboardAwareScrollView,
+  KeyboardToolbar,
+} from "react-native-keyboard-controller";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export interface ScreenContainerProps extends ViewProps {
@@ -8,6 +12,7 @@ export interface ScreenContainerProps extends ViewProps {
   isScrollable?: boolean;
   withPadding?: boolean;
   isKeyboardAvoiding?: boolean;
+  showKeyboardToolbar?: boolean;
   keyboardVerticalOffset?: number;
   keyboardBehavior?: "padding" | "height" | "position";
   children: React.ReactNode;
@@ -20,6 +25,7 @@ export function ScreenContainer({
   isScrollable = false,
   withPadding = true,
   isKeyboardAvoiding = false,
+  showKeyboardToolbar = false,
   keyboardVerticalOffset = 0,
   keyboardBehavior = "padding",
   className = "",
@@ -32,34 +38,50 @@ export function ScreenContainer({
 
   const Container = isSafeArea ? SafeAreaView : View;
 
-  let content = children;
+  const renderContent = () => {
+    if (isScrollable && isKeyboardAvoiding) {
+      return (
+        <>
+          <KeyboardAwareScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerClassName={`${paddingClasses} ${contentContainerClassName}`}
+            keyboardShouldPersistTaps="handled"
+            bottomOffset={80} // Offset to ensure input scrolls past the KeyboardToolbar
+          >
+            {children}
+          </KeyboardAwareScrollView>
+          {showKeyboardToolbar && <KeyboardToolbar />}
+        </>
+      );
+    }
 
-  if (isScrollable) {
-    content = (
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerClassName={`${paddingClasses} ${contentContainerClassName}`}
-        keyboardShouldPersistTaps="handled"
-      >
-        {content}
-      </ScrollView>
-    );
-  } else if (isKeyboardAvoiding) {
-    // Wrap with padding inner view if avoiding keyboard, to prevent padding conflicts
-    content = <View className={`flex-1 ${paddingClasses}`}>{content}</View>;
-  }
+    if (isScrollable) {
+      return (
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerClassName={`${paddingClasses} ${contentContainerClassName}`}
+          keyboardShouldPersistTaps="handled"
+        >
+          {children}
+        </ScrollView>
+      );
+    }
 
-  if (isKeyboardAvoiding) {
-    content = (
-      <KeyboardAvoidingView
-        behavior={keyboardBehavior}
-        keyboardVerticalOffset={keyboardVerticalOffset}
-        style={{ flex: 1 }}
-      >
-        {content}
-      </KeyboardAvoidingView>
-    );
-  }
+    if (isKeyboardAvoiding) {
+      return (
+        <KeyboardAvoidingView
+          behavior={keyboardBehavior}
+          keyboardVerticalOffset={keyboardVerticalOffset}
+          style={{ flex: 1 }}
+        >
+          <View className={`flex-1 ${paddingClasses}`}>{children}</View>
+          {showKeyboardToolbar && <KeyboardToolbar />}
+        </KeyboardAvoidingView>
+      );
+    }
+
+    return <>{children}</>;
+  };
 
   // Only apply padding directly to container if neither scrollable nor keyboard avoiding
   const containerPadding =
@@ -71,7 +93,7 @@ export function ScreenContainer({
       {...(isSafeArea ? { edges: ["top", "bottom"] } : {})}
       {...props}
     >
-      {content}
+      {renderContent()}
     </Container>
   );
 }

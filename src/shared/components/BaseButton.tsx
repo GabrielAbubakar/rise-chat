@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/immutability */
 import { ActivityIndicator, Pressable, PressableProps } from "react-native";
 import Animated, {
   useAnimatedStyle,
@@ -5,14 +6,15 @@ import Animated, {
   withSpring,
 } from "react-native-reanimated";
 import { tv, type VariantProps } from "tailwind-variants";
+import { useThemeColors } from "../hooks";
 import { BaseText } from "./BaseText";
 
 const buttonVariants = tv({
   base: "w-full items-center justify-center py-5 rounded-2xl",
   variants: {
     variant: {
-      primary: "bg-primary",
-      secondary: "bg-primary-50",
+      primary: "",
+      secondary: "",
     },
     disabled: {
       true: "opacity-50",
@@ -28,7 +30,7 @@ const textVariants = tv({
   variants: {
     variant: {
       primary: "text-white dark:text-white",
-      secondary: "text-primary dark:text-primary",
+      secondary: "",
     },
   },
   defaultVariants: {
@@ -61,6 +63,7 @@ export function BaseButton({
 }: BaseButtonProps) {
   const scale = useSharedValue(1);
   const opacity = useSharedValue(1);
+  const { primary, primaryShades } = useThemeColors();
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
@@ -91,15 +94,20 @@ export function BaseButton({
             disabled: props.disabled || loading,
             className,
           })}
+          style={{ backgroundColor: variant === "primary" ? primary : primaryShades[50] }}
           disabled={props.disabled || loading}
           {...props}
         >
           {loading ? (
             <ActivityIndicator
-              color={variant === "primary" ? "white" : "#57B77D"}
+              color={variant === "primary" ? "white" : primary}
             />
           ) : (
-            <BaseText type="button-big" className={textVariants({ variant })}>
+            <BaseText 
+              type="button-big" 
+              className={textVariants({ variant })}
+              style={variant === "secondary" ? { color: primary } : undefined}
+            >
               {title}
             </BaseText>
           )}

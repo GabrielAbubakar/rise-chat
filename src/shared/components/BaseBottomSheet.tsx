@@ -1,5 +1,3 @@
-import React, { forwardRef, useCallback, useEffect, useState } from "react";
-import { BackHandler, Keyboard } from "react-native";
 import {
   BottomSheetBackdrop,
   BottomSheetBackdropProps,
@@ -7,6 +5,9 @@ import {
   BottomSheetModalProps,
 } from "@gorhom/bottom-sheet";
 import { useColorScheme } from "nativewind";
+import React, { forwardRef, useCallback, useEffect, useState } from "react";
+import { BackHandler, Keyboard } from "react-native";
+import { colors } from "../constants";
 export interface BaseBottomSheetProps extends Omit<
   BottomSheetModalProps,
   "children"
@@ -82,7 +83,7 @@ export const BaseBottomSheet = forwardRef<
       ref={ref}
       backdropComponent={renderBackdrop}
       backgroundStyle={{
-        backgroundColor: isDark ? "#132431" : "#ffffff",
+        backgroundColor: isDark ? colors.neutral[700] : "#ffffff",
         borderRadius: 24,
       }}
       handleIndicatorStyle={{

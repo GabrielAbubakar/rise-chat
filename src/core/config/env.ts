@@ -3,14 +3,23 @@ import { z } from "zod";
 const envSchema = z.object({
   EXPO_PUBLIC_API_URL: z
     .string({
-      message: "EXPO_PUBLIC_API_URL is missing. Please set EXPO_PUBLIC_API_URL in your .env file.",
+      message:
+        "EXPO_PUBLIC_API_URL is missing. Please set EXPO_PUBLIC_API_URL in your .env file.",
     })
     .url("EXPO_PUBLIC_API_URL must be a valid URL")
     .min(1, "EXPO_PUBLIC_API_URL cannot be empty"),
+  EXPO_PUBLIC_WS_URL: z
+    .string({
+      message:
+        "EXPO_PUBLIC_WS_URL is missing. Please set EXPO_PUBLIC_WS_URL in your .env file.",
+    })
+    .url("EXPO_PUBLIC_WS_URL must be a valid URL")
+    .min(1, "EXPO_PUBLIC_WS_URL cannot be empty"),
 });
 
 const parsed = envSchema.safeParse({
   EXPO_PUBLIC_API_URL: process.env.EXPO_PUBLIC_API_URL,
+  EXPO_PUBLIC_WS_URL: process.env.EXPO_PUBLIC_WS_URL,
 });
 
 if (!parsed.success) {
@@ -26,12 +35,22 @@ export const env = {
     if (!url) {
       throw new Error(
         "Missing environment variable: EXPO_PUBLIC_API_URL is not defined in your .env file. " +
-          "If you recently updated your .env file, please restart Metro using `npx expo start -c`."
+          "If you recently updated your .env file, please restart Metro using `npx expo start -c`.",
       );
     }
     return url;
   },
   get API_URL(): string {
     return this.EXPO_PUBLIC_API_URL;
+  },
+  get EXPO_PUBLIC_WS_URL(): string {
+    const url = process.env.EXPO_PUBLIC_WS_URL;
+    if (!url) {
+      throw new Error(
+        "Missing environment variable: EXPO_PUBLIC_WS_URL is not defined in your .env file. " +
+          "If you recently updated your .env file, please restart Metro using `npx expo start -c`.",
+      );
+    }
+    return url;
   },
 };
