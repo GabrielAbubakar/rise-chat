@@ -22,6 +22,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import ChevronDownIcon from "@/assets/icons/solid/cheveron-down.svg";
+
 import {
   AttachmentPickerMenu,
   AttachmentPreviewBar,
@@ -189,6 +190,8 @@ export function ChatDetailScreen({ id, search }: ChatDetailScreenProps) {
   // Refs
   const listRef = useRef<any>(null);
   const searchInputRef = useRef<TextInput>(null);
+  const composerRef = useRef<View>(null);
+
 
   // Scroll to index helper for search
   const handleScrollToIndex = useCallback((index: number) => {
@@ -299,6 +302,8 @@ export function ChatDetailScreen({ id, search }: ChatDetailScreenProps) {
     [user?.id, isSearching, matchingIndices, currentMatchIndex, searchQuery],
   );
 
+  // console.log(messages);
+
   return (
     <ScreenContainer
       isKeyboardAvoiding
@@ -357,6 +362,7 @@ export function ChatDetailScreen({ id, search }: ChatDetailScreenProps) {
             scrollEventThrottle={16}
             recycleItems={true}
             alignItemsAtEnd={true}
+            initialScrollAtEnd={true}
             maintainScrollAtEnd={true}
             maintainScrollAtEndThreshold={0.1}
             maintainVisibleContentPosition={true}
@@ -408,29 +414,31 @@ export function ChatDetailScreen({ id, search }: ChatDetailScreenProps) {
         />
       ) : null}
 
-      {/* Attachment Preview Banner */}
-      {!isSearching && selectedAttachment ? (
-        <AttachmentPreviewBar
-          attachment={selectedAttachment}
-          onRemove={() => setSelectedAttachment(null)}
-          isDark={isDark}
-        />
-      ) : null}
-
-      {/* Input Area */}
+      {/* Input Area and Attachment Preview */}
       {!isSearching ? (
-        <ChatInputBar
-          message={message}
-          onChangeText={handleTextChange}
-          onSend={handleSendMessage}
-          isPending={sendMessageMutation.isPending || isUploadingAttachment}
-          insetsBottom={insets.bottom}
-          isDark={isDark}
-          onToggleAttachmentMenu={() =>
-            setIsAttachmentMenuOpen((prev) => !prev)
-          }
-          isAttachmentMenuOpen={isAttachmentMenuOpen}
-        />
+        <View style={{ width: '100%', backgroundColor: 'transparent' }}>
+          <View ref={composerRef}>
+            {selectedAttachment ? (
+              <AttachmentPreviewBar
+                attachment={selectedAttachment}
+                onRemove={() => setSelectedAttachment(null)}
+                isDark={isDark}
+              />
+            ) : null}
+            <ChatInputBar
+              message={message}
+              onChangeText={handleTextChange}
+              onSend={handleSendMessage}
+              isPending={sendMessageMutation.isPending || isUploadingAttachment}
+              insetsBottom={isKeyboardVisible ? 12 : insets.bottom}
+              isDark={isDark}
+              onToggleAttachmentMenu={() =>
+                setIsAttachmentMenuOpen((prev) => !prev)
+              }
+              isAttachmentMenuOpen={isAttachmentMenuOpen}
+            />
+          </View>
+        </View>
       ) : null}
     </ScreenContainer>
   );
