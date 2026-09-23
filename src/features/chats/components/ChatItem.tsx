@@ -1,3 +1,4 @@
+import { useGetMe } from "@/features/settings/hooks/useProfile";
 import { Avatar, BaseText } from "@/shared/components";
 import { formatLastMessageTime } from "@/shared/utils";
 import { useColorScheme } from "nativewind";
@@ -87,12 +88,31 @@ export function ChatItem({
   onLongPress,
 }: ChatItemProps) {
   const [isActionActive, setIsActionActive] = useState(false);
+  const { data: user } = useGetMe();
   const isDirect = data.type === "direct";
   const displayName = isDirect ? data.otherParticipant.displayName : data.name;
   const avatarUrl = isDirect ? data.otherParticipant.avatarUrl : data.avatarUrl;
   const { latestMessage, unreadCount, lastActivityAt } = data;
 
-  const lastMessage = latestMessage?.preview || "";
+  const displayMessage = (() => {
+    const preview = latestMessage?.preview || "";
+    if (!latestMessage) return preview;
+
+    if (latestMessage.senderId === user?.id) return `You: ${preview}`;
+
+    if (data.type === "group") {
+      const sender = data.participants.find(
+        (p) => p.id === latestMessage.senderId,
+      );
+
+      if (sender?.displayName) {
+        return `${sender.displayName.split(" ")[0]}: ${preview}`;
+      }
+    }
+
+    return preview;
+  })();
+
   const time = formatLastMessageTime(lastActivityAt);
 
   const isPinned = data.settings?.pinned ?? false;
@@ -255,7 +275,7 @@ export function ChatItem({
               numberOfLines={1}
               className="text-neutral-500 dark:text-neutral-300 mt-1"
             >
-              {lastMessage}
+              {displayMessage}
             </BaseText>
           </View>
 

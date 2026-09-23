@@ -2,8 +2,19 @@ import { BaseText } from "@/shared/components";
 import { Image } from "expo-image";
 import React from "react";
 import { View } from "react-native";
-import Animated, { FadeInDown } from "react-native-reanimated";
-import { MessageAttachmentDto } from "../types";
+import Animated, { Keyframe } from "react-native-reanimated";
+import { MessageAttachmentResponseDto } from "../types";
+
+const messageEnteringAnimation = new Keyframe({
+  0: {
+    opacity: 0,
+    transform: [{ translateY: 20 }, { scale: 0.8 }],
+  },
+  100: {
+    opacity: 1,
+    transform: [{ translateY: 0 }, { scale: 1 }],
+  },
+}).duration(250);
 
 export interface MessagePillProps {
   isMe: boolean;
@@ -11,7 +22,7 @@ export interface MessagePillProps {
   time: string;
   searchQuery?: string;
   isCurrentMatch?: boolean;
-  attachments?: MessageAttachmentDto[];
+  attachments?: MessageAttachmentResponseDto[];
 }
 
 export function MessagePill({
@@ -71,8 +82,9 @@ export function MessagePill({
 
   return (
     <Animated.View
-      entering={FadeInDown.duration(250)}
+      entering={messageEnteringAnimation}
       className={`flex-row mb-4 px-4 ${isMe ? "justify-end" : "justify-start"}`}
+      style={{ transformOrigin: "top right" }}
     >
       {isMe && (
         <BaseText className="text-neutral-300 dark:text-neutral-300 mr-2 self-center mb-1">
@@ -97,7 +109,7 @@ export function MessagePill({
       >
         {attachments?.map((attachment, index) => (
           <Image
-            key={attachment.id || index}
+            key={attachment.mediaId || index}
             source={attachment.url}
             style={{ width: 200, height: 200, marginBottom: text ? 8 : 0 }}
             contentFit="cover"
