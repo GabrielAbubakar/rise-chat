@@ -53,7 +53,7 @@ export function ProfileScreen({ id }: ProfileScreenProps) {
   const isDark = colorScheme === "dark";
   const { primary } = useThemeColors();
 
-  const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
+  // const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
 
   const conversationId = id || "";
@@ -247,7 +247,7 @@ export function ProfileScreen({ id }: ProfileScreenProps) {
                   </BaseText>
                   <BaseText
                     className="text-neutral-700 dark:text-neutral-200 font-sf-regular leading-5"
-                    numberOfLines={isDescriptionExpanded ? undefined : 2}
+                    // numberOfLines={isDescriptionExpanded ? undefined : 2}
                   >
                     Group conversation
                   </BaseText>
@@ -311,6 +311,7 @@ export function ProfileScreen({ id }: ProfileScreenProps) {
 
                 {/* Members List */}
                 <GroupMembersList
+                  conversationId={conversationId}
                   members={isGroup ? conversationDetail?.participants : []}
                 />
               </View>

@@ -1,7 +1,7 @@
 import {
   BottomSheetModal,
   BottomSheetSectionList,
-  BottomSheetTextInput
+  BottomSheetTextInput,
 } from "@gorhom/bottom-sheet";
 import * as Contacts from "expo-contacts/legacy";
 import { useRouter } from "expo-router";
@@ -123,7 +123,7 @@ export const NewChatBottomSheet = forwardRef<BottomSheetModal>((props, ref) => {
         }
       }
     })();
-  }, []);
+  }, [matchContactsMutation]);
 
   // Map local contacts with matched user data
   const processedContacts = useMemo(() => {
