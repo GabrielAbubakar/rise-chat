@@ -1,7 +1,16 @@
+import ArrowCircleDownIcon from "@/assets/icons/solid/arrow-circle-down.svg";
+import ArrowCircleUpIcon from "@/assets/icons/solid/arrow-circle-up.svg";
+import ChatIcon from "@/assets/icons/solid/chat.svg";
+import InformationCircleIcon from "@/assets/icons/solid/information-circle.svg";
+import StarIcon from "@/assets/icons/solid/star.svg";
+import UserRemoveIcon from "@/assets/icons/solid/user-remove.svg";
 import { Avatar, BaseText } from "@/shared/components";
+import { useRouter } from "expo-router";
+import { useState } from "react";
 import { ActivityIndicator, Alert, View } from "react-native";
 import { Pressable as RNGHPressable } from "react-native-gesture-handler";
 import Swipeable from "react-native-gesture-handler/ReanimatedSwipeable";
+import { useCreateDirectConversation } from "../hooks/useChats";
 import { GroupConversationParticipantDto } from "../types";
 
 interface SwipeActionProps {
@@ -10,6 +19,7 @@ interface SwipeActionProps {
   isLoading?: boolean;
   disabled?: boolean;
   onPress: () => void;
+  icon?: React.ReactNode;
 }
 
 function SwipeAction({
@@ -18,6 +28,7 @@ function SwipeAction({
   isLoading,
   disabled,
   onPress,
+  icon,
 }: SwipeActionProps) {
   return (
     <RNGHPressable
@@ -34,12 +45,15 @@ function SwipeAction({
         {isLoading ? (
           <ActivityIndicator size="small" color="white" />
         ) : (
-          <BaseText
-            className="font-sf-medium text-sm text-center"
-            style={{ color: "white" }}
-          >
-            {label}
-          </BaseText>
+          <>
+            {icon && <View className="mb-1">{icon}</View>}
+            <BaseText
+              className="font-sf-medium text-sm text-center"
+              style={{ color: "white" }}
+            >
+              {label}
+            </BaseText>
+          </>
         )}
       </View>
     </RNGHPressable>
@@ -48,6 +62,7 @@ function SwipeAction({
 
 interface MemberSwipeActionsProps {
   member: GroupConversationParticipantDto;
+  side: "left" | "right";
   currentUserRole: string;
   loadingAction: {
     id: string;
@@ -64,6 +79,7 @@ interface MemberSwipeActionsProps {
 
 function MemberSwipeActions({
   member,
+  side,
   currentUserRole,
   loadingAction,
   setLoadingAction,
@@ -72,6 +88,64 @@ function MemberSwipeActions({
   removeMember,
   onClose,
 }: MemberSwipeActionsProps) {
+  const router = useRouter();
+  const [localLoadingAction, setLocalLoadingAction] = useState<
+    "info" | "message" | null
+  >(null);
+
+  const { mutate: createDirectConversation, isPending } =
+    useCreateDirectConversation();
+
+  if (side === "left") {
+    return (
+      <View className="flex-row h-full gap-x-2 pr-2">
+        <SwipeAction
+          label="Info"
+          colorClass="bg-blue-500"
+          icon={<InformationCircleIcon width={24} height={24} color="white" />}
+          isLoading={localLoadingAction === "info" && isPending}
+          onPress={() => {
+            setLocalLoadingAction("info");
+            createDirectConversation(
+              { participantId: member.id },
+              {
+                onSuccess: (conversation) => {
+                  onClose();
+                  router.push({
+                    pathname: "/chat/profile",
+                    params: { id: conversation.id },
+                  });
+                  setLocalLoadingAction(null);
+                },
+                onError: () => setLocalLoadingAction(null),
+              },
+            );
+          }}
+        />
+        <SwipeAction
+          label="Message"
+          colorClass="bg-primary-500"
+          icon={<ChatIcon width={24} height={24} color="white" />}
+          isLoading={localLoadingAction === "message" && isPending}
+          onPress={() => {
+            setLocalLoadingAction("message");
+            createDirectConversation(
+              { participantId: member.id },
+              {
+                onSuccess: (conversation) => {
+                  onClose();
+                  router.push(`/chat/${conversation.id}`);
+                  setLocalLoadingAction(null);
+                },
+                onError: () => setLocalLoadingAction(null),
+              },
+            );
+          }}
+        />
+      </View>
+    );
+  }
+
   return (
     <View className="flex-row h-full gap-x-2 pl-2">
       {currentUserRole === "owner" && (
@@ -79,6 +153,7 @@ function MemberSwipeActions({
           <SwipeAction
             label="Make Owner"
             colorClass="bg-neutral-500 dark:bg-neutral-700"
+            icon={<StarIcon width={24} height={24} color="white" />}
             isLoading={
               loadingAction?.id === member.id &&
               loadingAction?.type === "transfer"
@@ -113,6 +188,13 @@ function MemberSwipeActions({
           <SwipeAction
             label={member.role === "admin" ? "Demote" : "Make Admin"}
             colorClass="bg-amber-500"
+            icon={
+              member.role === "admin" ? (
+                <ArrowCircleDownIcon width={24} height={24} color="white" />
+              ) : (
+                <ArrowCircleUpIcon width={24} height={24} color="white" />
+              )
+            }
             isLoading={
               loadingAction?.id === member.id &&
               loadingAction?.type === "update"
@@ -138,6 +220,7 @@ function MemberSwipeActions({
       <SwipeAction
         label="Remove"
         colorClass="bg-red-500"
+        icon={<UserRemoveIcon width={24} height={24} color="white" />}
         isLoading={
           loadingAction?.id === member.id && loadingAction?.type === "remove"
         }
@@ -168,6 +251,7 @@ function MemberSwipeActions({
 
 export interface GroupMemberItemProps {
   member: GroupConversationParticipantDto;
+  isCurrentUser?: boolean;
   currentUserRole: string;
   canManageMember: boolean;
   loadingAction: {
@@ -187,6 +271,7 @@ export interface GroupMemberItemProps {
 
 export function GroupMemberItem({
   member,
+  isCurrentUser,
   currentUserRole,
   canManageMember,
   loadingAction,
@@ -213,6 +298,23 @@ export function GroupMemberItem({
     return (
       <MemberSwipeActions
         member={member}
+        side="right"
+        currentUserRole={currentUserRole}
+        loadingAction={loadingAction}
+        setLoadingAction={setLoadingAction}
+        transferOwnership={transferOwnership}
+        updateRole={updateRole}
+        removeMember={removeMember}
+        onClose={onClose}
+      />
+    );
+  };
+
+  const renderLeftActions = () => {
+    return (
+      <MemberSwipeActions
+        member={member}
+        side="left"
         currentUserRole={currentUserRole}
         loadingAction={loadingAction}
         setLoadingAction={setLoadingAction}
@@ -228,6 +330,7 @@ export function GroupMemberItem({
     <Swipeable
       ref={registerRef}
       onSwipeableWillOpen={onMenuOpen}
+      renderLeftActions={!isCurrentUser ? renderLeftActions : undefined}
       renderRightActions={canManageMember ? renderRightActions : undefined}
       friction={2}
       rightThreshold={40}

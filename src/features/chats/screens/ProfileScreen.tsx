@@ -1,7 +1,8 @@
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { useColorScheme } from "nativewind";
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { BottomSheetModal } from "@gorhom/bottom-sheet";
 import {
   ActivityIndicator,
   Alert,
@@ -14,6 +15,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 // Shared Components
 import {
+  AddMembersBottomSheet,
   GroupMembersList,
   MediaSummaryRows,
 } from "@/features/chats/components";
@@ -56,6 +58,8 @@ export function ProfileScreen({ id }: ProfileScreenProps) {
   // const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
 
+  const addMembersBottomSheetRef = useRef<BottomSheetModal>(null);
+
   const conversationId = id || "";
   const { data: conversationDetail, isLoading } = useConversationDetail(
     conversationId,
@@ -74,6 +78,9 @@ export function ProfileScreen({ id }: ProfileScreenProps) {
     : conversationDetail?.avatarUrl;
   const isGroup = conversationDetail?.type === "group";
   const lastSeenText = formatLastSeen(conversationDetail?.lastActivityAt);
+  const existingParticipantIds = isGroup 
+    ? conversationDetail?.participants.map(p => p.id) || [] 
+    : [];
 
   const previewPhotos = DUMMY_PHOTOS.slice(0, 5);
 
@@ -299,7 +306,10 @@ export function ProfileScreen({ id }: ProfileScreenProps) {
                         color={isDark ? "#9CA3AF" : "#6B7280"}
                       />
                     </Pressable>
-                    <Pressable className="p-1">
+                    <Pressable 
+                      className="p-1"
+                      onPress={() => addMembersBottomSheetRef.current?.present()}
+                    >
                       <UserAddIcon
                         width={20}
                         height={20}
@@ -400,6 +410,14 @@ export function ProfileScreen({ id }: ProfileScreenProps) {
           )}
         </View>
       </ScrollView>
+
+      {isGroup && (
+        <AddMembersBottomSheet
+          ref={addMembersBottomSheetRef}
+          conversationId={conversationId}
+          existingParticipantIds={existingParticipantIds}
+        />
+      )}
     </ScreenContainer>
   );
 }

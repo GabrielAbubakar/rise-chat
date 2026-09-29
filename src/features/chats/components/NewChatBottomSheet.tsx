@@ -59,12 +59,13 @@ export const NewChatBottomSheet = forwardRef<BottomSheetModal>((props, ref) => {
 
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === "dark";
+  const [isOpen, setIsOpen] = useState(false);
 
   // Snap points
   const snapPoints = useMemo(() => ["85%"], []);
 
   // API Mutations and Queries
-  const matchContactsMutation = useMatchContacts({
+  const { mutate: matchContacts } = useMatchContacts({
     onSuccess: (data) => {
       setMatchedUsers(data.matches || []);
     },
@@ -91,39 +92,51 @@ export const NewChatBottomSheet = forwardRef<BottomSheetModal>((props, ref) => {
 
   // Read local device contacts and run /contacts/match API
   useEffect(() => {
+    if (!isOpen) return;
+
+    let isMounted = true;
     (async () => {
-      const { status } = await Contacts.requestPermissionsAsync();
-      setPermissionStatus(status);
+      try {
+        const { status } = await Contacts.requestPermissionsAsync();
+        if (!isMounted) return;
+        setPermissionStatus(status);
 
-      if (status === "granted") {
-        const { data } = await Contacts.getContactsAsync({
-          fields: [Contacts.Fields.PhoneNumbers, Contacts.Fields.Image],
-        });
+        if (status === "granted") {
+          const { data } = await Contacts.getContactsAsync({
+            fields: [Contacts.Fields.PhoneNumbers, Contacts.Fields.Image],
+          });
+          if (!isMounted) return;
 
-        if (data.length > 0) {
-          const mappedContacts: ContactItem[] = data
-            .filter((c) => c.name)
-            .map((c) => ({
-              id: c.id,
-              name: c.name,
-              phone: c.phoneNumbers?.[0]?.number,
-              avatar: c.imageAvailable && c.image ? c.image.uri : undefined,
-            }));
+          if (data.length > 0) {
+            const mappedContacts: ContactItem[] = data
+              .filter((c) => c.name)
+              .map((c) => ({
+                id: c.id,
+                name: c.name,
+                phone: c.phoneNumbers?.[0]?.number,
+                avatar: c.imageAvailable && c.image ? c.image.uri : undefined,
+              }));
 
-          setLocalContacts(mappedContacts);
+            setLocalContacts(mappedContacts);
 
-          // Collect phone numbers to match on backend
-          const phoneNumbers = data
-            .flatMap((c) => c.phoneNumbers?.map((p) => p.number))
-            .filter((num): num is string => Boolean(num));
+            // Collect phone numbers to match on backend
+            const phoneNumbers = data
+              .flatMap((c) => c.phoneNumbers?.map((p) => p.number))
+              .filter((num): num is string => Boolean(num));
 
-          if (phoneNumbers.length > 0) {
-            matchContactsMutation.mutate({ phoneNumbers });
+            if (phoneNumbers.length > 0) {
+              matchContacts({ phoneNumbers });
+            }
           }
         }
+      } catch (error) {
+        console.error("Failed to fetch contacts", error);
       }
     })();
-  }, [matchContactsMutation]);
+    return () => {
+      isMounted = false;
+    };
+  }, [isOpen, matchContacts]);
 
   // Map local contacts with matched user data
   const processedContacts = useMemo(() => {
@@ -286,6 +299,7 @@ export const NewChatBottomSheet = forwardRef<BottomSheetModal>((props, ref) => {
       ref={innerRef}
       index={0}
       snapPoints={snapPoints}
+      onChange={(index) => setIsOpen(index >= 0)}
       onDismiss={() => {
         setSearchQuery("");
         setResetKey((prev) => prev + 1);

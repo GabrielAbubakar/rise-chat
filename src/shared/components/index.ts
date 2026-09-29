@@ -10,3 +10,4 @@ export * from "./ScreenHeader";
 export * from "./BaseBottomSheet";
 export * from "./ToastConfig";
 export * from "./BaseTouchableOpacity";
+export * from "./BottomSheetLegendList";

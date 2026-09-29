@@ -62,6 +62,7 @@ export function GroupMembersList({
           <GroupMemberItem
             key={member.id}
             member={member}
+            isCurrentUser={member.id === currentUser?.id}
             currentUserRole={currentUserRole}
             canManageMember={canManageMember(member)}
             loadingAction={loadingAction}
