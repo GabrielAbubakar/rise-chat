@@ -1,6 +1,6 @@
 import { BottomSheetModal } from "@gorhom/bottom-sheet";
 import { Image } from "expo-image";
-import { useRouter } from "expo-router";
+import { useNavigation, useRouter } from "expo-router";
 import { useColorScheme } from "nativewind";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -56,6 +56,7 @@ export interface ProfileScreenProps {
 
 export function ProfileScreen({ id }: ProfileScreenProps) {
   const router = useRouter();
+  const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === "dark";
@@ -239,9 +240,9 @@ export function ProfileScreen({ id }: ProfileScreenProps) {
       {!isGroup && (
         <Pressable
           onPress={() =>
-            router.push({
-              pathname: "/chat/[id]",
-              params: { id: conversationId },
+            navigation.reset({
+              index: 0,
+              routes: [{ name: "[id]", params: { id: id } } as any],
             })
           }
           className="absolute right-6 -bottom-6 w-14 h-14 rounded-full bg-primary-400 items-center justify-center shadow-lg z-20"

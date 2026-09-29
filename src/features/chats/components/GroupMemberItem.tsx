@@ -5,7 +5,7 @@ import InformationCircleIcon from "@/assets/icons/solid/information-circle.svg";
 import StarIcon from "@/assets/icons/solid/star.svg";
 import UserRemoveIcon from "@/assets/icons/solid/user-remove.svg";
 import { Avatar, BaseText } from "@/shared/components";
-import { useRouter } from "expo-router";
+import { useNavigation, useRouter } from "expo-router";
 import { useState } from "react";
 import { ActivityIndicator, Alert, View } from "react-native";
 import { Pressable as RNGHPressable } from "react-native-gesture-handler";
@@ -89,6 +89,7 @@ function MemberSwipeActions({
   onClose,
 }: MemberSwipeActionsProps) {
   const router = useRouter();
+  const navigation = useNavigation();
   const [localLoadingAction, setLocalLoadingAction] = useState<
     "info" | "message" | null
   >(null);
@@ -134,7 +135,14 @@ function MemberSwipeActions({
               {
                 onSuccess: (conversation) => {
                   onClose();
-                  router.replace(`/chat/${conversation.id}`);
+                  // router.dismissAll();
+                  // router.replace(`/chat/${conversation.id}`);
+                  navigation.reset({
+                    index: 0,
+                    routes: [
+                      { name: "[id]", params: { id: conversation.id } } as any,
+                    ],
+                  });
                   setLocalLoadingAction(null);
                 },
                 onError: () => setLocalLoadingAction(null),
