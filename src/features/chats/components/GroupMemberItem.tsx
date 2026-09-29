@@ -134,7 +134,7 @@ function MemberSwipeActions({
               {
                 onSuccess: (conversation) => {
                   onClose();
-                  router.push(`/chat/${conversation.id}`);
+                  router.replace(`/chat/${conversation.id}`);
                   setLocalLoadingAction(null);
                 },
                 onError: () => setLocalLoadingAction(null),

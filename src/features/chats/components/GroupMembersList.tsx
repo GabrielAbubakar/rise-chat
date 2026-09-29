@@ -1,7 +1,8 @@
 import { useGetMe } from "@/features/settings/hooks/useProfile";
 import { BaseText } from "@/shared/components";
-import { useRef, useState } from "react";
-import { View } from "react-native";
+import { ReactElement, useRef, useState } from "react";
+import { StyleProp, View, ViewStyle } from "react-native";
+import Animated, { LinearTransition } from "react-native-reanimated";
 import {
   useRemoveGroupMember,
   useTransferGroupOwnership,
@@ -13,12 +14,19 @@ import { GroupMemberItem } from "./GroupMemberItem";
 interface GroupMembersListProps {
   conversationId?: string;
   members?: GroupConversationParticipantDto[];
+  allMembers?: GroupConversationParticipantDto[];
+  ListHeaderComponent?: ReactElement | null;
+  ListFooterComponent?: ReactElement | null;
+  contentContainerStyle?: StyleProp<ViewStyle>;
 }
-
 
 export function GroupMembersList({
   conversationId,
   members = [],
+  allMembers,
+  ListHeaderComponent,
+  ListFooterComponent,
+  contentContainerStyle,
 }: GroupMembersListProps) {
   const { data: currentUser } = useGetMe();
 
@@ -35,7 +43,10 @@ export function GroupMembersList({
     conversationId || "",
   );
 
-  const currentUserParticipant = members.find((m) => m.id === currentUser?.id);
+  const sourceMembers = allMembers || members;
+  const currentUserParticipant = sourceMembers.find(
+    (m) => m.id === currentUser?.id,
+  );
   const currentUserRole = currentUserParticipant?.role || "member";
 
   const canManageMember = (member: GroupConversationParticipantDto) => {
@@ -47,20 +58,37 @@ export function GroupMembersList({
 
   if (!members || members.length === 0) {
     return (
-      <View className="py-4 items-center">
-        <BaseText className="text-neutral-500 dark:text-neutral-400 font-sf-medium">
-          No members in this group
-        </BaseText>
-      </View>
+      <Animated.FlatList
+        data={[]}
+        renderItem={() => null}
+        ListHeaderComponent={ListHeaderComponent as any}
+        ListFooterComponent={ListFooterComponent as any}
+        contentContainerStyle={contentContainerStyle}
+        ListEmptyComponent={() => (
+          <View className="py-4 items-center">
+            <BaseText className="text-neutral-500 dark:text-neutral-400 font-sf-medium">
+              No members in this group
+            </BaseText>
+          </View>
+        )}
+      />
     );
   }
 
   return (
-    <View className="gap-y-1">
-      {members.map((member) => {
-        return (
+    <Animated.FlatList
+      data={members}
+      itemLayoutAnimation={LinearTransition.duration(400)}
+      ListHeaderComponent={ListHeaderComponent as any}
+      ListFooterComponent={ListFooterComponent as any}
+      contentContainerStyle={contentContainerStyle}
+      keyExtractor={(item) => item.id}
+      renderItem={({ item: member }) => (
+        <Animated.View
+          layout={LinearTransition.springify().damping(20).stiffness(150)}
+          className="mb-1 px-5"
+        >
           <GroupMemberItem
-            key={member.id}
             member={member}
             isCurrentUser={member.id === currentUser?.id}
             currentUserRole={currentUserRole}
@@ -91,8 +119,8 @@ export function GroupMembersList({
             }}
             onClose={() => swipeableRefs.current.get(member.id)?.close()}
           />
-        );
-      })}
-    </View>
+        </Animated.View>
+      )}
+    />
   );
 }
