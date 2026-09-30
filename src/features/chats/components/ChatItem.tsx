@@ -81,6 +81,13 @@ const clearActiveSwipeable = (ref: ComponentRef<typeof Swipeable> | null) => {
   }
 };
 
+export const closeActiveChatItemSwipeable = () => {
+  if (activeSwipeable) {
+    activeSwipeable.close();
+    activeSwipeable = null;
+  }
+};
+
 export function ChatItem({
   data,
   isSelected,

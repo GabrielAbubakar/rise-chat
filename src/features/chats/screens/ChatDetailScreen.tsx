@@ -9,6 +9,7 @@ import { useColorScheme } from "nativewind";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  BackHandler,
   Dimensions,
   Keyboard,
   NativeScrollEvent,
@@ -192,7 +193,6 @@ export function ChatDetailScreen({ id, search }: ChatDetailScreenProps) {
   const searchInputRef = useRef<TextInput>(null);
   const composerRef = useRef<View>(null);
 
-
   // Scroll to index helper for search
   const handleScrollToIndex = useCallback((index: number) => {
     listRef.current?.scrollToIndex({ index, animated: true });
@@ -221,11 +221,32 @@ export function ChatDetailScreen({ id, search }: ChatDetailScreenProps) {
     }
   }, [search]);
 
+  // Back button handler for search mode
+  useEffect(() => {
+    const onBackPress = () => {
+      if (isSearching) {
+        handleExitSearch();
+        return true;
+      }
+      return false;
+    };
+
+    const backHandler = BackHandler.addEventListener(
+      "hardwareBackPress",
+      onBackPress,
+    );
+
+    return () => backHandler.remove();
+  }, [isSearching, handleExitSearch]);
+
   // Keyboard visibility listener
   useEffect(() => {
     const showSub = Keyboard.addListener(
       Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow",
-      () => setIsKeyboardVisible(true),
+      () => {
+        setIsKeyboardVisible(true);
+        setIsAttachmentMenuOpen(false);
+      },
     );
     const hideSub = Keyboard.addListener(
       Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide",
@@ -364,7 +385,7 @@ export function ChatDetailScreen({ id, search }: ChatDetailScreenProps) {
             alignItemsAtEnd={true}
             initialScrollAtEnd={true}
             maintainScrollAtEnd={true}
-            maintainScrollAtEndThreshold={0.1}
+            maintainScrollAtEndThreshold={2}
             maintainVisibleContentPosition={true}
             onStartReached={() => {
               if (hasNextPage && !isFetchingNextPage) {
@@ -416,7 +437,7 @@ export function ChatDetailScreen({ id, search }: ChatDetailScreenProps) {
 
       {/* Input Area and Attachment Preview */}
       {!isSearching ? (
-        <View style={{ width: '100%', backgroundColor: 'transparent' }}>
+        <View style={{ width: "100%", backgroundColor: "transparent" }}>
           <View ref={composerRef}>
             {selectedAttachment ? (
               <AttachmentPreviewBar
@@ -432,9 +453,14 @@ export function ChatDetailScreen({ id, search }: ChatDetailScreenProps) {
               isPending={sendMessageMutation.isPending || isUploadingAttachment}
               insetsBottom={isKeyboardVisible ? 12 : insets.bottom}
               isDark={isDark}
-              onToggleAttachmentMenu={() =>
-                setIsAttachmentMenuOpen((prev) => !prev)
-              }
+              onToggleAttachmentMenu={() => {
+                setIsAttachmentMenuOpen((prev) => {
+                  if (!prev) {
+                    Keyboard.dismiss();
+                  }
+                  return !prev;
+                });
+              }}
               isAttachmentMenuOpen={isAttachmentMenuOpen}
             />
           </View>

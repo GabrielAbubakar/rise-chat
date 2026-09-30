@@ -12,6 +12,7 @@ import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
 import {
   ChatFabMenu,
   ChatItem,
+  closeActiveChatItemSwipeable,
   ChatSearchInput,
   NewChatBottomSheet,
   NewGroupBottomSheet,
@@ -52,6 +53,7 @@ export function ChatsScreen() {
   };
 
   const handleChatPress = (id: string) => {
+    closeActiveChatItemSwipeable();
     if (selectedChats.size > 0) {
       handleChatLongPress(id);
     } else {
@@ -97,6 +99,7 @@ export function ChatsScreen() {
     useCallback(() => {
       return () => {
         setSelectedChats(new Set());
+        closeActiveChatItemSwipeable();
       };
     }, []),
   );

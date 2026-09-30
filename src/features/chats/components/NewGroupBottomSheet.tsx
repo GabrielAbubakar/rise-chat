@@ -1,9 +1,4 @@
-import * as ImagePicker from "expo-image-picker";
-import { Image } from "expo-image";
 import { mediaApi } from "@/features/media/api";
-import axios from "axios";
-import { generateUUID, showApiErrorToast } from "@/shared/utils";
-import { chatsApi } from "../api";
 import {
   Avatar,
   BaseBottomSheet,
@@ -11,13 +6,17 @@ import {
   BaseInput,
   BaseText,
 } from "@/shared/components";
+import { generateUUID, showApiErrorToast } from "@/shared/utils";
 import {
   BottomSheetFlatList,
   BottomSheetModal,
   BottomSheetScrollView,
   BottomSheetTextInput,
 } from "@gorhom/bottom-sheet";
+import axios from "axios";
 import * as Contacts from "expo-contacts/legacy";
+import { Image } from "expo-image";
+import * as ImagePicker from "expo-image-picker";
 import React, {
   forwardRef,
   useCallback,
@@ -27,6 +26,7 @@ import React, {
   useState,
 } from "react";
 import { ActivityIndicator, Pressable, View } from "react-native";
+import { chatsApi } from "../api";
 
 import CameraIcon from "@/assets/icons/solid/add-a-photo.svg";
 import CheckIcon from "@/assets/icons/solid/check.svg";
@@ -115,6 +115,7 @@ export const NewGroupBottomSheet = forwardRef<
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === "dark";
   const { primary, primaryShades } = useThemeColors();
+  const [isOpen, setIsOpen] = useState(false);
 
   const snapPoints = useMemo(() => ["85%"], []);
 
@@ -124,7 +125,6 @@ export const NewGroupBottomSheet = forwardRef<
   );
   const [searchQuery, setSearchQuery] = useState("");
   const [groupName, setGroupName] = useState("");
-  const [groupDescription, setGroupDescription] = useState("");
   const [groupAvatarUri, setGroupAvatarUri] = useState<string | null>(null);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
 
@@ -150,7 +150,7 @@ export const NewGroupBottomSheet = forwardRef<
 
   const [resetKey, setResetKey] = useState(0); // Used to remount uncontrolled inputs on dismiss
 
-  const matchContactsMutation = useMatchContacts({
+  const { mutate: matchContacts } = useMatchContacts({
     onSuccess: (data) => {
       setMatchedUsers(data.matches || []);
     },
@@ -166,7 +166,7 @@ export const NewGroupBottomSheet = forwardRef<
       if (groupAvatarUri) {
         setIsUploadingAvatar(true);
       }
-      
+
       const conversation = await createGroupMutation.mutateAsync({
         name: groupName.trim(),
         participantIds: participantIds,
@@ -207,7 +207,9 @@ export const NewGroupBottomSheet = forwardRef<
             });
 
             await mediaApi.completeUpload(uploadAuth.media.id);
-            await chatsApi.setGroupAvatar(conversation.id, { mediaId: uploadAuth.media.id });
+            await chatsApi.setGroupAvatar(conversation.id, {
+              mediaId: uploadAuth.media.id,
+            });
           }
         } catch (error: any) {
           showApiErrorToast(error, "Failed to upload group photo");
@@ -221,51 +223,60 @@ export const NewGroupBottomSheet = forwardRef<
         setStep(1);
         setSelectedParticipants(new Set());
         setGroupName("");
-        setGroupDescription("");
         setSearchQuery("");
         setGroupAvatarUri(null);
         setResetKey((prev) => prev + 1);
         router.push(`/chat/${conversation.id}`);
       }, 300);
-
-    } catch (e) {
+    } catch {
       setIsUploadingAvatar(false);
     }
   };
 
   useEffect(() => {
+    if (!isOpen) return;
+    let isMounted = true;
     (async () => {
-      const { status } = await Contacts.requestPermissionsAsync();
-      setPermissionStatus(status);
+      try {
+        const { status } = await Contacts.requestPermissionsAsync();
+        if (!isMounted) return;
+        setPermissionStatus(status);
 
-      if (status === "granted") {
-        const { data } = await Contacts.getContactsAsync({
-          fields: [Contacts.Fields.PhoneNumbers, Contacts.Fields.Image],
-        });
+        if (status === "granted") {
+          const { data } = await Contacts.getContactsAsync({
+            fields: [Contacts.Fields.PhoneNumbers, Contacts.Fields.Image],
+          });
+          if (!isMounted) return;
 
-        if (data.length > 0) {
-          const mappedContacts: ContactItem[] = data
-            .filter((c) => c.name)
-            .map((c) => ({
-              id: c.id,
-              name: c.name,
-              phone: c.phoneNumbers?.[0]?.number,
-              avatar: c.imageAvailable && c.image ? c.image.uri : undefined,
-            }));
+          if (data.length > 0) {
+            const mappedContacts: ContactItem[] = data
+              .filter((c) => c.name)
+              .map((c) => ({
+                id: c.id,
+                name: c.name,
+                phone: c.phoneNumbers?.[0]?.number,
+                avatar: c.imageAvailable && c.image ? c.image.uri : undefined,
+              }));
 
-          setContacts(mappedContacts);
+            setContacts(mappedContacts);
 
-          const phoneNumbers = data
-            .flatMap((c) => c.phoneNumbers?.map((p) => p.number))
-            .filter((num): num is string => Boolean(num));
+            const phoneNumbers = data
+              .flatMap((c) => c.phoneNumbers?.map((p) => p.number))
+              .filter((num): num is string => Boolean(num));
 
-          if (phoneNumbers.length > 0) {
-            matchContactsMutation.mutate({ phoneNumbers });
+            if (phoneNumbers.length > 0) {
+              matchContacts({ phoneNumbers });
+            }
           }
         }
+      } catch (error) {
+        console.error("Failed to fetch contacts", error);
       }
     })();
-  }, []);
+    return () => {
+      isMounted = false;
+    };
+  }, [isOpen, matchContacts]);
 
   const processedContacts = useMemo(() => {
     const matchedPhoneMap = new Map<string, string>();
@@ -452,7 +463,6 @@ export const NewGroupBottomSheet = forwardRef<
             label="Description (Optional)"
             placeholder="Type description..."
             defaultValue=""
-            onChangeText={setGroupDescription}
             InputComponent={BottomSheetTextInput}
             multiline
             numberOfLines={4}
@@ -464,9 +474,15 @@ export const NewGroupBottomSheet = forwardRef<
 
       <View className="py-4 mt-auto">
         <BaseButton
-          title={createGroupMutation.isPending || isUploadingAvatar ? "Creating..." : "Create"}
+          title={
+            createGroupMutation.isPending || isUploadingAvatar
+              ? "Creating..."
+              : "Create"
+          }
           disabled={
-            createGroupMutation.isPending || isUploadingAvatar || groupName.trim().length === 0
+            createGroupMutation.isPending ||
+            isUploadingAvatar ||
+            groupName.trim().length === 0
           }
           onPress={handleCreateGroup}
         />
@@ -479,6 +495,7 @@ export const NewGroupBottomSheet = forwardRef<
       ref={ref}
       index={0}
       snapPoints={snapPoints}
+      onChange={(index) => setIsOpen(index >= 0)}
       onHardwareBackPress={() => {
         if (step === 2) {
           setStep(1);
@@ -491,7 +508,6 @@ export const NewGroupBottomSheet = forwardRef<
           setStep(1);
           setSelectedParticipants(new Set());
           setGroupName("");
-          setGroupDescription("");
           setSearchQuery("");
           setGroupAvatarUri(null);
           setIsUploadingAvatar(false);
