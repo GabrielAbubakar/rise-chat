@@ -4,11 +4,10 @@ import * as MediaLibrary from "expo-media-library/legacy";
 import { useEffect, useState } from "react";
 import {
   Image,
-  Pressable,
   ScrollView,
   Text,
   TouchableOpacity,
-  View,
+  View
 } from "react-native";
 import Animated, { FadeInUp, FadeOutDown } from "react-native-reanimated";
 
@@ -114,23 +113,32 @@ export function AttachmentPickerMenu({
             </View>
           </TouchableOpacity>
 
-          {/* Recent Device Photo Thumbnails */}
-          {recentPhotos.map((asset) => (
-            <TouchableOpacity
-              key={asset.id}
-              onPress={() => {
-                onSelectPhotoUri(asset.uri);
-                onClose();
-              }}
-              activeOpacity={0.85}
-              className="mr-3"
-            >
-              <Image
-                source={{ uri: asset.uri }}
-                className="w-20 h-20 rounded-2xl bg-neutral-100 dark:bg-neutral-700"
-              />
-            </TouchableOpacity>
-          ))}
+          {/* Recent Device Photo Thumbnails or Fallback */}
+          {hasPermission === false ? (
+            <View className="h-20 flex-row items-center w-[240px] rounded-2xl bg-neutral-100 dark:bg-neutral-700/50 px-4 justify-center">
+              <Ionicons name="images-outline" size={24} color={isDark ? "#9CA3AF" : "#6B7280"} />
+              <Text className="text-xs text-neutral-500 dark:text-neutral-400 ml-2 flex-1">
+                Please allow access to photos in settings to view your recent media here.
+              </Text>
+            </View>
+          ) : (
+            recentPhotos.map((asset) => (
+              <TouchableOpacity
+                key={asset.id}
+                onPress={() => {
+                  onSelectPhotoUri(asset.uri);
+                  onClose();
+                }}
+                activeOpacity={0.85}
+                className="mr-3"
+              >
+                <Image
+                  source={{ uri: asset.uri }}
+                  className="w-20 h-20 rounded-2xl bg-neutral-100 dark:bg-neutral-700"
+                />
+              </TouchableOpacity>
+            ))
+          )}
         </ScrollView>
       </View>
 
