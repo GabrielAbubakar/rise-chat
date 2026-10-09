@@ -18,3 +18,4 @@ export * from "./AttachmentPickerMenu";
 export * from "./AttachmentPreviewBar";
 export * from "./ChatMessageItem";
 export * from "./GroupMemberItem";
+export * from "./TypingIndicator";

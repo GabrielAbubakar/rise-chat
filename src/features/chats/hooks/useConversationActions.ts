@@ -16,6 +16,7 @@ import {
   SendMessageDto,
   UpdateConversationSettingsDto,
   UpdateReceiptDto,
+  DeleteDirectChatResponseDto,
 } from "../types";
 import { chatsKeys } from "./chatsKeys";
 import {
@@ -76,8 +77,8 @@ export const useSendMessage = (
         conversationId,
         clientMessageId: newMessageDto.clientMessageId,
         senderId: currentUser?.id || "",
-        kind: "text",
-        text: newMessageDto.text,
+        kind: newMessageDto.attachmentMediaIds?.length ? "image" : "text",
+        text: newMessageDto.text || "",
         createdAt: new Date().toISOString(),
       };
 
@@ -129,10 +130,18 @@ export const useSendMessage = (
       if (context?.previousData) {
         const currentUser =
           user ?? queryClient.getQueryData<ProfileResponseDto>(profileKeys.me());
-        queryClient.setQueryData(
-          [...chatsKeys.messages(conversationId), currentUser?.id],
-          context.previousData,
-        );
+        const msgKey = [...chatsKeys.messages(conversationId), currentUser?.id];
+        
+        queryClient.setQueryData(msgKey, (oldData: any) => {
+          if (!oldData || !oldData.pages) return oldData;
+          const newPages = oldData.pages.map((page: any) => ({
+            ...page,
+            items: page.items.filter(
+              (item: any) => item.clientMessageId !== variables.clientMessageId
+            ),
+          }));
+          return { ...oldData, pages: newPages };
+        });
       }
       if (options?.onError) {
         options.onError(err, variables, context, mutation);
@@ -374,3 +383,26 @@ export const useClearMessages = (
     ...options,
   });
 };
+
+export const useDeleteForMe = (
+  conversationId: string,
+  options?: UseMutationOptions<
+    DeleteDirectChatResponseDto,
+    Error,
+    void
+  >,
+) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => chatsApi.deleteForMe(conversationId),
+    onSuccess: (...args) => {
+      queryClient.invalidateQueries({
+        queryKey: chatsKeys.detail(conversationId),
+      });
+      queryClient.invalidateQueries({ queryKey: chatsKeys.list() });
+      if (options?.onSuccess) options.onSuccess(...args);
+    },
+    ...options,
+  });
+};
+

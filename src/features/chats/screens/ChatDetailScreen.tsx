@@ -272,6 +272,8 @@ export function ChatDetailScreen({ id, search }: ChatDetailScreenProps) {
   );
 
   const isDirect = conversationDetail?.type === "direct";
+  const isGroup = conversationDetail?.type === "group";
+
   const otherParticipant = isDirect
     ? conversationDetail?.otherParticipant
     : null;
@@ -284,6 +286,27 @@ export function ChatDetailScreen({ id, search }: ChatDetailScreenProps) {
   const participantInitials = participantName
     ? participantName.charAt(0).toUpperCase()
     : "?";
+
+  const participantsMap = useMemo(() => {
+    if (conversationDetail?.type === "group") {
+      return conversationDetail.participants.reduce(
+        (acc, p) => {
+          acc[p.id] = p;
+          return acc;
+        },
+        {} as Record<string, any>,
+      );
+    }
+    return {};
+  }, [conversationDetail]);
+
+  const groupMembersText = useMemo(() => {
+    if (!isGroup || !conversationDetail?.participants) return undefined;
+    return conversationDetail.participants
+      .filter((p) => p.id !== user?.id)
+      .map((p) => (p.displayName || "User").split(" ")[0])
+      .join(", ");
+  }, [isGroup, conversationDetail, user?.id]);
 
   const handleTextChange = useCallback(
     (text: string) => {
@@ -310,17 +333,38 @@ export function ChatDetailScreen({ id, search }: ChatDetailScreenProps) {
         matchingIndices.length > 0 &&
         matchingIndices[currentMatchIndex] === index;
 
+      const isMe = item.senderId === user?.id;
+      let senderName = null;
+      let senderAvatar = null;
+
+      if (isGroup && !isMe) {
+        const participant = participantsMap[item.senderId];
+        senderName = participant?.displayName || null;
+        senderAvatar = participant?.avatarUrl || null;
+      }
+
       return (
         <ChatMessageItem
           item={item}
-          isMe={item.senderId === user?.id}
+          isMe={isMe}
           isCurrentMatch={isCurrentMatch}
           searchQuery={isSearching ? searchQuery : undefined}
           showDateSeparator={item.showDateSeparator ?? false}
+          senderName={senderName}
+          senderAvatar={senderAvatar}
+          isGroupChat={isGroup}
         />
       );
     },
-    [user?.id, isSearching, matchingIndices, currentMatchIndex, searchQuery],
+    [
+      user?.id,
+      isSearching,
+      matchingIndices,
+      currentMatchIndex,
+      searchQuery,
+      isGroup,
+      participantsMap,
+    ],
   );
 
   // console.log(messages);
@@ -353,7 +397,8 @@ export function ChatDetailScreen({ id, search }: ChatDetailScreenProps) {
         isOtherTyping={isOtherTyping}
         conversationId={conversationId}
         searchInputRef={searchInputRef}
-        isGroup={conversationDetail?.type === "group"}
+        isGroup={isGroup}
+        groupMembersText={groupMembersText}
       />
 
       {/* Messages List */}

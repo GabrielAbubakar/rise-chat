@@ -1,10 +1,10 @@
+import { useRealtime } from "@/core/providers/RealtimeProvider";
 import type {
   MessageCreatedEventPayload,
   PresenceChangedEventPayload,
   TypingStartedEventPayload,
   TypingStoppedEventPayload,
 } from "@/types/realtime";
-import { useRealtime } from "@/core/providers/RealtimeProvider";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { chatsKeys } from "./useChats";
@@ -58,9 +58,10 @@ export function useChatRealtime(conversationId: string) {
               const newPages = oldData.pages.map((page: any) => ({
                 ...page,
                 items: page.items.map((msg: any) =>
-                  msg.clientMessageId &&
-                  payload.clientMessageId &&
-                  msg.clientMessageId === payload.clientMessageId
+                  msg.id === payload.id ||
+                  (msg.clientMessageId &&
+                    payload.clientMessageId &&
+                    msg.clientMessageId === payload.clientMessageId)
                     ? payload
                     : msg,
                 ),

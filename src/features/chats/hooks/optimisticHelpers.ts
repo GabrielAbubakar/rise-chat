@@ -40,12 +40,8 @@ export const optimisticallyTogglePin = async (
       const aPinned = a.settings?.pinned ? 1 : 0;
       const bPinned = b.settings?.pinned ? 1 : 0;
       if (aPinned !== bPinned) return bPinned - aPinned;
-      const aTime = a.lastActivityAt
-        ? new Date(a.lastActivityAt).getTime()
-        : 0;
-      const bTime = b.lastActivityAt
-        ? new Date(b.lastActivityAt).getTime()
-        : 0;
+      const aTime = a.lastActivityAt ? new Date(a.lastActivityAt).getTime() : 0;
+      const bTime = b.lastActivityAt ? new Date(b.lastActivityAt).getTime() : 0;
       return bTime - aTime;
     });
 
