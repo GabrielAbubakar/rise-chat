@@ -36,6 +36,7 @@ export const useCreateDirectConversation = (
 ) => {
   const queryClient = useQueryClient();
   return useMutation({
+    ...options,
     mutationFn: chatsApi.createDirect,
     onSuccess: (...args) => {
       queryClient.invalidateQueries({ queryKey: chatsKeys.list() });
@@ -43,7 +44,6 @@ export const useCreateDirectConversation = (
         options.onSuccess(...args);
       }
     },
-    ...options,
   });
 };
 
@@ -60,9 +60,10 @@ export const useSendMessage = (
   const { data: user } = useGetMe();
 
   return useMutation({
+    ...options,
     mutationFn: (data: SendMessageDto) =>
       chatsApi.sendMessage(conversationId, data),
-    onMutate: async (newMessageDto) => {
+    onMutate: async (newMessageDto, mutation) => {
       const currentUser =
         user ?? queryClient.getQueryData<ProfileResponseDto>(profileKeys.me());
       const msgKey = [...chatsKeys.messages(conversationId), currentUser?.id];
@@ -102,7 +103,12 @@ export const useSendMessage = (
         return { ...oldData, pages: newPages };
       });
 
-      return { previousData };
+      let consumerContext: any;
+      if (options?.onMutate) {
+        consumerContext = await options.onMutate(newMessageDto, mutation);
+      }
+
+      return { previousData, ...consumerContext };
     },
     onSuccess: (realMsg, variables, context, mutation) => {
       const currentUser =
@@ -147,7 +153,6 @@ export const useSendMessage = (
         options.onError(err, variables, context, mutation);
       }
     },
-    ...options,
   });
 };
 
@@ -188,6 +193,7 @@ export const useUpdateConversationSettings = (
 ) => {
   const queryClient = useQueryClient();
   return useMutation({
+    ...options,
     mutationFn: (data) =>
       chatsApi.updateConversationSettings(conversationId, data),
     onSuccess: (...args) => {
@@ -197,7 +203,6 @@ export const useUpdateConversationSettings = (
       queryClient.invalidateQueries({ queryKey: chatsKeys.list() });
       if (options?.onSuccess) options.onSuccess(...args);
     },
-    ...options,
   });
 };
 
@@ -333,6 +338,7 @@ export const useFavoriteConversation = (
 ) => {
   const queryClient = useQueryClient();
   return useMutation({
+    ...options,
     mutationFn: () => chatsApi.favoriteConversation(conversationId),
     onSuccess: (...args) => {
       queryClient.invalidateQueries({
@@ -341,7 +347,6 @@ export const useFavoriteConversation = (
       queryClient.invalidateQueries({ queryKey: chatsKeys.list() });
       if (options?.onSuccess) options.onSuccess(...args);
     },
-    ...options,
   });
 };
 
@@ -351,6 +356,7 @@ export const useUnfavoriteConversation = (
 ) => {
   const queryClient = useQueryClient();
   return useMutation({
+    ...options,
     mutationFn: () => chatsApi.unfavoriteConversation(conversationId),
     onSuccess: (...args) => {
       queryClient.invalidateQueries({
@@ -359,7 +365,6 @@ export const useUnfavoriteConversation = (
       queryClient.invalidateQueries({ queryKey: chatsKeys.list() });
       if (options?.onSuccess) options.onSuccess(...args);
     },
-    ...options,
   });
 };
 
@@ -373,6 +378,7 @@ export const useClearMessages = (
 ) => {
   const queryClient = useQueryClient();
   return useMutation({
+    ...options,
     mutationFn: () => chatsApi.clearMessages(conversationId),
     onSuccess: (...args) => {
       queryClient.invalidateQueries({
@@ -380,7 +386,6 @@ export const useClearMessages = (
       });
       if (options?.onSuccess) options.onSuccess(...args);
     },
-    ...options,
   });
 };
 
@@ -394,6 +399,7 @@ export const useDeleteForMe = (
 ) => {
   const queryClient = useQueryClient();
   return useMutation({
+    ...options,
     mutationFn: () => chatsApi.deleteForMe(conversationId),
     onSuccess: (...args) => {
       queryClient.invalidateQueries({
@@ -402,7 +408,6 @@ export const useDeleteForMe = (
       queryClient.invalidateQueries({ queryKey: chatsKeys.list() });
       if (options?.onSuccess) options.onSuccess(...args);
     },
-    ...options,
   });
 };
 

@@ -1,4 +1,8 @@
-import { useMutation, UseMutationOptions, useQueryClient } from "@tanstack/react-query";
+import {
+  useMutation,
+  UseMutationOptions,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { chatsApi } from "../api";
 import { MessageResponseDto } from "../types";
 import { chatsKeys } from "./chatsKeys";
@@ -10,14 +14,15 @@ export const useUpdateMessage = (
 ) => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (data: any) => chatsApi.updateMessage(conversationId, messageId, data),
+    ...options,
+    mutationFn: (data: any) =>
+      chatsApi.updateMessage(conversationId, messageId, data),
     onSuccess: (...args) => {
       queryClient.invalidateQueries({
         queryKey: chatsKeys.messages(conversationId),
       });
       if (options?.onSuccess) options.onSuccess(...args);
     },
-    ...options,
   });
 };
 
@@ -28,6 +33,7 @@ export const useDeleteMessage = (
 ) => {
   const queryClient = useQueryClient();
   return useMutation({
+    ...options,
     mutationFn: () => chatsApi.deleteMessage(conversationId, messageId),
     onSuccess: (...args) => {
       queryClient.invalidateQueries({
@@ -35,7 +41,6 @@ export const useDeleteMessage = (
       });
       if (options?.onSuccess) options.onSuccess(...args);
     },
-    ...options,
   });
 };
 
@@ -46,14 +51,15 @@ export const useAddReaction = (
 ) => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (data: any) => chatsApi.addReaction(conversationId, messageId, data),
+    ...options,
+    mutationFn: (data: any) =>
+      chatsApi.addReaction(conversationId, messageId, data),
     onSuccess: (...args) => {
       queryClient.invalidateQueries({
         queryKey: chatsKeys.messages(conversationId),
       });
       if (options?.onSuccess) options.onSuccess(...args);
     },
-    ...options,
   });
 };
 
@@ -64,6 +70,7 @@ export const useRemoveReaction = (
 ) => {
   const queryClient = useQueryClient();
   return useMutation({
+    ...options,
     mutationFn: () => chatsApi.removeReaction(conversationId, messageId),
     onSuccess: (...args) => {
       queryClient.invalidateQueries({
@@ -71,6 +78,5 @@ export const useRemoveReaction = (
       });
       if (options?.onSuccess) options.onSuccess(...args);
     },
-    ...options,
   });
 };
