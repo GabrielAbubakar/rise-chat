@@ -1,7 +1,6 @@
-import React from "react";
-import { Switch, View, ActivityIndicator } from "react-native";
-import { useRouter } from "expo-router";
 import { useThemeColors } from "@/shared/hooks";
+import { useRouter } from "expo-router";
+import { ActivityIndicator, Switch, View } from "react-native";
 
 // Icons
 import BellIcon from "@/assets/icons/outline/bell.svg";
@@ -16,7 +15,7 @@ import StarIcon from "@/assets/icons/outline/star.svg";
 
 export const useSettingsData = (
   confirmLogout: () => void,
-  isPending: boolean
+  isPending: boolean,
 ) => {
   const router = useRouter();
   const { primary } = useThemeColors();
@@ -47,7 +46,8 @@ export const useSettingsData = (
       label: "Notification",
       rightElement: (
         <Switch
-          value={true}
+          value={false}
+          disabled
           onValueChange={() => {}}
           trackColor={{ false: "#DDE2E8", true: primary }}
           thumbColor={"#FFFFFF"}

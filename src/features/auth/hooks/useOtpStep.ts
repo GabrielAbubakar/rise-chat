@@ -12,8 +12,11 @@ export function useOtpStep(
   initialResendSeconds: number,
   onSuccess: (hasProfile: boolean) => void,
   onChallengeIdChanged?: (newChallengeId: string) => void,
+  initialCodeLength: number = 4,
+  onCodeLengthChanged?: (newLength: number) => void,
 ) {
   const [currentChallengeId, setCurrentChallengeId] = useState(challengeId);
+  const [codeLength, setCodeLength] = useState(initialCodeLength);
   const [verificationCode, setVerificationCode] = useState("");
   const [otpError, setOtpError] = useState(false);
 
@@ -61,6 +64,10 @@ export function useOtpStep(
       setOtpError(false);
       setVerificationCode("");
       setCurrentChallengeId(data.challengeId);
+      if (data.codeLength) {
+        setCodeLength(data.codeLength);
+        if (onCodeLengthChanged) onCodeLengthChanged(data.codeLength);
+      }
       if (onChallengeIdChanged) onChallengeIdChanged(data.challengeId);
     },
     onError: (error) => {
@@ -73,7 +80,7 @@ export function useOtpStep(
   });
 
   const handleVerify = () => {
-    if (verificationCode.length >= 4) {
+    if (verificationCode.length >= codeLength) {
       verifyOtp({ challengeId: currentChallengeId, code: verificationCode });
     }
   };
@@ -99,6 +106,7 @@ export function useOtpStep(
     otpError,
     timeLeft,
     isActive,
+    codeLength,
     handleVerify,
     handleResend,
   };

@@ -82,8 +82,12 @@ export function ChatDetailScreen({ id, search }: ChatDetailScreenProps) {
   }, [conversationId, markRead]);
 
   // WebSocket Hook (incoming messages, presence, typing indicators)
+  const otherParticipantId =
+    conversationDetail?.type === "direct"
+      ? conversationDetail.otherParticipant?.id
+      : undefined;
   const { isOtherOnline, isOtherTyping, sendTypingStart, sendTypingStop } =
-    useChatRealtime(conversationId);
+    useChatRealtime(conversationId, otherParticipantId);
 
   // Flatten and sort messages oldest first
   const messages = useMemo(() => {

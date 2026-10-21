@@ -4,16 +4,47 @@ import { verifyPinCode } from "@/services/security/pin";
 import { BaseText, ScreenContainer } from "@/shared/components";
 import { colors } from "@/shared/constants/tokens";
 import { useSecurityStore } from "@/store/useSecurityStore";
+import * as LocalAuthentication from "expo-local-authentication";
 import { useRouter } from "expo-router";
-import { useState } from "react";
-import { View } from "react-native";
+import { useCallback, useEffect, useState } from "react";
+import { TouchableOpacity, View } from "react-native";
 import Toast from "react-native-toast-message";
 
 export default function UnlockScreen() {
   const router = useRouter();
   const setAppUnlocked = useSecurityStore((state) => state.setAppUnlocked);
+  const isBiometricsEnabled = useSecurityStore(
+    (state) => state.isBiometricsEnabled,
+  );
   const [pin, setPin] = useState("");
   const [isVerifying, setIsVerifying] = useState(false);
+
+  const promptBiometrics = useCallback(async () => {
+    try {
+      const hasHardware = await LocalAuthentication.hasHardwareAsync();
+      const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+      if (!hasHardware || !isEnrolled) return;
+
+      const result = await LocalAuthentication.authenticateAsync({
+        promptMessage: "Unlock Rise Chat",
+        cancelLabel: "Use PIN",
+        fallbackLabel: "Use PIN",
+      });
+
+      if (result.success) {
+        setAppUnlocked(true);
+        router.replace("/(tabs)/chats");
+      }
+    } catch (e) {
+      console.error("Biometric unlock error", e);
+    }
+  }, [router, setAppUnlocked]);
+
+  useEffect(() => {
+    if (isBiometricsEnabled) {
+      promptBiometrics();
+    }
+  }, [isBiometricsEnabled, promptBiometrics]);
 
   const handleDigitPress = async (digit: string) => {
     if (pin.length < 4 && !isVerifying) {
@@ -73,6 +104,18 @@ export default function UnlockScreen() {
             />
           ))}
         </View>
+
+        {isBiometricsEnabled && (
+          <TouchableOpacity
+            onPress={promptBiometrics}
+            className="mt-6 flex-row items-center py-2 px-4 rounded-full bg-primary/10"
+            activeOpacity={0.7}
+          >
+            <BaseText className="text-primary font-sf-medium text-sm">
+              Use Biometrics
+            </BaseText>
+          </TouchableOpacity>
+        )}
 
         {/* Spacer to push keypad to the bottom */}
         <View className="flex-1" />

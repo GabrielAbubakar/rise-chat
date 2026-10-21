@@ -1,4 +1,5 @@
 import { useRealtime } from "@/core/providers/RealtimeProvider";
+import { useGetMe } from "@/features/settings/hooks/useProfile";
 import type {
   MessageCreatedEventPayload,
   PresenceChangedEventPayload,
@@ -10,8 +11,13 @@ import { useEffect, useState } from "react";
 import type { MessageHistoryResponseDto } from "../types";
 import { chatsKeys } from "./useChats";
 
-export function useChatRealtime(conversationId: string) {
+export function useChatRealtime(
+  conversationId: string,
+  targetUserId?: string,
+) {
   const { socket } = useRealtime();
+  const { data: currentUser } = useGetMe();
+  const currentUserId = currentUser?.id;
   const queryClient = useQueryClient();
   const [isOtherTyping, setIsOtherTyping] = useState(false);
   const [isOtherOnline, setIsOtherOnline] = useState(false);
@@ -22,10 +28,24 @@ export function useChatRealtime(conversationId: string) {
     // 1. Subscribe to conversation presence
     socket.emit("presence.subscribe", { conversationId }, (ack) => {
       if (ack.ok) {
-        const other = ack.data.participants.find((p) => p.userId !== undefined);
-        if (other) {
-          setIsOtherOnline(other.status === "online");
+        if (targetUserId) {
+          const other = ack.data.participants.find(
+            (p) => p.userId === targetUserId,
+          );
+          setIsOtherOnline(other?.status === "online");
+        } else {
+          // If no specific targetUserId, exclude the current user from presence determination
+          const other = ack.data.participants.find(
+            (p) => (currentUserId ? p.userId !== currentUserId : true),
+          );
+          if (other && currentUserId && other.userId !== currentUserId) {
+            setIsOtherOnline(other.status === "online");
+          } else {
+            setIsOtherOnline(false);
+          }
         }
+      } else {
+        setIsOtherOnline(false);
       }
     });
 
@@ -86,20 +106,36 @@ export function useChatRealtime(conversationId: string) {
 
     // 3. Listen for presence changes
     const handlePresenceChanged = (payload: PresenceChangedEventPayload) => {
-      if (payload.conversationId === conversationId) {
+      if (payload.conversationId !== conversationId) return;
+      // Do not react to current user's own presence updates
+      if (currentUserId && payload.userId === currentUserId) return;
+
+      if (targetUserId) {
+        if (payload.userId === targetUserId) {
+          setIsOtherOnline(payload.status === "online");
+        }
+      } else {
         setIsOtherOnline(payload.status === "online");
       }
     };
 
     // 4. Listen for typing indicators
     const handleTypingStarted = (payload: TypingStartedEventPayload) => {
-      if (payload.conversationId === conversationId) {
+      if (payload.conversationId !== conversationId) return;
+      // Do not react to current user's own typing updates
+      if (currentUserId && payload.userId === currentUserId) return;
+
+      if (!targetUserId || payload.userId === targetUserId) {
         setIsOtherTyping(true);
       }
     };
 
     const handleTypingStopped = (payload: TypingStoppedEventPayload) => {
-      if (payload.conversationId === conversationId) {
+      if (payload.conversationId !== conversationId) return;
+      // Do not react to current user's own typing updates
+      if (currentUserId && payload.userId === currentUserId) return;
+
+      if (!targetUserId || payload.userId === targetUserId) {
         setIsOtherTyping(false);
       }
     };
@@ -110,13 +146,15 @@ export function useChatRealtime(conversationId: string) {
     socket.on("typing.stopped", handleTypingStopped);
 
     return () => {
+      setIsOtherOnline(false);
+      setIsOtherTyping(false);
       socket.emit("presence.unsubscribe", { conversationId }, () => {});
       socket.off("message.created", handleMessageCreated);
       socket.off("presence.changed", handlePresenceChanged);
       socket.off("typing.started", handleTypingStarted);
       socket.off("typing.stopped", handleTypingStopped);
     };
-  }, [socket, conversationId, queryClient]);
+  }, [socket, conversationId, targetUserId, currentUserId, queryClient]);
 
   const sendTypingStart = () => {
     if (socket && conversationId) {
