@@ -180,11 +180,14 @@ export const useLeaveGroup = (
 ) => {
   const queryClient = useQueryClient();
   return useMutation({
+    ...options,
     mutationFn: () => chatsApi.leaveGroup(conversationId),
     onSuccess: (...args) => {
       queryClient.invalidateQueries({ queryKey: chatsKeys.list() });
+      queryClient.invalidateQueries({
+        queryKey: chatsKeys.detail(conversationId),
+      });
       if (options?.onSuccess) options.onSuccess(...args);
     },
-    ...options,
   });
 };

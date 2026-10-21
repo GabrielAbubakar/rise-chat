@@ -17,6 +17,7 @@ import VolumeOffIcon from "@/assets/icons/solid/volume-off.svg";
 import {
   useArchiveConversation,
   useClearMessages,
+  useDeleteForMe,
   useMuteConversation,
   usePinConversation,
   useUnarchiveConversation,
@@ -135,6 +136,9 @@ export function ChatItem({
   const { mutate: clearMessages, isPending: isClearing } = useClearMessages(
     data.id,
   );
+  const { mutate: deleteForMe, isPending: isDeletingForMe } = useDeleteForMe(
+    data.id,
+  );
   const { mutate: mute, isPending: isMuting } = useMuteConversation(data.id);
   const { mutate: unmute, isPending: isUnmuteConversation } =
     useUnmuteConversation(data.id);
@@ -171,9 +175,9 @@ export function ChatItem({
     return (
       <View className="flex-row gap-x-2">
         <SwipeableActionButton
-          onPress={() => handleSwipeAction(() => clearMessages())}
+          onPress={() => handleSwipeAction(() => isDirect ? deleteForMe() : clearMessages())}
           bgColorClass="bg-red-500"
-          isPending={isClearing}
+          isPending={isDirect ? isDeletingForMe : isClearing}
           icon={<TrashIcon width={24} height={24} color="white" />}
           title="Delete"
         />

@@ -49,6 +49,9 @@ export default function TabsLayout() {
     tabBarActiveTintColor: primary,
     tabBarInactiveTintColor: colors.neutral[300],
     animation: "shift",
+    // sceneStyle: {
+    //   backgroundColor: isDark ? colors.app.dark : colors.app.DEFAULT,
+    // },
   };
 
   function renderTabBarIcon(
@@ -65,7 +68,11 @@ export default function TabsLayout() {
 
   return (
     <>
-      <Tabs screenOptions={screenOptions}>
+      <Tabs
+        initialRouteName="chats/index"
+        backBehavior="initialRoute"
+        screenOptions={screenOptions}
+      >
         {tabs.map((tab) => (
           <Tabs.Screen
             key={tab.name}

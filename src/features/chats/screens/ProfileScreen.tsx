@@ -44,11 +44,13 @@ import UserAddIcon from "@/assets/icons/solid/user-add.svg";
 import UserIcon from "@/assets/icons/solid/user.svg";
 
 // Utilities
-import { formatLastSeen } from "@/shared/utils";
+import { formatLastSeen, showApiErrorToast, showSuccessToast } from "@/shared/utils";
 
 // API Hooks & Dummy Media
 import { DUMMY_PHOTOS } from "@shared/constants/dummyData";
 import { useConversationDetail } from "../hooks/useChats";
+import { useLeaveGroup } from "../hooks/useGroupActions";
+import { useBlockUser } from "@/features/settings/hooks/useProfile";
 
 export interface ProfileScreenProps {
   id?: string;
@@ -142,13 +144,44 @@ export function ProfileScreen({ id }: ProfileScreenProps) {
     });
   };
 
+  const { mutate: leaveGroup, isPending: isLeavingGroup } = useLeaveGroup(
+    conversationId,
+    {
+      onSuccess: () => {
+        showSuccessToast("Left group successfully");
+        router.replace("/(tabs)/chats");
+      },
+      onError: (error) => {
+        showApiErrorToast(error, "Failed to leave group");
+      },
+    },
+  );
+
+  const { mutate: blockUser, isPending: isBlockingUser } = useBlockUser({
+    onSuccess: () => {
+      showSuccessToast(`${name} has been blocked`);
+      router.replace("/(tabs)/chats");
+    },
+    onError: (error) => {
+      showApiErrorToast(error, "Failed to block contact");
+    },
+  });
+
   const handleBlockContact = () => {
+    if (!otherParticipant?.id) {
+      showApiErrorToast(new Error("Contact details are unavailable"), "Cannot block contact");
+      return;
+    }
     Alert.alert(
       "Block Contact",
       `Are you sure you want to block ${name}? You won't receive messages or calls from them.`,
       [
         { text: "Cancel", style: "cancel" },
-        { text: "Block", style: "destructive", onPress: () => router.back() },
+        {
+          text: "Block",
+          style: "destructive",
+          onPress: () => blockUser(otherParticipant.id),
+        },
       ],
     );
   };
@@ -159,7 +192,7 @@ export function ProfileScreen({ id }: ProfileScreenProps) {
       {
         text: "Leave",
         style: "destructive",
-        onPress: () => router.back(),
+        onPress: () => leaveGroup(),
       },
     ]);
   };
@@ -332,11 +365,16 @@ export function ProfileScreen({ id }: ProfileScreenProps) {
       <View className="bg-neutral-200 dark:bg-neutral-700 h-3 w-full mt-2" />
       <Pressable
         onPress={handleLeaveGroup}
+        disabled={isLeavingGroup}
         className="flex-row items-center p-4 border-t border-neutral-200 dark:border-neutral-700/50 mt-1"
       >
-        <LogoutIcon width={22} height={22} color="#EF4444" />
+        {isLeavingGroup ? (
+          <ActivityIndicator size="small" color="#EF4444" />
+        ) : (
+          <LogoutIcon width={22} height={22} color="#EF4444" />
+        )}
         <BaseText className="text-red-500 font-sf-medium text-base ml-3">
-          Leave group
+          {isLeavingGroup ? "Leaving group..." : "Leave group"}
         </BaseText>
       </Pressable>
     </View>
@@ -469,11 +507,16 @@ export function ProfileScreen({ id }: ProfileScreenProps) {
             <View className="bg-neutral-200 dark:bg-neutral-700 h-3 w-full" />
             <Pressable
               onPress={handleBlockContact}
+              disabled={isBlockingUser}
               className="flex-row items-center p-4 border-t border-neutral-200 dark:border-neutral-700/50 mt-1"
             >
-              <BanIcon width={22} height={22} color="#EF4444" />
+              {isBlockingUser ? (
+                <ActivityIndicator size="small" color="#EF4444" />
+              ) : (
+                <BanIcon width={22} height={22} color="#EF4444" />
+              )}
               <BaseText className="text-red-500 font-sf-medium text-base ml-3">
-                Block contact
+                {isBlockingUser ? "Blocking contact..." : "Block contact"}
               </BaseText>
             </Pressable>
           </View>

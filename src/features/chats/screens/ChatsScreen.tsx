@@ -4,9 +4,10 @@ import { LegendList } from "@legendapp/list/react-native";
 import * as Haptics from "expo-haptics";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useColorScheme } from "nativewind";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useRef, useState, useEffect } from "react";
 import { BackHandler, Pressable, RefreshControl, View } from "react-native";
 import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
+import { useRealtime } from "@/core/providers/RealtimeProvider";
 
 // Components
 import {
@@ -27,7 +28,9 @@ import VolumeOffIcon from "@/assets/icons/solid/volume-off.svg";
 import {
   useArchivedConversationsList,
   useConversationsList,
+  chatsKeys,
 } from "../hooks/useChats";
+import { useQueryClient } from "@tanstack/react-query";
 import { ConversationResponseDto } from "../types";
 
 export function ChatsScreen() {
@@ -43,6 +46,15 @@ export function ChatsScreen() {
   // const userID = useAuthStore((state) => state.user?.id);
   const displayConversations =
     conversations?.pages.flatMap((page) => page.items) || [];
+
+  const { activityVersion } = useRealtime();
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    if (activityVersion > 0) {
+      queryClient.invalidateQueries({ queryKey: chatsKeys.list() });
+    }
+  }, [activityVersion, queryClient]);
 
   const handleNewChatPress = () => {
     newChatBottomSheetRef.current?.present();

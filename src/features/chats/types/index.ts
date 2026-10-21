@@ -243,3 +243,11 @@ export interface ClearConversationMessagesResponseDto {
   clearedAt: string | null;
   clearedThroughMessageId: string | null;
 }
+
+export interface DeleteDirectChatResponseDto {
+  conversationId: string;
+  changed: boolean;
+  deletedAt: string;
+  clearedAt: string | null;
+  clearedThroughMessageId: string | null;
+}

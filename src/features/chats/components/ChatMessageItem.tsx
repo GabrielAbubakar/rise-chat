@@ -11,6 +11,9 @@ export interface ChatMessageItemProps {
   isCurrentMatch: boolean;
   searchQuery?: string;
   showDateSeparator: boolean;
+  senderName?: string | null;
+  senderAvatar?: string | null;
+  isGroupChat?: boolean;
 }
 
 export const ChatMessageItem = memo(
@@ -20,6 +23,9 @@ export const ChatMessageItem = memo(
     isCurrentMatch,
     searchQuery,
     showDateSeparator,
+    senderName,
+    senderAvatar,
+    isGroupChat,
   }: ChatMessageItemProps) => {
     return (
       <View>
@@ -39,6 +45,10 @@ export const ChatMessageItem = memo(
           searchQuery={searchQuery}
           isCurrentMatch={isCurrentMatch}
           attachments={item.attachments}
+          senderName={senderName}
+          senderAvatar={senderAvatar}
+          isGroupChat={isGroupChat}
+          senderId={item.senderId}
         />
       </View>
     );
@@ -49,7 +59,10 @@ export const ChatMessageItem = memo(
       prev.item.text === next.item.text &&
       prev.isCurrentMatch === next.isCurrentMatch &&
       prev.searchQuery === next.searchQuery &&
-      prev.showDateSeparator === next.showDateSeparator
+      prev.showDateSeparator === next.showDateSeparator &&
+      prev.senderName === next.senderName &&
+      prev.senderAvatar === next.senderAvatar &&
+      prev.isGroupChat === next.isGroupChat
     );
   },
 );
