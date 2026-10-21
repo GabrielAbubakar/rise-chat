@@ -1,6 +1,5 @@
 import { useState, useCallback } from "react";
-import axios from "axios";
-import { mediaApi } from "@/features/media/api";
+import { uploadMedia } from "@/features/media/services";
 import { generateUUID, showApiErrorToast } from "@/shared/utils";
 import { SelectedAttachment } from "../components";
 
@@ -39,44 +38,14 @@ export function useSendChatMessage({
     if (currentAttachment) {
       try {
         setIsUploadingAttachment(true);
-        const name = currentAttachment.fileName || `attachment_${Date.now()}.jpg`;
-        const type = (currentAttachment.mimeType ||
-          (currentAttachment.uri.endsWith(".png")
-            ? "image/png"
-            : currentAttachment.uri.endsWith(".webp")
-              ? "image/webp"
-              : "image/jpeg")) as any;
-        const size = currentAttachment.fileSize || 500000;
-
-        const uploadAuth = await mediaApi.createUpload({
-          clientUploadId: generateUUID(),
+        const mediaAsset = await uploadMedia({
+          uri: currentAttachment.uri,
           purpose: "message_attachment",
-          contentType: type,
-          sizeBytes: size,
-          originalFilename: name,
+          fileName: currentAttachment.fileName || undefined,
+          mimeType: currentAttachment.mimeType || undefined,
+          sizeBytes: currentAttachment.fileSize || undefined,
         });
-
-        if (uploadAuth.upload) {
-          const formData = new FormData();
-          if (uploadAuth.upload.fields) {
-            Object.entries(uploadAuth.upload.fields).forEach(([key, val]) => {
-              formData.append(key, String(val));
-            });
-          }
-
-          formData.append("file", {
-            uri: currentAttachment.uri,
-            name: name,
-            type: type,
-          } as any);
-
-          await axios.post(uploadAuth.upload.url, formData, {
-            headers: { "Content-Type": "multipart/form-data" },
-          });
-
-          await mediaApi.completeUpload(uploadAuth.media.id);
-          uploadedMediaId = uploadAuth.media.id;
-        }
+        uploadedMediaId = mediaAsset.id;
       } catch (error: any) {
         showApiErrorToast(error, "Failed to upload attachment");
         setIsUploadingAttachment(false);

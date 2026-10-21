@@ -1,10 +1,10 @@
-import { showApiErrorToast, generateUUID } from "@/shared/utils";
+import { uploadMedia } from "@/features/media/services";
+import { useSetAvatar } from "@/features/settings/hooks/useProfile";
+import { showApiErrorToast } from "@/shared/utils";
 import { useAppStore } from "@/store";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
 import { useState } from "react";
-import axios from "axios";
-import { mediaApi } from "@/features/media/api";
 import { useUpdateProfile } from "./useAuth";
 
 export function useProfileStep() {
@@ -14,6 +14,7 @@ export function useProfileStep() {
   const setHasSeenOnboarding = useAppStore(
     (state) => state.setHasSeenOnboarding,
   );
+  const setAvatarMutation = useSetAvatar();
 
   const pickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -43,51 +44,20 @@ export function useProfileStep() {
 
   const finishRegistration = async () => {
     try {
-      let finalAvatarUrl: string | undefined = undefined;
-
       if (photoUri) {
         setIsUploading(true);
-        const name = `avatar_${Date.now()}.jpg`;
-        const type = "image/jpeg";
-        const size = 500000; // rough estimate
-
-        const uploadAuth = await mediaApi.createUpload({
-          clientUploadId: generateUUID(),
+        const mediaAsset = await uploadMedia({
+          uri: photoUri,
           purpose: "profile_avatar",
-          contentType: type,
-          sizeBytes: size,
-          originalFilename: name,
         });
-
-        if (uploadAuth.upload) {
-          const formData = new FormData();
-          if (uploadAuth.upload.fields) {
-            Object.entries(uploadAuth.upload.fields).forEach(([key, val]) => {
-              formData.append(key, String(val));
-            });
-          }
-
-          formData.append("file", {
-            uri: photoUri,
-            name: name,
-            type: type,
-          } as any);
-
-          await axios.post(uploadAuth.upload.url, formData, {
-            headers: { "Content-Type": "multipart/form-data" },
-          });
-
-          const completedMedia = await mediaApi.completeUpload(uploadAuth.media.id);
-          finalAvatarUrl = completedMedia.secureUrl || undefined;
-        }
+        await setAvatarMutation.mutateAsync({ mediaId: mediaAsset.id });
       }
 
       updateProfile({
         displayName: username || undefined,
-        avatarUrl: finalAvatarUrl,
       });
     } catch (error: any) {
-      showApiErrorToast(error, "Failed to upload photo");
+      showApiErrorToast(error, "Failed to setup profile");
     } finally {
       setIsUploading(false);
     }
@@ -98,7 +68,8 @@ export function useProfileStep() {
     setUsername,
     photoUri,
     pickImage,
-    isUpdatingProfile: isUpdatingProfile || isUploading,
+    isUpdatingProfile:
+      isUpdatingProfile || isUploading || setAvatarMutation.isPending,
     finishRegistration,
   };
 }
