@@ -68,7 +68,11 @@ export default function TabsLayout() {
 
   return (
     <>
-      <Tabs screenOptions={screenOptions}>
+      <Tabs
+        initialRouteName="chats/index"
+        backBehavior="initialRoute"
+        screenOptions={screenOptions}
+      >
         {tabs.map((tab) => (
           <Tabs.Screen
             key={tab.name}
