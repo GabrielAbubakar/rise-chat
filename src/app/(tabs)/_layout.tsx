@@ -49,6 +49,9 @@ export default function TabsLayout() {
     tabBarActiveTintColor: primary,
     tabBarInactiveTintColor: colors.neutral[300],
     animation: "shift",
+    // sceneStyle: {
+    //   backgroundColor: isDark ? colors.app.dark : colors.app.DEFAULT,
+    // },
   };
 
   function renderTabBarIcon(
