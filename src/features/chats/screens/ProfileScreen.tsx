@@ -50,6 +50,10 @@ import { formatLastSeen, showApiErrorToast, showSuccessToast } from "@/shared/ut
 import { DUMMY_PHOTOS } from "@shared/constants/dummyData";
 import { useConversationDetail } from "../hooks/useChats";
 import { useLeaveGroup } from "../hooks/useGroupActions";
+import {
+  useMuteConversation,
+  useUnmuteConversation,
+} from "../hooks/useConversationActions";
 import { useBlockUser } from "@/features/settings/hooks/useProfile";
 
 export interface ProfileScreenProps {
@@ -64,8 +68,6 @@ export function ProfileScreen({ id }: ProfileScreenProps) {
   const isDark = colorScheme === "dark";
   const { primary } = useThemeColors();
 
-  // const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
-  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [isSearchMode, setIsSearchMode] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -94,6 +96,43 @@ export function ProfileScreen({ id }: ProfileScreenProps) {
     conversationId,
     { enabled: !!conversationId },
   );
+
+  const muteMutation = useMuteConversation(conversationId);
+  const unmuteMutation = useUnmuteConversation(conversationId);
+  const isMutePending = muteMutation.isPending || unmuteMutation.isPending;
+
+  // Optimistic UI state to ensure zero-latency switch animation without rebound
+  const [pendingNotifications, setPendingNotifications] = useState<boolean | null>(null);
+
+  // Derive notifications from server-authoritative mute settings
+  const isMuted = Boolean(
+    conversationDetail?.settings?.muted ||
+      (conversationDetail?.settings?.mutedUntil &&
+        new Date(conversationDetail.settings.mutedUntil) > new Date()),
+  );
+  const serverNotificationsEnabled = !isMuted;
+  const notificationsEnabled = pendingNotifications ?? serverNotificationsEnabled;
+
+  const handleToggleNotifications = (enable: boolean) => {
+    if (isMutePending) return;
+
+    setPendingNotifications(enable);
+
+    if (enable) {
+      unmuteMutation.mutate(undefined, {
+        onError: () => setPendingNotifications(null),
+        onSettled: () => setPendingNotifications(null),
+      });
+    } else {
+      muteMutation.mutate(
+        { duration: "always" },
+        {
+          onError: () => setPendingNotifications(null),
+          onSettled: () => setPendingNotifications(null),
+        },
+      );
+    }
+  };
 
   const isDirect = conversationDetail?.type === "direct";
   const otherParticipant = isDirect
@@ -492,16 +531,22 @@ export function ProfileScreen({ id }: ProfileScreenProps) {
                   <BaseText className="text-neutral-900 dark:text-white font-sf-medium text-base ml-3">
                     Notifications
                   </BaseText>
+                  {isMutePending && (
+                    <ActivityIndicator size="small" color={primary} className="ml-2" />
+                  )}
                 </View>
-                <Switch
-                  value={notificationsEnabled}
-                  onValueChange={setNotificationsEnabled}
-                  trackColor={{
-                    false: isDark ? "#3A566A" : "#E5E7EB",
-                    true: primary,
-                  }}
-                  thumbColor="#FFFFFF"
-                />
+                <View style={{ opacity: isMutePending ? 0.6 : 1 }}>
+                  <Switch
+                    value={notificationsEnabled}
+                    onValueChange={handleToggleNotifications}
+                    disabled={isMutePending}
+                    trackColor={{
+                      false: isDark ? "#3A566A" : "#E5E7EB",
+                      true: primary,
+                    }}
+                    thumbColor="#FFFFFF"
+                  />
+                </View>
               </View>
             </View>
             <View className="bg-neutral-200 dark:bg-neutral-700 h-3 w-full" />

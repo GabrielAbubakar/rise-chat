@@ -24,6 +24,8 @@ import {
   MuteConversationDto,
   ClearConversationMessagesResponseDto,
   DeleteDirectChatResponseDto,
+  UpdateMessageDto,
+  AddReactionDto,
 } from '../types';
 
 export const chatsApi = {
@@ -82,7 +84,7 @@ export const chatsApi = {
     return response.data;
   },
 
-  updateMessage: async (conversationId: string, messageId: string, data: any): Promise<MessageResponseDto> => {
+  updateMessage: async (conversationId: string, messageId: string, data: UpdateMessageDto): Promise<MessageResponseDto> => {
     const response = await apiClient.patch<MessageResponseDto>(`/conversations/${conversationId}/messages/${messageId}`, data);
     return response.data;
   },
@@ -91,8 +93,8 @@ export const chatsApi = {
     await apiClient.delete(`/conversations/${conversationId}/messages/${messageId}`);
   },
 
-  addReaction: async (conversationId: string, messageId: string, data: any): Promise<any> => {
-    const response = await apiClient.put<any>(`/conversations/${conversationId}/messages/${messageId}/reaction`, data);
+  addReaction: async (conversationId: string, messageId: string, data: AddReactionDto): Promise<MessageResponseDto> => {
+    const response = await apiClient.put<MessageResponseDto>(`/conversations/${conversationId}/messages/${messageId}/reaction`, data);
     return response.data;
   },
 

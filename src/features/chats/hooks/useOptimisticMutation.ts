@@ -69,6 +69,12 @@ export function useOptimisticMutation<
           (context as any).previousArchived,
         );
       }
+      if (context && (context as any).previousDetail && (context as any).detailKey) {
+        queryClient.setQueryData(
+          (context as any).detailKey,
+          (context as any).previousDetail,
+        );
+      }
       showInfoToast(errorMessage, "Action Failed");
       if (options?.onError) {
         options.onError(err, variables, context, mutation);

@@ -4,18 +4,22 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import { chatsApi } from "../api";
-import { MessageResponseDto } from "../types";
+import {
+  AddReactionDto,
+  MessageResponseDto,
+  UpdateMessageDto,
+} from "../types";
 import { chatsKeys } from "./chatsKeys";
 
 export const useUpdateMessage = (
   conversationId: string,
   messageId: string,
-  options?: UseMutationOptions<MessageResponseDto, Error, any>,
+  options?: UseMutationOptions<MessageResponseDto, Error, UpdateMessageDto>,
 ) => {
   const queryClient = useQueryClient();
   return useMutation({
     ...options,
-    mutationFn: (data: any) =>
+    mutationFn: (data: UpdateMessageDto) =>
       chatsApi.updateMessage(conversationId, messageId, data),
     onSuccess: (...args) => {
       queryClient.invalidateQueries({
@@ -47,12 +51,12 @@ export const useDeleteMessage = (
 export const useAddReaction = (
   conversationId: string,
   messageId: string,
-  options?: UseMutationOptions<any, Error, any>,
+  options?: UseMutationOptions<MessageResponseDto, Error, AddReactionDto>,
 ) => {
   const queryClient = useQueryClient();
   return useMutation({
     ...options,
-    mutationFn: (data: any) =>
+    mutationFn: (data: AddReactionDto) =>
       chatsApi.addReaction(conversationId, messageId, data),
     onSuccess: (...args) => {
       queryClient.invalidateQueries({

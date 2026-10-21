@@ -23,14 +23,15 @@ import { useGetMe, useSetAvatar, useUpdateMe } from "../hooks/useProfile";
 
 export function EditProfileScreen() {
   const router = useRouter();
-  const { data: user } = useGetMe();
+  const { data: user, isLoading: isUserLoading } = useGetMe();
   const setAvatarMutation = useSetAvatar();
 
-  const [name, setName] = useState(user?.displayName || "Roberto William");
-  const [phoneNumber, setPhoneNumber] = useState(
-    user?.phoneNumber || "85830544382",
-  );
+  // Derived state pattern: track user input without cascading effect re-renders
+  const [nameInput, setNameInput] = useState<string | null>(null);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+
+  const name = nameInput ?? user?.displayName ?? "";
+  const phoneNumber = user?.phoneNumber ?? "";
 
   const { mutate: updateProfile, isPending } = useUpdateMe({
     onSuccess: (data) => {
@@ -81,8 +82,17 @@ export function EditProfileScreen() {
   };
 
   const handleSave = () => {
-    updateProfile({ displayName: name });
+    if (!name.trim()) return;
+    updateProfile({ displayName: name.trim() });
   };
+
+  if (isUserLoading && !user) {
+    return (
+      <ScreenContainer className="flex-1 bg-app dark:bg-app-dark items-center justify-center">
+        <ActivityIndicator size="large" color="#10B981" />
+      </ScreenContainer>
+    );
+  }
 
   return (
     <ScreenContainer
@@ -134,7 +144,7 @@ export function EditProfileScreen() {
         <BaseInput
           label="Name"
           value={name}
-          onChangeText={setName}
+          onChangeText={setNameInput}
           leftComponent={
             <View className="mr-3">
               <UserIcon width={24} height={24} color="#6E8597" />
@@ -146,7 +156,7 @@ export function EditProfileScreen() {
           <PhoneInput
             label="Phone Number"
             value={phoneNumber}
-            onChangePhoneNumber={(raw) => setPhoneNumber(raw)}
+            onChangePhoneNumber={() => {}}
             defaultCountryCode="NG"
             disabled={true}
           />

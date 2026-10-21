@@ -5,8 +5,9 @@ import type {
   TypingStartedEventPayload,
   TypingStoppedEventPayload,
 } from "@/types/realtime";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, type InfiniteData } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
+import type { MessageHistoryResponseDto } from "../types";
 import { chatsKeys } from "./useChats";
 
 export function useChatRealtime(conversationId: string) {
@@ -31,9 +32,9 @@ export function useChatRealtime(conversationId: string) {
     // 2. Listen for real-time incoming messages
     const handleMessageCreated = (payload: MessageCreatedEventPayload) => {
       if (payload.conversationId === conversationId) {
-        queryClient.setQueriesData(
+        queryClient.setQueriesData<InfiniteData<MessageHistoryResponseDto>>(
           { queryKey: chatsKeys.messages(conversationId) },
-          (oldData: any) => {
+          (oldData) => {
             if (!oldData || !oldData.pages || oldData.pages.length === 0) {
               return {
                 pages: [
@@ -45,9 +46,9 @@ export function useChatRealtime(conversationId: string) {
                 pageParams: [undefined],
               };
             }
-            const exists = oldData.pages.some((page: any) =>
+            const exists = oldData.pages.some((page) =>
               page.items.some(
-                (msg: any) =>
+                (msg) =>
                   msg.id === payload.id ||
                   (msg.clientMessageId &&
                     payload.clientMessageId &&
@@ -55,9 +56,9 @@ export function useChatRealtime(conversationId: string) {
               ),
             );
             if (exists) {
-              const newPages = oldData.pages.map((page: any) => ({
+              const newPages = oldData.pages.map((page) => ({
                 ...page,
-                items: page.items.map((msg: any) =>
+                items: page.items.map((msg) =>
                   msg.id === payload.id ||
                   (msg.clientMessageId &&
                     payload.clientMessageId &&

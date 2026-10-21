@@ -125,6 +125,14 @@ export interface MessageAttachmentDto {
   type?: string;
 }
 
+export interface MessageReactionDto {
+  emoji: string;
+  userId: string;
+  createdAt?: string;
+}
+
+export type LocalMessageStatus = "pending" | "sent" | "failed";
+
 export interface MessageResponseDto {
   id: string;
   conversationId: string;
@@ -133,7 +141,21 @@ export interface MessageResponseDto {
   kind: "text" | "image" | "audio" | "video" | "document";
   text?: string;
   attachments?: MessageAttachmentResponseDto[];
+  reactions?: MessageReactionDto[];
+  replyToMessageId?: string | null;
+  version?: number;
+  deletedAt?: string | null;
   createdAt: string;
+  updatedAt?: string;
+  status?: LocalMessageStatus;
+}
+
+export interface UpdateMessageDto {
+  text?: string;
+}
+
+export interface AddReactionDto {
+  emoji: string;
 }
 
 export interface MessagePageInfoDto {

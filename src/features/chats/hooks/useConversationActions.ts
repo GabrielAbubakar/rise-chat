@@ -1,6 +1,7 @@
 import { profileKeys, useGetMe } from "@/features/settings/hooks/useProfile";
 import { ProfileResponseDto } from "@/features/settings/types";
 import {
+  InfiniteData,
   useMutation,
   UseMutationOptions,
   useQueryClient,
@@ -11,6 +12,7 @@ import {
   ConversationResponseDto,
   ConversationSettingsResponseDto,
   CreateDirectConversationDto,
+  MessageHistoryResponseDto,
   MessageResponseDto,
   MuteConversationDto,
   SendMessageDto,
@@ -47,13 +49,17 @@ export const useCreateDirectConversation = (
   });
 };
 
+export interface SendMessageContext {
+  previousData?: InfiniteData<MessageHistoryResponseDto>;
+}
+
 export const useSendMessage = (
   conversationId: string,
   options?: UseMutationOptions<
     MessageResponseDto,
     Error,
     SendMessageDto,
-    { previousData: unknown }
+    SendMessageContext
   >,
 ) => {
   const queryClient = useQueryClient();
@@ -71,7 +77,8 @@ export const useSendMessage = (
       await queryClient.cancelQueries({
         queryKey: chatsKeys.messages(conversationId),
       });
-      const previousData = queryClient.getQueryData(msgKey);
+      const previousData =
+        queryClient.getQueryData<InfiniteData<MessageHistoryResponseDto>>(msgKey);
 
       const optimisticMsg: MessageResponseDto = {
         id: `temp_${Date.now()}`,
@@ -81,27 +88,31 @@ export const useSendMessage = (
         kind: newMessageDto.attachmentMediaIds?.length ? "image" : "text",
         text: newMessageDto.text || "",
         createdAt: new Date().toISOString(),
+        status: "pending",
       };
 
-      queryClient.setQueryData(msgKey, (oldData: any) => {
-        if (!oldData || !oldData.pages || oldData.pages.length === 0) {
-          return {
-            pages: [
-              {
-                items: [optimisticMsg],
-                pageInfo: { hasNextPage: false, nextCursor: null },
-              },
-            ],
-            pageParams: [undefined],
+      queryClient.setQueryData<InfiniteData<MessageHistoryResponseDto>>(
+        msgKey,
+        (oldData) => {
+          if (!oldData || !oldData.pages || oldData.pages.length === 0) {
+            return {
+              pages: [
+                {
+                  items: [optimisticMsg],
+                  pageInfo: { hasNextPage: false, nextCursor: null },
+                },
+              ],
+              pageParams: [undefined],
+            };
+          }
+          const newPages = [...oldData.pages];
+          newPages[0] = {
+            ...newPages[0],
+            items: [optimisticMsg, ...newPages[0].items],
           };
-        }
-        const newPages = [...oldData.pages];
-        newPages[0] = {
-          ...newPages[0],
-          items: [optimisticMsg, ...newPages[0].items],
-        };
-        return { ...oldData, pages: newPages };
-      });
+          return { ...oldData, pages: newPages };
+        },
+      );
 
       let consumerContext: any;
       if (options?.onMutate) {
@@ -114,40 +125,46 @@ export const useSendMessage = (
       const currentUser =
         user ?? queryClient.getQueryData<ProfileResponseDto>(profileKeys.me());
       const msgKey = [...chatsKeys.messages(conversationId), currentUser?.id];
-      queryClient.setQueryData(msgKey, (oldData: any) => {
-        if (!oldData || !oldData.pages) return oldData;
-        const newPages = oldData.pages.map((page: any) => ({
-          ...page,
-          items: page.items.map((item: any) =>
-            item.clientMessageId === variables.clientMessageId ||
-            item.id === realMsg.id
-              ? realMsg
-              : item,
-          ),
-        }));
-        return { ...oldData, pages: newPages };
-      });
+      queryClient.setQueryData<InfiniteData<MessageHistoryResponseDto>>(
+        msgKey,
+        (oldData) => {
+          if (!oldData || !oldData.pages) return oldData;
+          const newPages = oldData.pages.map((page) => ({
+            ...page,
+            items: page.items.map((item) =>
+              item.clientMessageId === variables.clientMessageId ||
+              item.id === realMsg.id
+                ? { ...realMsg, status: "sent" as const }
+                : item,
+            ),
+          }));
+          return { ...oldData, pages: newPages };
+        },
+      );
       queryClient.invalidateQueries({ queryKey: chatsKeys.list() });
       if (options?.onSuccess) {
         options.onSuccess(realMsg, variables, context, mutation);
       }
     },
-    onError: (err, variables, context: any, mutation) => {
+    onError: (err, variables, context, mutation) => {
       if (context?.previousData) {
         const currentUser =
           user ?? queryClient.getQueryData<ProfileResponseDto>(profileKeys.me());
         const msgKey = [...chatsKeys.messages(conversationId), currentUser?.id];
-        
-        queryClient.setQueryData(msgKey, (oldData: any) => {
-          if (!oldData || !oldData.pages) return oldData;
-          const newPages = oldData.pages.map((page: any) => ({
-            ...page,
-            items: page.items.filter(
-              (item: any) => item.clientMessageId !== variables.clientMessageId
-            ),
-          }));
-          return { ...oldData, pages: newPages };
-        });
+
+        queryClient.setQueryData<InfiniteData<MessageHistoryResponseDto>>(
+          msgKey,
+          (oldData) => {
+            if (!oldData || !oldData.pages) return oldData;
+            const newPages = oldData.pages.map((page) => ({
+              ...page,
+              items: page.items.filter(
+                (item) => item.clientMessageId !== variables.clientMessageId,
+              ),
+            }));
+            return { ...oldData, pages: newPages };
+          },
+        );
       }
       if (options?.onError) {
         options.onError(err, variables, context, mutation);
