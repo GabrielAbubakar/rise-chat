@@ -7,7 +7,7 @@ import type {
   TypingStoppedEventPayload,
 } from "@/types/realtime";
 import { useQueryClient, type InfiniteData } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { MessageHistoryResponseDto } from "../types";
 import { chatsKeys } from "./useChats";
 
@@ -15,37 +15,43 @@ export function useChatRealtime(
   conversationId: string,
   targetUserId?: string,
 ) {
-  const { socket } = useRealtime();
+  const { socket, reconcileVersion } = useRealtime();
   const { data: currentUser } = useGetMe();
   const currentUserId = currentUser?.id;
   const queryClient = useQueryClient();
-  const [isOtherTyping, setIsOtherTyping] = useState(false);
-  const [isOtherOnline, setIsOtherOnline] = useState(false);
+
+  const [onlineUserIds, setOnlineUserIds] = useState<Set<string>>(new Set());
+  const [typingUserIds, setTypingUserIds] = useState<Set<string>>(new Set());
+  const typingTimeoutsRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(
+    new Map(),
+  );
 
   useEffect(() => {
     if (!socket || !conversationId) return;
 
+    // Invalidate conversation messages on reconnection to catch any missed messages
+    if (reconcileVersion > 0) {
+      queryClient.invalidateQueries({
+        queryKey: chatsKeys.messages(conversationId),
+      });
+    }
+
     // 1. Subscribe to conversation presence
     socket.emit("presence.subscribe", { conversationId }, (ack) => {
-      if (ack.ok) {
-        if (targetUserId) {
-          const other = ack.data.participants.find(
-            (p) => p.userId === targetUserId,
-          );
-          setIsOtherOnline(other?.status === "online");
-        } else {
-          // If no specific targetUserId, exclude the current user from presence determination
-          const other = ack.data.participants.find(
-            (p) => (currentUserId ? p.userId !== currentUserId : true),
-          );
-          if (other && currentUserId && other.userId !== currentUserId) {
-            setIsOtherOnline(other.status === "online");
-          } else {
-            setIsOtherOnline(false);
+      if (ack.ok && ack.data?.participants) {
+        const nextOnline = new Set<string>();
+        for (const p of ack.data.participants) {
+          if (
+            p.userId &&
+            (!currentUserId || p.userId !== currentUserId) &&
+            p.status === "online"
+          ) {
+            nextOnline.add(p.userId);
           }
         }
+        setOnlineUserIds(nextOnline);
       } else {
-        setIsOtherOnline(false);
+        setOnlineUserIds(new Set());
       }
     });
 
@@ -104,40 +110,71 @@ export function useChatRealtime(
       }
     };
 
-    // 3. Listen for presence changes
+    // 3. Listen for presence changes (tracked per userId, excluding self)
     const handlePresenceChanged = (payload: PresenceChangedEventPayload) => {
       if (payload.conversationId !== conversationId) return;
-      // Do not react to current user's own presence updates
       if (currentUserId && payload.userId === currentUserId) return;
 
-      if (targetUserId) {
-        if (payload.userId === targetUserId) {
-          setIsOtherOnline(payload.status === "online");
+      setOnlineUserIds((prev) => {
+        const next = new Set(prev);
+        if (payload.status === "online") {
+          next.add(payload.userId);
+        } else {
+          next.delete(payload.userId);
         }
-      } else {
-        setIsOtherOnline(payload.status === "online");
-      }
+        return next;
+      });
     };
 
-    // 4. Listen for typing indicators
+    // 4. Listen for typing indicators with auto-expiry
     const handleTypingStarted = (payload: TypingStartedEventPayload) => {
       if (payload.conversationId !== conversationId) return;
-      // Do not react to current user's own typing updates
       if (currentUserId && payload.userId === currentUserId) return;
+      if (targetUserId && payload.userId !== targetUserId) return;
 
-      if (!targetUserId || payload.userId === targetUserId) {
-        setIsOtherTyping(true);
+      // Clear any prior expiry timer for this user
+      const existing = typingTimeoutsRef.current.get(payload.userId);
+      if (existing) {
+        clearTimeout(existing);
       }
+
+      // Automatically expire typing indicator after 5 seconds if no stop received
+      const timer = setTimeout(() => {
+        setTypingUserIds((prev) => {
+          if (!prev.has(payload.userId)) return prev;
+          const next = new Set(prev);
+          next.delete(payload.userId);
+          return next;
+        });
+        typingTimeoutsRef.current.delete(payload.userId);
+      }, 5000);
+
+      typingTimeoutsRef.current.set(payload.userId, timer);
+
+      setTypingUserIds((prev) => {
+        if (prev.has(payload.userId)) return prev;
+        const next = new Set(prev);
+        next.add(payload.userId);
+        return next;
+      });
     };
 
     const handleTypingStopped = (payload: TypingStoppedEventPayload) => {
       if (payload.conversationId !== conversationId) return;
-      // Do not react to current user's own typing updates
       if (currentUserId && payload.userId === currentUserId) return;
 
-      if (!targetUserId || payload.userId === targetUserId) {
-        setIsOtherTyping(false);
+      const existing = typingTimeoutsRef.current.get(payload.userId);
+      if (existing) {
+        clearTimeout(existing);
+        typingTimeoutsRef.current.delete(payload.userId);
       }
+
+      setTypingUserIds((prev) => {
+        if (!prev.has(payload.userId)) return prev;
+        const next = new Set(prev);
+        next.delete(payload.userId);
+        return next;
+      });
     };
 
     socket.on("message.created", handleMessageCreated);
@@ -146,15 +183,26 @@ export function useChatRealtime(
     socket.on("typing.stopped", handleTypingStopped);
 
     return () => {
-      setIsOtherOnline(false);
-      setIsOtherTyping(false);
+      // Clear all active typing timers and reset transient state on unmount/conversation switch
+      typingTimeoutsRef.current.forEach((t) => clearTimeout(t));
+      typingTimeoutsRef.current.clear();
+      setTypingUserIds(new Set());
+      setOnlineUserIds(new Set());
+
       socket.emit("presence.unsubscribe", { conversationId }, () => {});
       socket.off("message.created", handleMessageCreated);
       socket.off("presence.changed", handlePresenceChanged);
       socket.off("typing.started", handleTypingStarted);
       socket.off("typing.stopped", handleTypingStopped);
     };
-  }, [socket, conversationId, targetUserId, currentUserId, queryClient]);
+  }, [
+    socket,
+    conversationId,
+    targetUserId,
+    currentUserId,
+    queryClient,
+    reconcileVersion,
+  ]);
 
   const sendTypingStart = () => {
     if (socket && conversationId) {
@@ -168,10 +216,21 @@ export function useChatRealtime(
     }
   };
 
+  const isOtherOnline = targetUserId
+    ? onlineUserIds.has(targetUserId)
+    : onlineUserIds.size > 0;
+
+  const isOtherTyping = targetUserId
+    ? typingUserIds.has(targetUserId)
+    : typingUserIds.size > 0;
+
   return {
     isOtherOnline,
     isOtherTyping,
+    onlineUserIds,
+    typingUserIds,
     sendTypingStart,
     sendTypingStop,
   };
 }
+
