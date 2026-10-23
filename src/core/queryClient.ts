@@ -1,8 +1,16 @@
 import { createZustandStorage } from "@store/storage";
 import { createAsyncStoragePersister } from "@tanstack/query-async-storage-persister";
-import { QueryClient } from "@tanstack/react-query";
+import { focusManager, QueryClient } from "@tanstack/react-query";
+import { AppState, type AppStateStatus, Platform } from "react-native";
 
 const mmkvPersister = createZustandStorage("react-query-cache");
+
+// Connect React Native AppState to TanStack Query's focus manager
+if (Platform.OS !== "web") {
+  AppState.addEventListener("change", (status: AppStateStatus) => {
+    focusManager.setFocused(status === "active");
+  });
+}
 
 export const queryClient = new QueryClient({
   defaultOptions: {
@@ -18,3 +26,4 @@ export const queryClient = new QueryClient({
 export const clientPersister = createAsyncStoragePersister({
   storage: mmkvPersister,
 });
+

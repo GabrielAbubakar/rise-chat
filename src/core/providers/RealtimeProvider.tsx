@@ -9,6 +9,7 @@ import {
   useState,
   type PropsWithChildren,
 } from "react";
+import { AppState } from "react-native";
 import { io } from "socket.io-client";
 import type { ChatSocket } from "@/types/realtime";
 
@@ -156,10 +157,27 @@ export function RealtimeProvider({
       next.on("receipt.delivered", bumpActivity);
       next.on("receipt.read", bumpActivity);
 
+      const appStateSub = AppState.addEventListener("change", async (state) => {
+        if (state === "active" && active && next && !next.connected) {
+          console.log("📱 [Realtime] App foregrounded, checking socket connection...");
+          try {
+            const currentToken = await tokenStorage.getAccessToken();
+            if (currentToken && next && !next.connected) {
+              next.auth = { token: currentToken };
+              next.connect();
+            }
+          } catch (e) {
+            console.error("Failed to reconnect on app foreground", e);
+          }
+        }
+      });
+
       return () => {
         unsubscribeTokenRefresh();
+        appStateSub.remove();
       };
     });
+
 
     return () => {
       active = false;

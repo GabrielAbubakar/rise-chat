@@ -47,14 +47,15 @@ export function ChatsScreen() {
   const displayConversations =
     conversations?.pages.flatMap((page) => page.items) || [];
 
-  const { activityVersion } = useRealtime();
+  const { activityVersion, reconcileVersion } = useRealtime();
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    if (activityVersion > 0) {
+    if (activityVersion > 0 || reconcileVersion > 0) {
       queryClient.invalidateQueries({ queryKey: chatsKeys.list() });
     }
-  }, [activityVersion, queryClient]);
+  }, [activityVersion, reconcileVersion, queryClient]);
+
 
   const handleNewChatPress = () => {
     newChatBottomSheetRef.current?.present();
