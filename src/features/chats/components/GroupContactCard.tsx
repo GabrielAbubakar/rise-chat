@@ -3,7 +3,8 @@ import { Pressable, View } from "react-native";
 import { Avatar, BaseText } from "@/shared/components";
 import { useThemeColors } from "@/shared/hooks";
 import CheckIcon from "@/assets/icons/solid/check.svg";
-import { ContactItem } from "./NewChatBottomSheet";
+import type { ContactItem } from "../hooks/useContactDiscovery";
+
 
 export interface GroupContactCardProps {
   item: ContactItem;

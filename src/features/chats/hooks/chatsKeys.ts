@@ -1,6 +1,7 @@
 export const chatsKeys = {
   all: ["chats"] as const,
   discovery: () => [...chatsKeys.all, "discovery"] as const,
+  contacts: () => [...chatsKeys.discovery(), "contacts"] as const,
   search: (q: string) => [...chatsKeys.discovery(), "search", q] as const,
   conversations: () => [...chatsKeys.all, "conversations"] as const,
   list: () => [...chatsKeys.conversations(), "list"] as const,

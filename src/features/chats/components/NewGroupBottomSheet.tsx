@@ -1,6 +1,5 @@
 import { uploadMedia } from "@/features/media/services";
 import {
-  Avatar,
   BaseBottomSheet,
   BaseButton,
   BaseInput,
@@ -13,14 +12,12 @@ import {
   BottomSheetScrollView,
   BottomSheetTextInput,
 } from "@gorhom/bottom-sheet";
-import * as Contacts from "expo-contacts/legacy";
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
-import React, {
+import {
   forwardRef,
   useCallback,
   useDeferredValue,
-  useEffect,
   useMemo,
   useState,
 } from "react";
@@ -32,13 +29,11 @@ import SearchIcon from "@/assets/icons/solid/search.svg";
 import { useThemeColors } from "@/shared/hooks";
 import { useRouter } from "expo-router";
 import { useColorScheme } from "nativewind";
+import { useCreateGroup, useSearchUsers } from "../hooks/useChats";
 import {
-  useCreateGroup,
-  useMatchContacts,
-  useSearchUsers,
-} from "../hooks/useChats";
-import { ContactMatchDto } from "../types";
-import { ContactItem } from "./NewChatBottomSheet";
+  useContactDiscovery,
+  type ContactItem,
+} from "../hooks/useContactDiscovery";
 import { GroupContactCard } from "./GroupContactCard";
 
 export type NewGroupBottomSheetProps = object;
@@ -79,18 +74,14 @@ export const NewGroupBottomSheet = forwardRef<
     }
   };
 
-  const [contacts, setContacts] = useState<ContactItem[]>([]);
-  const [matchedUsers, setMatchedUsers] = useState<ContactMatchDto[]>([]);
-  const [permissionStatus, setPermissionStatus] =
-    useState<Contacts.PermissionStatus | null>(null);
-
   const [resetKey, setResetKey] = useState(0); // Used to remount uncontrolled inputs on dismiss
 
-  const { mutate: matchContacts } = useMatchContacts({
-    onSuccess: (data) => {
-      setMatchedUsers(data.matches || []);
-    },
-  });
+  // Normalized, deduplicated, and batched contact discovery
+  const {
+    localContacts: contacts,
+    matchedUsers,
+    permissionStatus,
+  } = useContactDiscovery(isOpen);
 
   const createGroupMutation = useCreateGroup();
 
@@ -138,51 +129,6 @@ export const NewGroupBottomSheet = forwardRef<
       setIsUploadingAvatar(false);
     }
   };
-
-  useEffect(() => {
-    if (!isOpen) return;
-    let isMounted = true;
-    (async () => {
-      try {
-        const { status } = await Contacts.requestPermissionsAsync();
-        if (!isMounted) return;
-        setPermissionStatus(status);
-
-        if (status === "granted") {
-          const { data } = await Contacts.getContactsAsync({
-            fields: [Contacts.Fields.PhoneNumbers, Contacts.Fields.Image],
-          });
-          if (!isMounted) return;
-
-          if (data.length > 0) {
-            const mappedContacts: ContactItem[] = data
-              .filter((c) => c.name)
-              .map((c) => ({
-                id: c.id,
-                name: c.name,
-                phone: c.phoneNumbers?.[0]?.number,
-                avatar: c.imageAvailable && c.image ? c.image.uri : undefined,
-              }));
-
-            setContacts(mappedContacts);
-
-            const phoneNumbers = data
-              .flatMap((c) => c.phoneNumbers?.map((p) => p.number))
-              .filter((num): num is string => Boolean(num));
-
-            if (phoneNumbers.length > 0) {
-              matchContacts({ phoneNumbers });
-            }
-          }
-        }
-      } catch (error) {
-        console.error("Failed to fetch contacts", error);
-      }
-    })();
-    return () => {
-      isMounted = false;
-    };
-  }, [isOpen, matchContacts]);
 
   const processedContacts = useMemo(() => {
     const matchedPhoneMap = new Map<string, string>();
@@ -295,11 +241,11 @@ export const NewGroupBottomSheet = forwardRef<
         }
       />
 
-      {permissionStatus === "denied" ? (
+      {permissionStatus === "denied" && deferredSearchQuery.length < 3 ? (
         <View className="flex-1 items-center justify-center px-10">
           <BaseText className="text-center text-neutral-500 dark:text-neutral-400 font-sf-medium">
-            Contacts permission is required to find and add your friends. Please
-            enable it in your device settings.
+            Contacts permission is required to find and add your friends. You
+            can still search for users globally above.
           </BaseText>
         </View>
       ) : isGlobalSearching ? (
