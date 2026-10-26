@@ -1,10 +1,17 @@
 import { useGetMe } from "@/features/settings/hooks/useProfile";
-import { ScreenContainer } from "@/shared/components";
+import {
+  BaseButton,
+  BaseText,
+  ScreenContainer,
+  ScreenHeader,
+} from "@/shared/components";
 import { isSameDay, showApiErrorToast, showInfoToast } from "@/shared/utils";
+import { Ionicons } from "@expo/vector-icons";
 import { LegendList } from "@legendapp/list/react-native";
 import * as DocumentPicker from "expo-document-picker";
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
+import { useRouter } from "expo-router";
 import { useColorScheme } from "nativewind";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -54,6 +61,7 @@ export interface ChatDetailScreenProps {
 }
 
 export function ChatDetailScreen({ id, search }: ChatDetailScreenProps) {
+  const router = useRouter();
   const insets = useSafeAreaInsets();
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === "dark";
@@ -63,7 +71,11 @@ export function ChatDetailScreen({ id, search }: ChatDetailScreenProps) {
   const conversationId = id || "";
 
   // API Hooks
-  const { data: conversationDetail } = useConversationDetail(conversationId, {
+  const {
+    data: conversationDetail,
+    isLoading: isConversationLoading,
+    isError: isConversationError,
+  } = useConversationDetail(conversationId, {
     enabled: !!conversationId,
   });
 
@@ -474,7 +486,56 @@ export function ChatDetailScreen({ id, search }: ChatDetailScreenProps) {
     ],
   );
 
-  // console.log(messages);
+  if (isConversationLoading) {
+    return (
+      <ScreenContainer
+        className="flex-1 bg-app dark:bg-app-dark items-center justify-center"
+        withPadding={false}
+      >
+        <ActivityIndicator size="large" color="#4ADE80" />
+      </ScreenContainer>
+    );
+  }
+
+  if (!conversationId || isConversationError || !conversationDetail) {
+    return (
+      <ScreenContainer
+        className="flex-1 bg-app dark:bg-app-dark"
+        withPadding={false}
+      >
+        <ScreenHeader
+          title="Conversation"
+          onBack={() => router.replace("/(tabs)/chats")}
+        />
+        <View className="flex-1 items-center justify-center px-6">
+          <View className="w-16 h-16 rounded-full bg-red-100 dark:bg-red-950/40 items-center justify-center mb-4">
+            <Ionicons
+              name="chatbubble-ellipses-outline"
+              size={32}
+              color="#EF4444"
+            />
+          </View>
+          <BaseText type="h3" className="text-center font-sf-bold mb-2">
+            Conversation Unavailable
+          </BaseText>
+          <BaseText
+            color="secondary"
+            className="text-center text-sm mb-6 max-w-[280px]"
+          >
+            This conversation does not exist, has been deleted, or you no longer
+            have access to it.
+          </BaseText>
+          <BaseButton
+            title="Return to Chats"
+            variant="primary"
+            onPress={() => router.replace("/(tabs)/chats")}
+            accessibilityRole="button"
+            accessibilityLabel="Return to chats list"
+          />
+        </View>
+      </ScreenContainer>
+    );
+  }
 
   return (
     <ScreenContainer

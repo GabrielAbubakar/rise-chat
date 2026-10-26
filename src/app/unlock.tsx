@@ -3,6 +3,7 @@ import { PinKeypad } from "@/features/security/components/PinKeypad";
 import { verifyPinCode } from "@/services/security/pin";
 import { BaseText, ScreenContainer } from "@/shared/components";
 import { colors } from "@/shared/constants/tokens";
+import { useAppStore } from "@/store/useAppStore";
 import { useSecurityStore } from "@/store/useSecurityStore";
 import * as LocalAuthentication from "expo-local-authentication";
 import { useRouter } from "expo-router";
@@ -16,8 +17,19 @@ export default function UnlockScreen() {
   const isBiometricsEnabled = useSecurityStore(
     (state) => state.isBiometricsEnabled,
   );
+  const pendingRoute = useAppStore((state) => state.pendingRoute);
+  const setPendingRoute = useAppStore((state) => state.setPendingRoute);
   const [pin, setPin] = useState("");
   const [isVerifying, setIsVerifying] = useState(false);
+
+  const navigateToDestination = useCallback(() => {
+    setAppUnlocked(true);
+    const destination = pendingRoute || "/(tabs)/chats";
+    if (pendingRoute) {
+      setPendingRoute(null);
+    }
+    router.replace(destination as any);
+  }, [pendingRoute, router, setAppUnlocked, setPendingRoute]);
 
   const promptBiometrics = useCallback(async () => {
     try {
@@ -32,13 +44,12 @@ export default function UnlockScreen() {
       });
 
       if (result.success) {
-        setAppUnlocked(true);
-        router.replace("/(tabs)/chats");
+        navigateToDestination();
       }
     } catch (e) {
       console.error("Biometric unlock error", e);
     }
-  }, [router, setAppUnlocked]);
+  }, [navigateToDestination]);
 
   useEffect(() => {
     if (isBiometricsEnabled) {
@@ -55,8 +66,7 @@ export default function UnlockScreen() {
         const isValid = await verifyPinCode(newPin);
 
         if (isValid) {
-          setAppUnlocked(true);
-          router.replace("/(tabs)/chats");
+          navigateToDestination();
         } else {
           Toast.show({
             type: "error",
