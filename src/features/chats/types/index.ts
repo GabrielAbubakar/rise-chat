@@ -106,6 +106,7 @@ export interface SendMessageDto {
   clientMessageId: string;
   text?: string;
   attachmentMediaIds?: string[];
+  replyToMessageId?: string;
 }
 
 export interface MessageAttachmentResponseDto {
