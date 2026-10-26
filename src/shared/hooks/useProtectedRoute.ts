@@ -1,8 +1,8 @@
-import { useAuthStore } from "@/store/useAuthStore";
-import { useAppStore } from "@/store";
-import { useSecurityStore } from "@/store/useSecurityStore";
 import { useGetMe } from "@/features/settings/hooks/useProfile";
-import { useSegments, useRouter } from "expo-router";
+import { useAppStore } from "@/store";
+import { useAuthStore } from "@/store/useAuthStore";
+import { useSecurityStore } from "@/store/useSecurityStore";
+import { useRouter, useSegments } from "expo-router";
 import { useEffect } from "react";
 
 export function useProtectedRoute(isAppReady: boolean) {
@@ -10,7 +10,7 @@ export function useProtectedRoute(isAppReady: boolean) {
   const router = useRouter();
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const hasSeenOnboarding = useAppStore((state) => state.hasSeenOnboarding);
-  
+
   const isPinSet = useSecurityStore((state) => state.isPinSet);
   const isAppUnlocked = useSecurityStore((state) => state.isAppUnlocked);
 
@@ -58,5 +58,14 @@ export function useProtectedRoute(isAppReady: boolean) {
         }
       }
     }
-  }, [user, isAuthenticated, segments, isAppReady, router, hasSeenOnboarding, isPinSet, isAppUnlocked]);
+  }, [
+    user,
+    isAuthenticated,
+    segments,
+    isAppReady,
+    router,
+    hasSeenOnboarding,
+    isPinSet,
+    isAppUnlocked,
+  ]);
 }

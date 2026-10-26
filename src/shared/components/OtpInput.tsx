@@ -1,8 +1,8 @@
-import React, { useRef, useState } from "react";
-import { View, TextInput, Pressable } from "react-native";
-import { BaseText } from "./BaseText";
-import { tv } from "tailwind-variants";
 import { useThemeColors } from "@/shared/hooks";
+import { useRef, useState } from "react";
+import { Pressable, TextInput, View } from "react-native";
+import { tv } from "tailwind-variants";
+import { BaseText } from "./BaseText";
 
 const boxVariants = tv({
   base: "h-16 flex-1 border rounded-2xl items-center justify-center bg-transparent",
@@ -25,7 +25,12 @@ export interface OtpInputProps {
   isError?: boolean;
 }
 
-export function OtpInput({ length = 4, value, onChangeText, isError }: OtpInputProps) {
+export function OtpInput({
+  length = 4,
+  value,
+  onChangeText,
+  isError,
+}: OtpInputProps) {
   const inputRef = useRef<TextInput>(null);
   const [isFocused, setIsFocused] = useState(false);
   const { primary } = useThemeColors();
@@ -33,7 +38,10 @@ export function OtpInput({ length = 4, value, onChangeText, isError }: OtpInputP
   const boxes = Array.from({ length }).map((_, index) => {
     const char = value[index] || "";
     // Box is active if it's the current one to be typed into, or if it already has a value
-    const isCurrent = isFocused && (value.length === index || (index === length - 1 && value.length === length));
+    const isCurrent =
+      isFocused &&
+      (value.length === index ||
+        (index === length - 1 && value.length === length));
     const hasValue = char !== "";
     const isActiveState = !isError && (isCurrent || hasValue);
 
@@ -45,7 +53,9 @@ export function OtpInput({ length = 4, value, onChangeText, isError }: OtpInputP
         })}
         style={isActiveState ? { borderColor: primary } : undefined}
       >
-        <BaseText className="text-3xl font-display text-black dark:text-white">{char}</BaseText>
+        <BaseText className="text-3xl font-display text-black dark:text-white">
+          {char}
+        </BaseText>
       </View>
     );
   });

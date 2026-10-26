@@ -1,6 +1,7 @@
 import { env } from "@/core/config/env";
 import { tokenStorage } from "@/services/api/token";
 import { useAuthStore } from "@/store/useAuthStore";
+import type { ChatSocket } from "@/types/realtime";
 import {
   createContext,
   useContext,
@@ -11,7 +12,6 @@ import {
 } from "react";
 import { AppState } from "react-native";
 import { io } from "socket.io-client";
-import type { ChatSocket } from "@/types/realtime";
 
 export type RealtimeStatus =
   | "connecting"
@@ -57,7 +57,10 @@ export function RealtimeProvider({
       }
 
       const socketUrl = env.EXPO_PUBLIC_WS_URL;
-      console.log("🔌 [Realtime] Initializing socket connection to:", socketUrl);
+      console.log(
+        "🔌 [Realtime] Initializing socket connection to:",
+        socketUrl,
+      );
 
       const next = io(socketUrl, {
         auth: { token },
@@ -77,7 +80,9 @@ export function RealtimeProvider({
       const unsubscribeTokenRefresh = tokenStorage.onTokenRefreshed(
         (newToken) => {
           if (!active || !next) return;
-          console.log("🔄 [Realtime] Syncing rotated access token to socket auth");
+          console.log(
+            "🔄 [Realtime] Syncing rotated access token to socket auth",
+          );
           next.auth = { token: newToken };
           if (!next.connected) {
             next.connect();
@@ -86,20 +91,25 @@ export function RealtimeProvider({
       );
 
       const onConnect = () => {
-        console.log("⚡ [Realtime] Connected to socket server successfully. Socket ID:", next.id);
+        console.log(
+          "⚡ [Realtime] Connected to socket server successfully. Socket ID:",
+          next.id,
+        );
         setStatus("connected");
         setReconcileVersion((value) => value + 1);
       };
 
       const onDisconnect = async (reason: string) => {
-        console.log("🔌 [Realtime] Disconnected:", reason);
+        console.log("🔌❌ [Realtime] Disconnected:", reason);
         setStatus("disconnected");
 
         // The backend disconnects sockets when access tokens expire.
         // Socket.IO does not auto-reconnect on server-initiated disconnects; reconnect explicitly.
         if (reason === "io server disconnect" && active) {
           try {
-            console.log("🔄 [Realtime] Re-authenticating after server disconnect...");
+            console.log(
+              "🔄 [Realtime] Re-authenticating after server disconnect...",
+            );
             const currentToken = await tokenStorage.getAccessToken();
             if (currentToken && next) {
               next.auth = { token: currentToken };
@@ -112,7 +122,9 @@ export function RealtimeProvider({
       };
 
       const onReconnectAttempt = async (attempt: number) => {
-        console.log(`🔄 [Realtime] Reconnecting to socket (attempt ${attempt})...`);
+        console.log(
+          `🔄 [Realtime] Reconnecting to socket (attempt ${attempt})...`,
+        );
         setStatus("reconnecting");
         const currentToken = await tokenStorage.getAccessToken();
         if (currentToken && next) {
@@ -133,14 +145,19 @@ export function RealtimeProvider({
 
         if (isAuthError && active) {
           try {
-            console.log("🔄 [Realtime] Refreshing credentials after auth connect error...");
+            console.log(
+              "🔄 [Realtime] Refreshing credentials after auth connect error...",
+            );
             const currentToken = await tokenStorage.getAccessToken();
             if (currentToken && next) {
               next.auth = { token: currentToken };
               next.connect();
             }
           } catch (e) {
-            console.error("Failed to recover socket connection on auth error", e);
+            console.error(
+              "Failed to recover socket connection on auth error",
+              e,
+            );
           }
         }
       };
@@ -159,7 +176,9 @@ export function RealtimeProvider({
 
       const appStateSub = AppState.addEventListener("change", async (state) => {
         if (state === "active" && active && next && !next.connected) {
-          console.log("📱 [Realtime] App foregrounded, checking socket connection...");
+          console.log(
+            "📱 [Realtime] App foregrounded, checking socket connection...",
+          );
           try {
             const currentToken = await tokenStorage.getAccessToken();
             if (currentToken && next && !next.connected) {
@@ -178,12 +197,13 @@ export function RealtimeProvider({
       };
     });
 
-
     return () => {
       active = false;
       setSocket((current) => {
         if (current) {
-          console.log("🔌 [Realtime] Closing socket connection (unmount/logout)");
+          console.log(
+            "🔌❌ [Realtime] Closing socket connection (unmount/logout)",
+          );
           current.removeAllListeners();
           current.io.removeAllListeners();
           current.disconnect();
