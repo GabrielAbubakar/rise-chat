@@ -1,12 +1,25 @@
+import { BaseText } from "@/shared/components";
 import { Image } from "expo-image";
 import React from "react";
 import { Dimensions, ScrollView, View } from "react-native";
 
-import { DUMMY_PHOTOS } from "@shared/constants/dummyData";
-
 const { width: windowWidth } = Dimensions.get("window");
 
-export function MediaPhotosTab({ photos }: { photos: typeof DUMMY_PHOTOS }) {
+export interface MediaPhotoItem {
+  id: string | number;
+  url: string;
+}
+
+export function MediaPhotosTab({ photos }: { photos: MediaPhotoItem[] }) {
+  if (!photos || photos.length === 0) {
+    return (
+      <View className="flex-1 items-center justify-center py-20 px-6">
+        <BaseText className="text-center text-neutral-400 dark:text-neutral-500 font-sf-medium">
+          No photos shared in this chat yet.
+        </BaseText>
+      </View>
+    );
+  }
   return (
     <ScrollView
       showsVerticalScrollIndicator={false}

@@ -1,23 +1,32 @@
-import { useMutation, UseMutationOptions, useQueryClient } from "@tanstack/react-query";
+import {
+  useMutation,
+  UseMutationOptions,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { chatsApi } from "../api";
-import { MessageResponseDto } from "../types";
+import {
+  AddReactionDto,
+  MessageResponseDto,
+  UpdateMessageDto,
+} from "../types";
 import { chatsKeys } from "./chatsKeys";
 
 export const useUpdateMessage = (
   conversationId: string,
   messageId: string,
-  options?: UseMutationOptions<MessageResponseDto, Error, any>,
+  options?: UseMutationOptions<MessageResponseDto, Error, UpdateMessageDto>,
 ) => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (data: any) => chatsApi.updateMessage(conversationId, messageId, data),
+    ...options,
+    mutationFn: (data: UpdateMessageDto) =>
+      chatsApi.updateMessage(conversationId, messageId, data),
     onSuccess: (...args) => {
       queryClient.invalidateQueries({
         queryKey: chatsKeys.messages(conversationId),
       });
       if (options?.onSuccess) options.onSuccess(...args);
     },
-    ...options,
   });
 };
 
@@ -28,6 +37,7 @@ export const useDeleteMessage = (
 ) => {
   const queryClient = useQueryClient();
   return useMutation({
+    ...options,
     mutationFn: () => chatsApi.deleteMessage(conversationId, messageId),
     onSuccess: (...args) => {
       queryClient.invalidateQueries({
@@ -35,25 +45,25 @@ export const useDeleteMessage = (
       });
       if (options?.onSuccess) options.onSuccess(...args);
     },
-    ...options,
   });
 };
 
 export const useAddReaction = (
   conversationId: string,
   messageId: string,
-  options?: UseMutationOptions<any, Error, any>,
+  options?: UseMutationOptions<MessageResponseDto, Error, AddReactionDto>,
 ) => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (data: any) => chatsApi.addReaction(conversationId, messageId, data),
+    ...options,
+    mutationFn: (data: AddReactionDto) =>
+      chatsApi.addReaction(conversationId, messageId, data),
     onSuccess: (...args) => {
       queryClient.invalidateQueries({
         queryKey: chatsKeys.messages(conversationId),
       });
       if (options?.onSuccess) options.onSuccess(...args);
     },
-    ...options,
   });
 };
 
@@ -64,6 +74,7 @@ export const useRemoveReaction = (
 ) => {
   const queryClient = useQueryClient();
   return useMutation({
+    ...options,
     mutationFn: () => chatsApi.removeReaction(conversationId, messageId),
     onSuccess: (...args) => {
       queryClient.invalidateQueries({
@@ -71,6 +82,5 @@ export const useRemoveReaction = (
       });
       if (options?.onSuccess) options.onSuccess(...args);
     },
-    ...options,
   });
 };

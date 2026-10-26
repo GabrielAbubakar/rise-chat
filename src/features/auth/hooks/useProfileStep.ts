@@ -1,31 +1,73 @@
-import { showApiErrorToast, generateUUID } from "@/shared/utils";
+import { MAX_MEDIA_SIZE_BYTES, uploadMedia } from "@/features/media/services";
+import { useSetAvatar } from "@/features/settings/hooks/useProfile";
+import { showApiErrorToast } from "@/shared/utils";
 import { useAppStore } from "@/store";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
 import { useState } from "react";
-import axios from "axios";
-import { mediaApi } from "@/features/media/api";
 import { useUpdateProfile } from "./useAuth";
+
+export type AvatarStage =
+  | "idle"
+  | "selected"
+  | "uploading"
+  | "verified"
+  | "saved"
+  | "failed";
+
+export interface SelectedPhotoAsset {
+  uri: string;
+  fileName?: string;
+  mimeType?: string;
+  fileSize?: number;
+}
 
 export function useProfileStep() {
   const router = useRouter();
   const [username, setUsername] = useState("");
-  const [photoUri, setPhotoUri] = useState<string | null>(null);
+  const [photoAsset, setPhotoAsset] = useState<SelectedPhotoAsset | null>(null);
+  const [avatarStage, setAvatarStage] = useState<AvatarStage>("idle");
+
   const setHasSeenOnboarding = useAppStore(
     (state) => state.setHasSeenOnboarding,
   );
+  const setAvatarMutation = useSetAvatar();
 
   const pickImage = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ["images"],
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 1,
-    });
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ["images"],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.9,
+      });
 
-    if (!result.canceled) {
-      setPhotoUri(result.assets[0].uri);
+      if (!result.canceled && result.assets[0]) {
+        const asset = result.assets[0];
+        if (asset.fileSize && asset.fileSize > MAX_MEDIA_SIZE_BYTES) {
+          showApiErrorToast(
+            new Error("Image exceeds 50 MB limit"),
+            "File Too Large",
+          );
+          return;
+        }
+
+        setPhotoAsset({
+          uri: asset.uri,
+          fileName: asset.fileName || `avatar_${Date.now()}.jpg`,
+          mimeType: asset.mimeType || "image/jpeg",
+          fileSize: asset.fileSize || undefined,
+        });
+        setAvatarStage("selected");
+      }
+    } catch (error: any) {
+      showApiErrorToast(error, "Failed to pick image");
     }
+  };
+
+  const removePhoto = () => {
+    setPhotoAsset(null);
+    setAvatarStage("idle");
   };
 
   const { mutate: updateProfile, isPending: isUpdatingProfile } =
@@ -39,66 +81,47 @@ export function useProfileStep() {
       },
     });
 
-  const [isUploading, setIsUploading] = useState(false);
-
   const finishRegistration = async () => {
     try {
-      let finalAvatarUrl: string | undefined = undefined;
-
-      if (photoUri) {
-        setIsUploading(true);
-        const name = `avatar_${Date.now()}.jpg`;
-        const type = "image/jpeg";
-        const size = 500000; // rough estimate
-
-        const uploadAuth = await mediaApi.createUpload({
-          clientUploadId: generateUUID(),
+      if (photoAsset) {
+        setAvatarStage("uploading");
+        const mediaAsset = await uploadMedia({
+          uri: photoAsset.uri,
           purpose: "profile_avatar",
-          contentType: type,
-          sizeBytes: size,
-          originalFilename: name,
+          fileName: photoAsset.fileName,
+          mimeType: photoAsset.mimeType,
+          sizeBytes: photoAsset.fileSize,
         });
 
-        if (uploadAuth.upload) {
-          const formData = new FormData();
-          if (uploadAuth.upload.fields) {
-            Object.entries(uploadAuth.upload.fields).forEach(([key, val]) => {
-              formData.append(key, String(val));
-            });
-          }
-
-          formData.append("file", {
-            uri: photoUri,
-            name: name,
-            type: type,
-          } as any);
-
-          await axios.post(uploadAuth.upload.url, formData, {
-            headers: { "Content-Type": "multipart/form-data" },
-          });
-
-          const completedMedia = await mediaApi.completeUpload(uploadAuth.media.id);
-          finalAvatarUrl = completedMedia.secureUrl || undefined;
-        }
+        setAvatarStage("verified");
+        await setAvatarMutation.mutateAsync({ mediaId: mediaAsset.id });
+        setAvatarStage("saved");
       }
 
       updateProfile({
         displayName: username || undefined,
-        avatarUrl: finalAvatarUrl,
       });
     } catch (error: any) {
-      showApiErrorToast(error, "Failed to upload photo");
-    } finally {
-      setIsUploading(false);
+      setAvatarStage(photoAsset ? "failed" : "idle");
+      showApiErrorToast(error, "Failed to setup profile");
     }
   };
+
+  const isBusy =
+    isUpdatingProfile ||
+    avatarStage === "uploading" ||
+    avatarStage === "verified" ||
+    setAvatarMutation.isPending;
 
   return {
     username,
     setUsername,
-    photoUri,
+    photoUri: photoAsset?.uri || null,
+    photoAsset,
+    avatarStage,
     pickImage,
-    isUpdatingProfile: isUpdatingProfile || isUploading,
+    removePhoto,
+    isUpdatingProfile: isBusy,
     finishRegistration,
   };
 }

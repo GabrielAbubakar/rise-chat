@@ -15,8 +15,8 @@ export const useRequestOtp = (
   options?: UseMutationOptions<OtpChallengeResponseDto, Error, RequestOtpDto>,
 ) => {
   return useMutation({
-    mutationFn: authApi.requestOtp,
     ...options,
+    mutationFn: authApi.requestOtp,
   });
 };
 
@@ -24,8 +24,8 @@ export const useResendOtp = (
   options?: UseMutationOptions<OtpChallengeResponseDto, Error, ResendOtpDto>,
 ) => {
   return useMutation({
-    mutationFn: authApi.resendOtp,
     ...options,
+    mutationFn: authApi.resendOtp,
   });
 };
 
@@ -33,8 +33,8 @@ export const useVerifyOtp = (
   options?: UseMutationOptions<AuthResponseDto, Error, VerifyOtpDto>,
 ) => {
   return useMutation({
-    mutationFn: authApi.verifyOtp,
     ...options,
+    mutationFn: authApi.verifyOtp,
   });
 };
 
@@ -42,8 +42,8 @@ export const useRefresh = (
   options?: UseMutationOptions<AuthResponseDto, Error, RefreshTokenDto>,
 ) => {
   return useMutation({
-    mutationFn: authApi.refresh,
     ...options,
+    mutationFn: authApi.refresh,
   });
 };
 
@@ -51,8 +51,8 @@ export const useLogout = (
   options?: UseMutationOptions<void, Error, RefreshTokenDto>,
 ) => {
   return useMutation({
-    mutationFn: authApi.logout,
     ...options,
+    mutationFn: authApi.logout,
   });
 };
 

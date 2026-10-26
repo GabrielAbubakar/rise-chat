@@ -38,7 +38,9 @@ export function MediaSummaryRows({
         <View className="flex-row items-center">
           <PhotographIcon width={22} height={22} color={primary} />
           <BaseText className="text-neutral-900 dark:text-white ml-3">
-            {photosCount || 2238} photos
+            {photosCount !== undefined
+              ? `${photosCount} ${photosCount === 1 ? "photo" : "photos"}`
+              : `${previewPhotos.length} ${previewPhotos.length === 1 ? "photo" : "photos"}`}
           </BaseText>
         </View>
         <ChevronRightIcon
@@ -48,27 +50,40 @@ export function MediaSummaryRows({
         />
       </BaseTouchableOpacity>
 
-      {/* 5 Horizontal Preview Photos */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        className="mt-1 mb-3"
-      >
-        {previewPhotos.map((photo, index) => (
-          <BaseTouchableOpacity
-            key={photo.id || index}
-            activeOpacity={0.8}
-            onPress={() => onOpenMediaTab("photos")}
-            className="mr-3 overflow-hidden rounded-xl bg-neutral-100 dark:bg-neutral-800"
-          >
-            <Image
-              source={{ uri: photo.url }}
-              style={{ width: 62, height: 62 }}
-              contentFit="cover"
-            />
-          </BaseTouchableOpacity>
-        ))}
-      </ScrollView>
+      {/* 5 Horizontal Preview Photos or Empty State */}
+      {previewPhotos.length === 0 ? (
+        <View className="py-3 px-4 rounded-xl bg-neutral-100 dark:bg-neutral-800/60 my-1 items-center justify-center">
+          <BaseText className="text-xs text-neutral-400 dark:text-neutral-500 font-sf-medium">
+            No media shared yet
+          </BaseText>
+        </View>
+      ) : (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          className="mt-1 mb-3"
+        >
+          {previewPhotos.map((photo, index) => (
+            <BaseTouchableOpacity
+              key={photo.id || index}
+              activeOpacity={0.8}
+              onPress={() => onOpenMediaTab("photos")}
+              className="mr-3 overflow-hidden rounded-xl bg-neutral-100 dark:bg-neutral-800"
+            >
+              <Image
+                source={{
+                  uri:
+                    photo.url ||
+                    photo.uri ||
+                    (typeof photo === "string" ? photo : undefined),
+                }}
+                style={{ width: 62, height: 62 }}
+                contentFit="cover"
+              />
+            </BaseTouchableOpacity>
+          ))}
+        </ScrollView>
+      )}
 
       {/* Star Messages Row */}
       <BaseTouchableOpacity

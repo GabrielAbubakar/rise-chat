@@ -3,7 +3,7 @@ import { Avatar, BaseText } from "@/shared/components";
 import { formatLastMessageTime } from "@/shared/utils";
 import { useColorScheme } from "nativewind";
 import React, { ComponentRef, useRef, useState } from "react";
-import { ActivityIndicator, Pressable, View } from "react-native";
+import { ActivityIndicator, Alert, Pressable, View } from "react-native";
 import { Pressable as RNGHPressable } from "react-native-gesture-handler";
 import Swipeable from "react-native-gesture-handler/ReanimatedSwipeable";
 import Animated, { FadeOut, LinearTransition } from "react-native-reanimated";
@@ -45,6 +45,8 @@ const SwipeableActionButton = ({
   return (
     <RNGHPressable
       onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={title}
       style={({ pressed }) => [
         { opacity: pressed ? 0.7 : 1 },
         { height: "100%" },
@@ -170,16 +172,80 @@ export function ChatItem({
     }, 200);
   };
 
+  const handleDeleteOrClear = () => {
+    if (isDirect) {
+      Alert.alert(
+        "Delete Conversation",
+        `Are you sure you want to delete this conversation with ${displayName}? This action cannot be undone.`,
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Delete",
+            style: "destructive",
+            onPress: () => handleSwipeAction(() => deleteForMe()),
+          },
+        ],
+      );
+    } else {
+      Alert.alert(
+        "Clear Message History",
+        `Are you sure you want to clear message history in ${displayName}? Messages will only be cleared for your account.`,
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Clear Messages",
+            style: "destructive",
+            onPress: () => handleSwipeAction(() => clearMessages()),
+          },
+        ],
+      );
+    }
+  };
+
+  const handleMuteAction = () => {
+    if (isMuted) {
+      handleSwipeAction(() => unmute());
+    } else {
+      Alert.alert(
+        "Mute Conversation",
+        `Select mute duration for ${displayName}:`,
+        [
+          {
+            text: "8 Hours",
+            onPress: () =>
+              handleSwipeAction(() => mute({ duration: "8_hours" })),
+          },
+          {
+            text: "24 Hours",
+            onPress: () =>
+              handleSwipeAction(() => mute({ duration: "24_hours" })),
+          },
+          {
+            text: "1 Week",
+            onPress: () =>
+              handleSwipeAction(() => mute({ duration: "7_days" })),
+          },
+          {
+            text: "Always",
+            onPress: () =>
+              handleSwipeAction(() => mute({ duration: "always" })),
+          },
+          { text: "Cancel", style: "cancel" },
+        ],
+      );
+    }
+  };
+
   const renderRightActions = () => {
     if (isActionActive) return null;
     return (
       <View className="flex-row gap-x-2">
         <SwipeableActionButton
-          onPress={() => handleSwipeAction(() => isDirect ? deleteForMe() : clearMessages())}
+          onPress={handleDeleteOrClear}
           bgColorClass="bg-red-500"
           isPending={isDirect ? isDeletingForMe : isClearing}
           icon={<TrashIcon width={24} height={24} color="white" />}
-          title="Delete"
+          title={isDirect ? "Delete" : "Clear"}
         />
         <SwipeableActionButton
           onPress={() =>
@@ -203,11 +269,7 @@ export function ChatItem({
     return (
       <View className="flex-row gap-x-2">
         <SwipeableActionButton
-          onPress={() =>
-            handleSwipeAction(() =>
-              isMuted ? unmute() : mute({ duration: "always" }),
-            )
-          }
+          onPress={handleMuteAction}
           bgColorClass="bg-orange-400"
           isPending={isMutePending}
           icon={<VolumeOffIcon width={24} height={24} color="white" />}
@@ -253,6 +315,57 @@ export function ChatItem({
         <Pressable
           onPress={onPress}
           onLongPress={onLongPress}
+          accessibilityRole="button"
+          accessibilityLabel={`${displayName}, ${isMuted ? "muted, " : ""}${isPinned ? "pinned, " : ""}${isArchived ? "archived, " : ""}${unreadCount > 0 ? `${unreadCount} unread, ` : ""}${time ? `${time}, ` : ""}${displayMessage || ""}`}
+          accessibilityHint="Double tap to open conversation. Use accessibility actions to manage."
+          accessibilityActions={[
+            { name: "activate", label: `Open chat with ${displayName}` },
+            {
+              name: isMuted ? "unmute" : "mute",
+              label: isMuted ? "Unmute notifications" : "Mute notifications",
+            },
+            {
+              name: isArchived ? "unarchive" : "archive",
+              label: isArchived
+                ? "Unarchive conversation"
+                : "Archive conversation",
+            },
+            {
+              name: isPinned ? "unpin" : "pin",
+              label: isPinned ? "Unpin conversation" : "Pin conversation",
+            },
+            {
+              name: isDirect ? "delete" : "clear",
+              label: isDirect ? "Delete conversation" : "Clear group history",
+            },
+          ]}
+          onAccessibilityAction={(event) => {
+            switch (event.nativeEvent.actionName) {
+              case "activate":
+                onPress?.();
+                break;
+              case "mute":
+              case "unmute":
+                handleMuteAction();
+                break;
+              case "archive":
+                archive();
+                break;
+              case "unarchive":
+                unarchive();
+                break;
+              case "pin":
+                pin();
+                break;
+              case "unpin":
+                unpin();
+                break;
+              case "delete":
+              case "clear":
+                handleDeleteOrClear();
+                break;
+            }
+          }}
           className={`flex-row items-center rounded-lg px-4 py-3 active:bg-primary-50 dark:active:bg-neutral-700 ${
             isSelected
               ? "bg-primary-50 dark:bg-neutral-700"

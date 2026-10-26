@@ -1,9 +1,14 @@
 import { BaseText } from "@/shared/components";
 import { Image } from "expo-image";
 import React from "react";
-import { View } from "react-native";
+import { Pressable, View } from "react-native";
 import Animated, { Keyframe } from "react-native-reanimated";
-import { MessageAttachmentResponseDto } from "../types";
+import { LocalMessageStatus, MessageAttachmentResponseDto } from "../types";
+import { AttachmentItem } from "./AttachmentItem";
+
+import CheckIcon from "@/assets/icons/solid/check.svg";
+import ClockIcon from "@/assets/icons/solid/clock.svg";
+import ExclamationCircleIcon from "@/assets/icons/solid/exclamation-circle.svg";
 
 const messageEnteringAnimation = new Keyframe({
   0: {
@@ -16,6 +21,13 @@ const messageEnteringAnimation = new Keyframe({
   },
 }).duration(250);
 
+export type DeliveryStatus =
+  | "pending"
+  | "sent"
+  | "delivered"
+  | "read"
+  | "failed";
+
 export interface MessagePillProps {
   isMe: boolean;
   text?: string;
@@ -27,6 +39,9 @@ export interface MessagePillProps {
   senderAvatar?: string | null;
   isGroupChat?: boolean;
   senderId?: string;
+  status?: LocalMessageStatus;
+  deliveryStatus?: DeliveryStatus;
+  onRetry?: () => void;
 }
 
 const NAME_COLORS = [
@@ -57,6 +72,70 @@ function getUserColor(userId?: string) {
   return NAME_COLORS[Math.abs(hash) % NAME_COLORS.length];
 }
 
+function ReceiptStatusIcon({
+  deliveryStatus,
+  status,
+  onRetry,
+}: {
+  deliveryStatus?: DeliveryStatus;
+  status?: LocalMessageStatus;
+  onRetry?: () => void;
+}) {
+  const currentStatus = deliveryStatus || status || "sent";
+
+  if (currentStatus === "failed") {
+    return (
+      <Pressable
+        onPress={onRetry}
+        hitSlop={8}
+        className="flex-row items-center bg-red-500/20 px-2 py-0.5 rounded-full ml-1"
+      >
+        <ExclamationCircleIcon width={13} height={13} color="#EF4444" />
+        <BaseText className="text-[11px] text-red-500 font-bold ml-1">
+          Retry
+        </BaseText>
+      </Pressable>
+    );
+  }
+
+  if (currentStatus === "pending") {
+    return (
+      <View className="ml-1 self-center">
+        <ClockIcon width={12} height={12} color="#94A3B8" />
+      </View>
+    );
+  }
+
+  if (currentStatus === "delivered") {
+    return (
+      <View className="flex-row items-center ml-1 self-center">
+        <CheckIcon width={13} height={13} color="#94A3B8" />
+        <View style={{ marginLeft: -8 }}>
+          <CheckIcon width={13} height={13} color="#94A3B8" />
+        </View>
+      </View>
+    );
+  }
+
+  if (currentStatus === "read") {
+    return (
+      <View className="flex-row items-center ml-1 self-center">
+        <CheckIcon width={13} height={13} color="#38BDF8" />
+        <View style={{ marginLeft: -8 }}>
+          <CheckIcon width={13} height={13} color="#38BDF8" />
+        </View>
+      </View>
+    );
+  }
+
+  // Sent (request accepted by server)
+  return (
+    <View className="ml-1 self-center">
+      <CheckIcon width={13} height={13} color="#94A3B8" />
+    </View>
+  );
+}
+
 export function MessagePill({
   isMe,
   text = "",
@@ -68,6 +147,9 @@ export function MessagePill({
   senderAvatar,
   isGroupChat,
   senderId,
+  status,
+  deliveryStatus,
+  onRetry,
 }: MessagePillProps) {
   const renderMessageContent = () => {
     const trimmedQuery = searchQuery?.trim();
@@ -123,11 +205,18 @@ export function MessagePill({
       style={{ transformOrigin: "top right" }}
     >
       {isMe && (
-        <BaseText className="text-neutral-300 dark:text-neutral-300 mr-2 self-center mb-1">
-          {time}
-        </BaseText>
+        <View className="flex-row items-center mr-2 self-center mb-1">
+          <BaseText className="text-neutral-400 dark:text-neutral-400 text-xs">
+            {time}
+          </BaseText>
+          <ReceiptStatusIcon
+            deliveryStatus={deliveryStatus}
+            status={status}
+            onRetry={onRetry}
+          />
+        </View>
       )}
-      
+
       {!isMe && isGroupChat && (
         <View className="mr-2 justify-end pb-1">
           {senderAvatar ? (
@@ -148,7 +237,9 @@ export function MessagePill({
       <View
         className={`max-w-[75%] px-4 py-3 rounded-2xl ${
           isMe
-            ? "bg-primary-400 rounded-br-sm"
+            ? status === "failed"
+              ? "bg-red-500/80 rounded-br-sm"
+              : "bg-primary-400 rounded-br-sm"
             : isCurrentMatch
               ? "bg-white dark:bg-neutral-800 border-2 border-primary-400 rounded-bl-sm"
               : "bg-white dark:bg-neutral-800 rounded-bl-sm"
@@ -162,11 +253,11 @@ export function MessagePill({
         }}
       >
         {attachments?.map((attachment, index) => (
-          <Image
+          <AttachmentItem
             key={attachment.mediaId || index}
-            source={{ uri: attachment.url }}
-            style={{ width: 200, height: 200, marginBottom: text ? 8 : 0 }}
-            contentFit="cover"
+            attachment={attachment}
+            isMe={isMe}
+            hasText={!!text}
           />
         ))}
         {!isMe && isGroupChat && senderName && (
@@ -181,7 +272,7 @@ export function MessagePill({
       </View>
 
       {!isMe && (
-        <BaseText className="text-neutral-300 dark:text-neutral-300 ml-2 self-center mb-1">
+        <BaseText className="text-neutral-400 dark:text-neutral-400 ml-2 self-center mb-1 text-xs">
           {time}
         </BaseText>
       )}

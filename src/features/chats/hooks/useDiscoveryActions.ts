@@ -20,8 +20,8 @@ export const useMatchContacts = (
   >,
 ) => {
   return useMutation({
-    mutationFn: chatsApi.matchContacts,
     ...options,
+    mutationFn: chatsApi.matchContacts,
   });
 };
 
@@ -30,9 +30,9 @@ export const useSearchUsers = (
   options?: Partial<UseQueryOptions<UserSearchResponseDto, Error>>,
 ) => {
   return useQuery({
+    ...options,
     queryKey: chatsKeys.search(params.q),
     queryFn: () => chatsApi.searchUsers(params),
     enabled: params.q.length >= 3 && (options?.enabled ?? true),
-    ...options,
   });
 };
