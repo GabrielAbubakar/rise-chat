@@ -113,21 +113,29 @@ export function useSendChatMessage({
         user ?? queryClient.getQueryData<ProfileResponseDto>(profileKeys.me());
       const msgKey = [...chatsKeys.messages(conversationId), currentUser?.id];
 
+      const isImage =
+        !attachment ||
+        attachment.mimeType?.startsWith("image/") ||
+        /\.(jpg|jpeg|png|webp|gif|heic)$/i.test(attachment.uri);
+
       const optimisticMsg: MessageResponseDto = {
         id: `temp_${Date.now()}`,
         conversationId,
         clientMessageId,
         senderId: currentUser?.id || "",
-        kind: attachment ? "image" : "text",
+        kind: attachment ? (isImage ? "image" : "document") : "text",
         text: textToSend || "",
         attachments: attachment
           ? [
               {
                 mediaId: `temp_media_${Date.now()}`,
                 url: attachment.uri,
-                type: "image",
-                contentType: attachment.mimeType || "image/jpeg",
+                type: isImage ? "image" : "document",
+                contentType:
+                  attachment.mimeType ||
+                  (isImage ? "image/jpeg" : "application/pdf"),
                 sizeBytes: attachment.fileSize || 0,
+                originalFilename: attachment.fileName || null,
               },
             ]
           : undefined,

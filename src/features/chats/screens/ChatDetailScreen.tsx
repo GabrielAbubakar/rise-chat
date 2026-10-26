@@ -1,6 +1,6 @@
 import { useGetMe } from "@/features/settings/hooks/useProfile";
 import { ScreenContainer } from "@/shared/components";
-import { isSameDay, showInfoToast } from "@/shared/utils";
+import { isSameDay, showApiErrorToast, showInfoToast } from "@/shared/utils";
 import { LegendList } from "@legendapp/list/react-native";
 import * as DocumentPicker from "expo-document-picker";
 import { Image } from "expo-image";
@@ -183,6 +183,13 @@ export function ChatDetailScreen({ id, search }: ChatDetailScreenProps) {
       });
       if (!result.canceled && result.assets[0]) {
         const asset = result.assets[0];
+        if (asset.fileSize && asset.fileSize > 52428800) {
+          showApiErrorToast(
+            new Error("Image exceeds 50 MB limit"),
+            "File Too Large",
+          );
+          return;
+        }
         handleSelectAttachment(
           asset.uri,
           asset.fileName || undefined,
@@ -198,11 +205,25 @@ export function ChatDetailScreen({ id, search }: ChatDetailScreenProps) {
   const handlePickDocument = useCallback(async () => {
     try {
       const result = await DocumentPicker.getDocumentAsync({
-        type: "*/*",
+        type: [
+          "application/pdf",
+          "text/plain",
+          "application/msword",
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        ],
         copyToCacheDirectory: true,
       });
       if (!result.canceled && result.assets[0]) {
         const doc = result.assets[0];
+        if (doc.size && doc.size > 52428800) {
+          showApiErrorToast(
+            new Error("Document exceeds 50 MB limit"),
+            "File Too Large",
+          );
+          return;
+        }
         handleSelectAttachment(
           doc.uri,
           doc.name,
@@ -557,7 +578,7 @@ export function ChatDetailScreen({ id, search }: ChatDetailScreenProps) {
         <AttachmentPickerMenu
           isOpen={isAttachmentMenuOpen}
           onClose={() => setIsAttachmentMenuOpen(false)}
-          onSelectPhotoUri={(uri) => handleSelectAttachment(uri)}
+          onSelectPhotoUri={handleSelectAttachment}
           onPickPhotoOrGallery={handlePickPhotoOrGallery}
           onPickDocument={handlePickDocument}
           onPickLocation={handlePickLocation}
