@@ -175,7 +175,11 @@ export function ChatItem({
     return (
       <View className="flex-row gap-x-2">
         <SwipeableActionButton
-          onPress={() => handleSwipeAction(() => isDirect ? deleteForMe() : clearMessages())}
+          onPress={() =>
+            handleSwipeAction(() =>
+              isDirect ? deleteForMe() : clearMessages(),
+            )
+          }
           bgColorClass="bg-red-500"
           isPending={isDirect ? isDeletingForMe : isClearing}
           icon={<TrashIcon width={24} height={24} color="white" />}

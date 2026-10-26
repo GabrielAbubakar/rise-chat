@@ -44,17 +44,21 @@ import UserAddIcon from "@/assets/icons/solid/user-add.svg";
 import UserIcon from "@/assets/icons/solid/user.svg";
 
 // Utilities
-import { formatLastSeen, showApiErrorToast, showSuccessToast } from "@/shared/utils";
+import {
+  formatLastSeen,
+  showApiErrorToast,
+  showSuccessToast,
+} from "@/shared/utils";
 
 // API Hooks & Dummy Media
+import { useBlockUser } from "@/features/settings/hooks/useProfile";
 import { DUMMY_PHOTOS } from "@shared/constants/dummyData";
 import { useConversationDetail } from "../hooks/useChats";
-import { useLeaveGroup } from "../hooks/useGroupActions";
 import {
   useMuteConversation,
   useUnmuteConversation,
 } from "../hooks/useConversationActions";
-import { useBlockUser } from "@/features/settings/hooks/useProfile";
+import { useLeaveGroup } from "../hooks/useGroupActions";
 
 export interface ProfileScreenProps {
   id?: string;
@@ -102,16 +106,19 @@ export function ProfileScreen({ id }: ProfileScreenProps) {
   const isMutePending = muteMutation.isPending || unmuteMutation.isPending;
 
   // Optimistic UI state to ensure zero-latency switch animation without rebound
-  const [pendingNotifications, setPendingNotifications] = useState<boolean | null>(null);
+  const [pendingNotifications, setPendingNotifications] = useState<
+    boolean | null
+  >(null);
 
   // Derive notifications from server-authoritative mute settings
   const isMuted = Boolean(
     conversationDetail?.settings?.muted ||
-      (conversationDetail?.settings?.mutedUntil &&
-        new Date(conversationDetail.settings.mutedUntil) > new Date()),
+    (conversationDetail?.settings?.mutedUntil &&
+      new Date(conversationDetail.settings.mutedUntil) > new Date()),
   );
   const serverNotificationsEnabled = !isMuted;
-  const notificationsEnabled = pendingNotifications ?? serverNotificationsEnabled;
+  const notificationsEnabled =
+    pendingNotifications ?? serverNotificationsEnabled;
 
   const handleToggleNotifications = (enable: boolean) => {
     if (isMutePending) return;
@@ -208,7 +215,10 @@ export function ProfileScreen({ id }: ProfileScreenProps) {
 
   const handleBlockContact = () => {
     if (!otherParticipant?.id) {
-      showApiErrorToast(new Error("Contact details are unavailable"), "Cannot block contact");
+      showApiErrorToast(
+        new Error("Contact details are unavailable"),
+        "Cannot block contact",
+      );
       return;
     }
     Alert.alert(
@@ -532,7 +542,11 @@ export function ProfileScreen({ id }: ProfileScreenProps) {
                     Notifications
                   </BaseText>
                   {isMutePending && (
-                    <ActivityIndicator size="small" color={primary} className="ml-2" />
+                    <ActivityIndicator
+                      size="small"
+                      color={primary}
+                      className="ml-2"
+                    />
                   )}
                 </View>
                 <View style={{ opacity: isMutePending ? 0.6 : 1 }}>
