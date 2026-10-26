@@ -156,31 +156,26 @@ export async function uploadMedia(
       type: mimeType,
     } as any);
 
+    // Step 2: Upload directly to storage if required
+    // Standalone Axios uses React Native's native XMLHttpRequest network layer, which streams
+    // the local file directly from disk via { uri, name, type } without triggering
+    // Expo WinterCG fetch's "Unsupported FormDataPart implementation" error.
     try {
-      // Use native fetch first: React Native handles FormData boundary generation correctly
-      const uploadRes = await fetch(uploadAuth.upload.url, {
-        method: "POST",
-        body: formData,
-        signal: params.signal,
-      });
-
-      if (!uploadRes.ok) {
-        const errText = await uploadRes.text();
-        console.warn("[uploadMedia] Native fetch failed, trying axios fallback. Response:", errText);
-        await axios.post(uploadAuth.upload.url, formData, {
-          headers: { "Content-Type": "multipart/form-data" },
-          signal: params.signal,
-        });
-      }
-    } catch (fetchErr: any) {
-      if (params.signal?.aborted || fetchErr?.name === "AbortError" || fetchErr?.name === "CanceledError") {
-        throw new Error("Upload was cancelled");
-      }
-      console.warn("[uploadMedia] Native fetch error, trying axios fallback:", fetchErr?.message);
       await axios.post(uploadAuth.upload.url, formData, {
         headers: { "Content-Type": "multipart/form-data" },
         signal: params.signal,
       });
+    } catch (uploadErr: any) {
+      if (
+        params.signal?.aborted ||
+        uploadErr?.name === "AbortError" ||
+        uploadErr?.name === "CanceledError" ||
+        uploadErr?.code === "ERR_CANCELED"
+      ) {
+        throw new Error("Upload was cancelled");
+      }
+      console.warn("[uploadMedia] Upload error:", uploadErr?.message);
+      throw uploadErr;
     }
 
     if (params.signal?.aborted) {
