@@ -2,7 +2,7 @@ import { BottomSheetModal } from "@gorhom/bottom-sheet";
 import { Image } from "expo-image";
 import { useNavigation, useRouter } from "expo-router";
 import { useColorScheme } from "nativewind";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -52,12 +52,12 @@ import {
 
 // API Hooks & Dummy Media
 import { useBlockUser } from "@/features/settings/hooks/useProfile";
-import { DUMMY_PHOTOS } from "@shared/constants/dummyData";
 import { useConversationDetail } from "../hooks/useChats";
 import {
   useMuteConversation,
   useUnmuteConversation,
 } from "../hooks/useConversationActions";
+import { useConversationMessages } from "../hooks/useConversationQueries";
 import { useLeaveGroup } from "../hooks/useGroupActions";
 
 export interface ProfileScreenProps {
@@ -167,7 +167,36 @@ export function ProfileScreen({ id }: ProfileScreenProps) {
         )
       : groupParticipants;
 
-  const previewPhotos = DUMMY_PHOTOS.slice(0, 5);
+  const { data: messagesData } = useConversationMessages(conversationId);
+  const previewPhotos = useMemo(() => {
+    if (!messagesData?.pages) return [];
+
+    const photos: { id: string; url: string }[] = [];
+    const TARGET_COUNT = 5;
+
+    for (const page of messagesData.pages) {
+      for (const item of page.items) {
+        if (!item.attachments) continue;
+        for (const att of item.attachments) {
+          const isImage =
+            att.type === "image" ||
+            att.contentType?.startsWith("image/") ||
+            /\.(jpg|jpeg|png|webp|gif|heic)$/i.test(att.url);
+
+          if (isImage && att.url) {
+            photos.push({ id: att.mediaId || att.url, url: att.url });
+            if (photos.length >= TARGET_COUNT) {
+              return photos;
+            }
+          }
+        }
+      }
+    }
+
+    return photos;
+  }, [messagesData]);
+
+  const photosCount = previewPhotos.length;
 
   const handleOpenMediaTab = (tab: "photos" | "stars" | "links") => {
     router.push({
@@ -363,6 +392,7 @@ export function ProfileScreen({ id }: ProfileScreenProps) {
           Media, Links, and Docs
         </BaseText>
         <MediaSummaryRows
+          photosCount={photosCount}
           previewPhotos={previewPhotos}
           isDark={isDark}
           onOpenMediaTab={handleOpenMediaTab}
@@ -530,6 +560,7 @@ export function ProfileScreen({ id }: ProfileScreenProps) {
               </BaseText>
 
               <MediaSummaryRows
+                photosCount={photosCount}
                 previewPhotos={previewPhotos}
                 isDark={isDark}
                 onOpenMediaTab={handleOpenMediaTab}

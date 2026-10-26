@@ -4,6 +4,7 @@ import React from "react";
 import { Pressable, View } from "react-native";
 import Animated, { Keyframe } from "react-native-reanimated";
 import { LocalMessageStatus, MessageAttachmentResponseDto } from "../types";
+import { AttachmentItem } from "./AttachmentItem";
 
 import CheckIcon from "@/assets/icons/solid/check.svg";
 import ClockIcon from "@/assets/icons/solid/clock.svg";
@@ -252,11 +253,11 @@ export function MessagePill({
         }}
       >
         {attachments?.map((attachment, index) => (
-          <Image
+          <AttachmentItem
             key={attachment.mediaId || index}
-            source={{ uri: attachment.url }}
-            style={{ width: 200, height: 200, marginBottom: text ? 8 : 0 }}
-            contentFit="cover"
+            attachment={attachment}
+            isMe={isMe}
+            hasText={!!text}
           />
         ))}
         {!isMe && isGroupChat && senderName && (
