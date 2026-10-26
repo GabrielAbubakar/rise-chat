@@ -123,20 +123,75 @@ export function ProfileScreen({ id }: ProfileScreenProps) {
   const handleToggleNotifications = (enable: boolean) => {
     if (isMutePending) return;
 
-    setPendingNotifications(enable);
-
     if (enable) {
+      setPendingNotifications(true);
       unmuteMutation.mutate(undefined, {
         onError: () => setPendingNotifications(null),
         onSettled: () => setPendingNotifications(null),
       });
     } else {
-      muteMutation.mutate(
-        { duration: "always" },
-        {
-          onError: () => setPendingNotifications(null),
-          onSettled: () => setPendingNotifications(null),
-        },
+      Alert.alert(
+        "Mute Notifications",
+        `Select mute duration for ${name}:`,
+        [
+          {
+            text: "8 Hours",
+            onPress: () => {
+              setPendingNotifications(false);
+              muteMutation.mutate(
+                { duration: "8_hours" },
+                {
+                  onError: () => setPendingNotifications(null),
+                  onSettled: () => setPendingNotifications(null),
+                },
+              );
+            },
+          },
+          {
+            text: "24 Hours",
+            onPress: () => {
+              setPendingNotifications(false);
+              muteMutation.mutate(
+                { duration: "24_hours" },
+                {
+                  onError: () => setPendingNotifications(null),
+                  onSettled: () => setPendingNotifications(null),
+                },
+              );
+            },
+          },
+          {
+            text: "1 Week",
+            onPress: () => {
+              setPendingNotifications(false);
+              muteMutation.mutate(
+                { duration: "7_days" },
+                {
+                  onError: () => setPendingNotifications(null),
+                  onSettled: () => setPendingNotifications(null),
+                },
+              );
+            },
+          },
+          {
+            text: "Always",
+            onPress: () => {
+              setPendingNotifications(false);
+              muteMutation.mutate(
+                { duration: "always" },
+                {
+                  onError: () => setPendingNotifications(null),
+                  onSettled: () => setPendingNotifications(null),
+                },
+              );
+            },
+          },
+          {
+            text: "Cancel",
+            style: "cancel",
+            onPress: () => setPendingNotifications(null),
+          },
+        ],
       );
     }
   };
