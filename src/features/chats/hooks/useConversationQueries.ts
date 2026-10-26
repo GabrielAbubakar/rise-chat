@@ -97,3 +97,12 @@ export const useMessage = (
     enabled: !!conversationId && !!messageId && !!user?.id,
   });
 };
+
+export const useConversationReceipts = (conversationId: string) => {
+  const { data: user } = useGetMe();
+  return useQuery({
+    queryKey: [...chatsKeys.receipts(conversationId), user?.id],
+    queryFn: () => chatsApi.listReceipts(conversationId),
+    enabled: !!conversationId && !!user?.id,
+  });
+};

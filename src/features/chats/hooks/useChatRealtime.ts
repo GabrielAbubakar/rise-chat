@@ -5,10 +5,15 @@ import type {
   PresenceChangedEventPayload,
   TypingStartedEventPayload,
   TypingStoppedEventPayload,
+  ReceiptUpdatedEventPayload,
 } from "@/types/realtime";
 import { useQueryClient, type InfiniteData } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
-import type { MessageHistoryResponseDto } from "../types";
+import type {
+  MessageHistoryResponseDto,
+  ReceiptFrontierResponseDto,
+  ReceiptFrontiersResponseDto,
+} from "../types";
 import { chatsKeys } from "./useChats";
 
 export function useChatRealtime(
@@ -177,10 +182,51 @@ export function useChatRealtime(
       });
     };
 
+    // 5. Listen for delivery & read receipt updates
+    const handleReceiptUpdated = (payload: ReceiptUpdatedEventPayload) => {
+      if (payload.conversationId !== conversationId) return;
+
+      queryClient.setQueryData<ReceiptFrontiersResponseDto>(
+        [...chatsKeys.receipts(conversationId), currentUserId],
+        (oldData) => {
+          const existingItems = oldData?.items || [];
+          const userIndex = existingItems.findIndex(
+            (f) => f.userId === payload.userId,
+          );
+
+          const updatedFrontier: ReceiptFrontierResponseDto = {
+            userId: payload.userId,
+            version: payload.version,
+            delivered: payload.delivered,
+            read: payload.read,
+          };
+
+          if (userIndex === -1) {
+            return {
+              conversationId,
+              items: [...existingItems, updatedFrontier],
+            };
+          }
+
+          // Enforce monotonic receipt versioning
+          const existing = existingItems[userIndex];
+          if (existing.version > payload.version) {
+            return oldData;
+          }
+
+          const nextItems = [...existingItems];
+          nextItems[userIndex] = updatedFrontier;
+          return { conversationId, items: nextItems };
+        },
+      );
+    };
+
     socket.on("message.created", handleMessageCreated);
     socket.on("presence.changed", handlePresenceChanged);
     socket.on("typing.started", handleTypingStarted);
     socket.on("typing.stopped", handleTypingStopped);
+    socket.on("receipt.delivered", handleReceiptUpdated);
+    socket.on("receipt.read", handleReceiptUpdated);
 
     return () => {
       // Clear all active typing timers and reset transient state on unmount/conversation switch
@@ -194,6 +240,8 @@ export function useChatRealtime(
       socket.off("presence.changed", handlePresenceChanged);
       socket.off("typing.started", handleTypingStarted);
       socket.off("typing.stopped", handleTypingStopped);
+      socket.off("receipt.delivered", handleReceiptUpdated);
+      socket.off("receipt.read", handleReceiptUpdated);
     };
   }, [
     socket,

@@ -31,9 +31,7 @@ export function ChatInputBar({
       <View className="flex-1 flex-row items-end bg-app dark:bg-neutral-700 rounded-[24px] px-4 py-2 border border-divider dark:border-neutral-600">
         <Pressable
           className={`mr-3 mb-[14px] p-1 rounded-full ${
-            isAttachmentMenuOpen
-              ? "bg-emerald-100 dark:bg-emerald-900/40"
-              : ""
+            isAttachmentMenuOpen ? "bg-emerald-100 dark:bg-emerald-900/40" : ""
           }`}
           onPress={onToggleAttachmentMenu}
           hitSlop={8}
@@ -42,11 +40,7 @@ export function ChatInputBar({
             width={20}
             height={20}
             color={
-              isAttachmentMenuOpen
-                ? "#10B981"
-                : isDark
-                  ? "#9CA3AF"
-                  : "#6B7280"
+              isAttachmentMenuOpen ? "#10B981" : isDark ? "#9CA3AF" : "#6B7280"
             }
           />
         </Pressable>

@@ -10,4 +10,6 @@ export const chatsKeys = {
   detail: (id: string) => [...chatsKeys.conversations(), "detail", id] as const,
   messages: (id: string) =>
     [...chatsKeys.conversations(), "messages", id] as const,
+  receipts: (id: string) =>
+    [...chatsKeys.conversations(), "receipts", id] as const,
 };

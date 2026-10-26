@@ -24,6 +24,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import ChevronDownIcon from "@/assets/icons/solid/cheveron-down.svg";
 
+import { chatsApi } from "../api";
 import {
   AttachmentPickerMenu,
   AttachmentPreviewBar,
@@ -32,11 +33,13 @@ import {
   ChatMessageItem,
   ChatSearchNavigator,
 } from "../components";
+import { DeliveryStatus } from "../components/MessagePill";
 import { useChatRealtime } from "../hooks/useChatRealtime";
 import { useChatSearch } from "../hooks/useChatSearch";
 import {
   useConversationDetail,
   useConversationMessages,
+  useConversationReceipts,
   useMarkRead,
   useSendMessage,
 } from "../hooks/useChats";
@@ -56,6 +59,7 @@ export function ChatDetailScreen({ id, search }: ChatDetailScreenProps) {
   const isDark = colorScheme === "dark";
 
   const { data: user } = useGetMe();
+  const currentUserId = user?.id;
   const conversationId = id || "";
 
   // API Hooks
@@ -73,21 +77,7 @@ export function ChatDetailScreen({ id, search }: ChatDetailScreenProps) {
 
   const sendMessageMutation = useSendMessage(conversationId);
   const { mutate: markRead } = useMarkRead(conversationId);
-
-  // Mark messages as read when opening the chat
-  useEffect(() => {
-    if (conversationId) {
-      markRead();
-    }
-  }, [conversationId, markRead]);
-
-  // WebSocket Hook (incoming messages, presence, typing indicators)
-  const otherParticipantId =
-    conversationDetail?.type === "direct"
-      ? conversationDetail.otherParticipant?.id
-      : undefined;
-  const { isOtherOnline, isOtherTyping, sendTypingStart, sendTypingStop } =
-    useChatRealtime(conversationId, otherParticipantId);
+  const { data: receiptsData } = useConversationReceipts(conversationId);
 
   // Flatten and sort messages oldest first
   const messages = useMemo(() => {
@@ -106,6 +96,46 @@ export function ChatDetailScreen({ id, search }: ChatDetailScreenProps) {
     });
   }, [messagesData]);
 
+  const lastReadMessageIdRef = useRef<string | null>(null);
+
+  // Mark messages as read and advance read receipts as incoming messages arrive and are viewed
+  useEffect(() => {
+    if (!conversationId) return;
+
+    // Find the latest incoming confirmed message from another participant
+    const incomingMessages = messages.filter(
+      (m) => m.senderId !== currentUserId && !m.id.startsWith("temp_"),
+    );
+    const latestIncoming = incomingMessages[incomingMessages.length - 1];
+
+    if (
+      latestIncoming?.id &&
+      latestIncoming.id !== lastReadMessageIdRef.current
+    ) {
+      lastReadMessageIdRef.current = latestIncoming.id;
+
+      markRead();
+      chatsApi
+        .markReceiptRead(conversationId, {
+          throughMessageId: latestIncoming.id,
+        })
+        .catch(() => {});
+      chatsApi
+        .markReceiptDelivered(conversationId, {
+          throughMessageId: latestIncoming.id,
+        })
+        .catch(() => {});
+    }
+  }, [conversationId, messages, currentUserId, markRead]);
+
+  // WebSocket Hook (incoming messages, presence, typing indicators)
+  const otherParticipantId =
+    conversationDetail?.type === "direct"
+      ? conversationDetail.otherParticipant?.id
+      : undefined;
+  const { isOtherOnline, isOtherTyping, sendTypingStart, sendTypingStop } =
+    useChatRealtime(conversationId, otherParticipantId);
+
   // Local UI State
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const [isAtBottom, setIsAtBottom] = useState(true);
@@ -119,6 +149,7 @@ export function ChatDetailScreen({ id, search }: ChatDetailScreenProps) {
     setSelectedAttachment,
     isUploadingAttachment,
     handleSendMessage,
+    handleRetryMessage,
   } = useSendChatMessage({
     conversationId,
     sendMessageMutation,
@@ -324,6 +355,51 @@ export function ChatDetailScreen({ id, search }: ChatDetailScreenProps) {
     [setMessage, sendTypingStart, sendTypingStop],
   );
 
+  const getDeliveryStatus = useCallback(
+    (item: MessageResponseDto): DeliveryStatus => {
+      if (item.status === "failed") return "failed";
+      if (item.status === "pending") return "pending";
+
+      if (!receiptsData?.items || receiptsData.items.length === 0) {
+        return "sent";
+      }
+
+      // Check frontiers from other participants
+      const otherFrontiers = receiptsData.items.filter(
+        (f) => !currentUserId || f.userId !== currentUserId,
+      );
+
+      if (otherFrontiers.length === 0) {
+        return "sent";
+      }
+
+      const itemTime = new Date(item.createdAt).getTime();
+
+      // Check if read by other participant(s)
+      const isRead = otherFrontiers.some((f) => {
+        if (!f.read) return false;
+        if (f.read.messageId === item.id) return true;
+        const readTime = new Date(f.read.at).getTime();
+        return !isNaN(readTime) && itemTime <= readTime;
+      });
+
+      if (isRead) return "read";
+
+      // Check if delivered to other participant(s)
+      const isDelivered = otherFrontiers.some((f) => {
+        if (!f.delivered) return false;
+        if (f.delivered.messageId === item.id) return true;
+        const deliveredTime = new Date(f.delivered.at).getTime();
+        return !isNaN(deliveredTime) && itemTime <= deliveredTime;
+      });
+
+      if (isDelivered) return "delivered";
+
+      return "sent";
+    },
+    [receiptsData, currentUserId],
+  );
+
   const renderMessage = useCallback(
     ({
       item,
@@ -337,7 +413,7 @@ export function ChatDetailScreen({ id, search }: ChatDetailScreenProps) {
         matchingIndices.length > 0 &&
         matchingIndices[currentMatchIndex] === index;
 
-      const isMe = item.senderId === user?.id;
+      const isMe = item.senderId === currentUserId;
       let senderName = null;
       let senderAvatar = null;
 
@@ -346,6 +422,8 @@ export function ChatDetailScreen({ id, search }: ChatDetailScreenProps) {
         senderName = participant?.displayName || null;
         senderAvatar = participant?.avatarUrl || null;
       }
+
+      const deliveryStatus = isMe ? getDeliveryStatus(item) : undefined;
 
       return (
         <ChatMessageItem
@@ -357,17 +435,21 @@ export function ChatDetailScreen({ id, search }: ChatDetailScreenProps) {
           senderName={senderName}
           senderAvatar={senderAvatar}
           isGroupChat={isGroup}
+          deliveryStatus={deliveryStatus}
+          onRetry={() => handleRetryMessage(item.clientMessageId)}
         />
       );
     },
     [
-      user?.id,
+      currentUserId,
       isSearching,
       matchingIndices,
       currentMatchIndex,
       searchQuery,
       isGroup,
       participantsMap,
+      getDeliveryStatus,
+      handleRetryMessage,
     ],
   );
 
