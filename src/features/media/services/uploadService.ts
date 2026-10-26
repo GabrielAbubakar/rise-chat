@@ -32,6 +32,9 @@ const VALID_MEDIA_CONTENT_TYPES: MediaContentType[] = [
   "video/webm",
   "application/pdf",
   "text/plain",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
 ];
 
 function resolveContentTypeAndFilename(
@@ -40,20 +43,27 @@ function resolveContentTypeAndFilename(
   providedFileName?: string,
 ): { mimeType: MediaContentType; fileName: string } {
   let extension = "jpg";
-  const lowerUri = uri.toLowerCase();
+  const target = (providedFileName || uri).toLowerCase();
 
-  if (lowerUri.endsWith(".png")) extension = "png";
-  else if (lowerUri.endsWith(".webp")) extension = "webp";
-  else if (lowerUri.endsWith(".mp4")) extension = "mp4";
-  else if (lowerUri.endsWith(".m4a") || lowerUri.endsWith(".aac")) extension = "m4a";
-  else if (lowerUri.endsWith(".pdf")) extension = "pdf";
+  if (target.endsWith(".png")) extension = "png";
+  else if (target.endsWith(".webp")) extension = "webp";
+  else if (target.endsWith(".mp4")) extension = "mp4";
+  else if (target.endsWith(".m4a") || target.endsWith(".aac")) extension = "m4a";
+  else if (target.endsWith(".pdf")) extension = "pdf";
+  else if (target.endsWith(".docx")) extension = "docx";
+  else if (target.endsWith(".xlsx")) extension = "xlsx";
+  else if (target.endsWith(".txt")) extension = "txt";
+
+  let normalizedMime = providedMimeType;
+  if (normalizedMime === "image/jpg") normalizedMime = "image/jpeg";
+  if (normalizedMime === "audio/mp3") normalizedMime = "audio/mpeg";
 
   let mimeType: MediaContentType = "image/jpeg";
   if (
-    providedMimeType &&
-    VALID_MEDIA_CONTENT_TYPES.includes(providedMimeType as MediaContentType)
+    normalizedMime &&
+    VALID_MEDIA_CONTENT_TYPES.includes(normalizedMime as MediaContentType)
   ) {
-    mimeType = providedMimeType as MediaContentType;
+    mimeType = normalizedMime as MediaContentType;
   } else if (extension === "png") {
     mimeType = "image/png";
   } else if (extension === "webp") {
@@ -64,6 +74,12 @@ function resolveContentTypeAndFilename(
     mimeType = "audio/m4a";
   } else if (extension === "pdf") {
     mimeType = "application/pdf";
+  } else if (extension === "docx") {
+    mimeType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+  } else if (extension === "xlsx") {
+    mimeType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+  } else if (extension === "txt") {
+    mimeType = "text/plain";
   }
 
   const fileName = providedFileName || `upload_${Date.now()}.${extension}`;
@@ -84,7 +100,8 @@ export async function uploadMedia(
     params.mimeType,
     params.fileName,
   );
-  const sizeBytes = params.sizeBytes || 500000;
+  // Ensure size is at least 1 byte and doesn't exceed backend max limit (50 MiB)
+  const sizeBytes = Math.min(Math.max(1, params.sizeBytes || 500000), 52428800);
 
   // Step 1: Create upload authorization
   const uploadAuth = await mediaApi.createUpload({
@@ -110,9 +127,26 @@ export async function uploadMedia(
       type: mimeType,
     } as any);
 
-    await axios.post(uploadAuth.upload.url, formData, {
-      headers: { "Content-Type": "multipart/form-data" },
-    });
+    try {
+      // Use native fetch first: React Native handles FormData boundary generation correctly
+      const uploadRes = await fetch(uploadAuth.upload.url, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!uploadRes.ok) {
+        const errText = await uploadRes.text();
+        console.warn("[uploadMedia] Native fetch failed, trying axios fallback. Response:", errText);
+        await axios.post(uploadAuth.upload.url, formData, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
+      }
+    } catch (fetchErr: any) {
+      console.warn("[uploadMedia] Native fetch error, trying axios fallback:", fetchErr?.message);
+      await axios.post(uploadAuth.upload.url, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+    }
 
     // Step 3: Complete verification
     return await mediaApi.completeUpload(uploadAuth.media.id);
