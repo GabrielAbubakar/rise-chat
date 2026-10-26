@@ -80,7 +80,13 @@ export function OtpStep({
             ? `If you don't get the code, resend it in ${timeLeft} seconds.`
             : `Didn't get the code?`}
         </BaseText>
-        <Pressable onPress={handleResend} disabled={isActive || isResendingOtp}>
+        <Pressable
+          onPress={handleResend}
+          disabled={isActive || isResendingOtp}
+          accessibilityRole="button"
+          accessibilityLabel={isResendingOtp ? "Resending code" : "Resend code"}
+          accessibilityState={{ disabled: isActive || isResendingOtp }}
+        >
           <BaseText
             type="body-md"
             style={{ color: primary, opacity: isActive ? 0.5 : 1 }}
@@ -100,6 +106,8 @@ export function OtpStep({
           verificationCode.length < effectiveCodeLength || isVerifyingOtp
         }
         loading={isVerifyingOtp}
+        accessibilityRole="button"
+        accessibilityLabel="Verify code and continue"
       />
     </View>
   );

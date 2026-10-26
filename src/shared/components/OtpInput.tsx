@@ -1,6 +1,6 @@
 import { useThemeColors } from "@/shared/hooks";
 import { useRef, useState } from "react";
-import { Pressable, TextInput, View } from "react-native";
+import { Pressable, StyleSheet, TextInput, View } from "react-native";
 import { tv } from "tailwind-variants";
 import { BaseText } from "./BaseText";
 
@@ -52,6 +52,8 @@ export function OtpInput({
           state: isError ? "error" : isActiveState ? "active" : "default",
         })}
         style={isActiveState ? { borderColor: primary } : undefined}
+        accessible={false}
+        importantForAccessibility="no"
       >
         <BaseText className="text-3xl font-display text-black dark:text-white">
           {char}
@@ -61,16 +63,18 @@ export function OtpInput({
   });
 
   return (
-    <View>
+    <View className="relative">
       <Pressable
         className="flex-row gap-4"
         onPress={() => inputRef.current?.focus()}
+        accessible={false}
+        importantForAccessibility="no-hide-descendants"
       >
         {boxes}
       </Pressable>
       <TextInput
         ref={inputRef}
-        className="absolute w-0 h-0 opacity-0"
+        style={[StyleSheet.absoluteFill, { opacity: 0.01 }]}
         value={value}
         onChangeText={(text) => {
           // only numbers
@@ -84,6 +88,12 @@ export function OtpInput({
         onBlur={() => setIsFocused(false)}
         caretHidden
         autoFocus
+        accessible={true}
+        accessibilityLabel={`Verification code input, ${length} digits`}
+        accessibilityValue={{
+          text: value.length > 0 ? value.split("").join(" ") : "Empty",
+        }}
+        accessibilityHint={`Enter the ${length}-digit verification code sent to your phone. Currently entered ${value.length} of ${length} digits.`}
       />
     </View>
   );

@@ -35,6 +35,10 @@ export function ChatInputBar({
           }`}
           onPress={onToggleAttachmentMenu}
           hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Attach media or file"
+          accessibilityHint="Opens attachment options including camera, photos, and documents"
+          accessibilityState={{ expanded: isAttachmentMenuOpen }}
         >
           <PaperClipIcon
             width={20}
@@ -51,11 +55,17 @@ export function ChatInputBar({
           value={message}
           onChangeText={onChangeText}
           multiline
+          accessibilityLabel="Message input"
+          accessibilityHint="Type your message to send"
         />
         <Pressable
           className="w-12 h-12 bg-primary-400 rounded-full items-center justify-center ml-3"
           onPress={onSend}
           disabled={isPending}
+          accessibilityRole="button"
+          accessibilityLabel="Send message"
+          accessibilityHint="Sends the typed message"
+          accessibilityState={{ disabled: isPending, busy: isPending }}
         >
           {isPending ? (
             <ActivityIndicator size="small" color="white" />
