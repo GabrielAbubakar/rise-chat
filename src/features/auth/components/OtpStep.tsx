@@ -7,16 +7,20 @@ interface OtpStepProps {
   challengeId: string;
   phoneNumber: string;
   initialResendSeconds: number;
+  codeLength?: number;
   onSuccess: (hasProfile: boolean) => void;
   onChallengeIdChanged?: (newChallengeId: string) => void;
+  onCodeLengthChanged?: (newLength: number) => void;
 }
 
 export function OtpStep({
   challengeId,
   phoneNumber,
   initialResendSeconds,
+  codeLength: passedCodeLength = 4,
   onSuccess,
   onChallengeIdChanged,
+  onCodeLengthChanged,
 }: OtpStepProps) {
   const {
     verificationCode,
@@ -26,6 +30,7 @@ export function OtpStep({
     otpError,
     timeLeft,
     isActive,
+    codeLength: effectiveCodeLength,
     handleVerify,
     handleResend,
   } = useOtpStep(
@@ -33,6 +38,8 @@ export function OtpStep({
     initialResendSeconds,
     onSuccess,
     onChallengeIdChanged,
+    passedCodeLength,
+    onCodeLengthChanged,
   );
   const { primary } = useThemeColors();
 
@@ -49,6 +56,7 @@ export function OtpStep({
       </BaseText>
 
       <OtpInput
+        length={effectiveCodeLength}
         value={verificationCode}
         onChangeText={setVerificationCode}
         isError={otpError}
@@ -72,7 +80,13 @@ export function OtpStep({
             ? `If you don't get the code, resend it in ${timeLeft} seconds.`
             : `Didn't get the code?`}
         </BaseText>
-        <Pressable onPress={handleResend} disabled={isActive || isResendingOtp}>
+        <Pressable
+          onPress={handleResend}
+          disabled={isActive || isResendingOtp}
+          accessibilityRole="button"
+          accessibilityLabel={isResendingOtp ? "Resending code" : "Resend code"}
+          accessibilityState={{ disabled: isActive || isResendingOtp }}
+        >
           <BaseText
             type="body-md"
             style={{ color: primary, opacity: isActive ? 0.5 : 1 }}
@@ -88,8 +102,12 @@ export function OtpStep({
       <BaseButton
         title="Verify"
         onPress={handleVerify}
-        disabled={verificationCode.length < 4 || isVerifyingOtp}
+        disabled={
+          verificationCode.length < effectiveCodeLength || isVerifyingOtp
+        }
         loading={isVerifyingOtp}
+        accessibilityRole="button"
+        accessibilityLabel="Verify code and continue"
       />
     </View>
   );

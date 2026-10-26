@@ -106,6 +106,7 @@ export interface SendMessageDto {
   clientMessageId: string;
   text?: string;
   attachmentMediaIds?: string[];
+  replyToMessageId?: string;
 }
 
 export interface MessageAttachmentResponseDto {
@@ -117,6 +118,7 @@ export interface MessageAttachmentResponseDto {
   height?: number | null;
   durationMs?: number | null;
   url: string;
+  originalFilename?: string | null;
 }
 
 export interface MessageAttachmentDto {
@@ -124,6 +126,14 @@ export interface MessageAttachmentDto {
   url: string;
   type?: string;
 }
+
+export interface MessageReactionDto {
+  emoji: string;
+  userId: string;
+  createdAt?: string;
+}
+
+export type LocalMessageStatus = "pending" | "sent" | "failed";
 
 export interface MessageResponseDto {
   id: string;
@@ -133,7 +143,21 @@ export interface MessageResponseDto {
   kind: "text" | "image" | "audio" | "video" | "document";
   text?: string;
   attachments?: MessageAttachmentResponseDto[];
+  reactions?: MessageReactionDto[];
+  replyToMessageId?: string | null;
+  version?: number;
+  deletedAt?: string | null;
   createdAt: string;
+  updatedAt?: string;
+  status?: LocalMessageStatus;
+}
+
+export interface UpdateMessageDto {
+  text?: string;
+}
+
+export interface AddReactionDto {
+  emoji: string;
 }
 
 export interface MessagePageInfoDto {
@@ -240,6 +264,14 @@ export interface MuteConversationDto {
 export interface ClearConversationMessagesResponseDto {
   conversationId: string;
   changed: boolean;
+  clearedAt: string | null;
+  clearedThroughMessageId: string | null;
+}
+
+export interface DeleteDirectChatResponseDto {
+  conversationId: string;
+  changed: boolean;
+  deletedAt: string;
   clearedAt: string | null;
   clearedThroughMessageId: string | null;
 }

@@ -23,6 +23,9 @@ import {
   ConversationSettingsResponseDto,
   MuteConversationDto,
   ClearConversationMessagesResponseDto,
+  DeleteDirectChatResponseDto,
+  UpdateMessageDto,
+  AddReactionDto,
 } from '../types';
 
 export const chatsApi = {
@@ -66,6 +69,37 @@ export const chatsApi = {
       params,
     });
     return response.data;
+  },
+
+  searchMessages: async (
+    conversationId: string,
+    params: { q: string; limit?: number; cursor?: string }
+  ): Promise<any> => {
+    const response = await apiClient.get<any>(`/conversations/${conversationId}/messages/search`, { params });
+    return response.data;
+  },
+
+  getMessage: async (conversationId: string, messageId: string): Promise<MessageResponseDto> => {
+    const response = await apiClient.get<MessageResponseDto>(`/conversations/${conversationId}/messages/${messageId}`);
+    return response.data;
+  },
+
+  updateMessage: async (conversationId: string, messageId: string, data: UpdateMessageDto): Promise<MessageResponseDto> => {
+    const response = await apiClient.patch<MessageResponseDto>(`/conversations/${conversationId}/messages/${messageId}`, data);
+    return response.data;
+  },
+
+  deleteMessage: async (conversationId: string, messageId: string): Promise<void> => {
+    await apiClient.delete(`/conversations/${conversationId}/messages/${messageId}`);
+  },
+
+  addReaction: async (conversationId: string, messageId: string, data: AddReactionDto): Promise<MessageResponseDto> => {
+    const response = await apiClient.put<MessageResponseDto>(`/conversations/${conversationId}/messages/${messageId}/reaction`, data);
+    return response.data;
+  },
+
+  removeReaction: async (conversationId: string, messageId: string): Promise<void> => {
+    await apiClient.delete(`/conversations/${conversationId}/messages/${messageId}/reaction`);
   },
 
   markRead: async (conversationId: string): Promise<ConversationReadStateResponseDto> => {
@@ -183,6 +217,11 @@ export const chatsApi = {
 
   unfavoriteConversation: async (conversationId: string): Promise<ConversationSettingsResponseDto> => {
     const response = await apiClient.delete<ConversationSettingsResponseDto>(`/conversations/${conversationId}/favorite`);
+    return response.data;
+  },
+
+  deleteForMe: async (conversationId: string): Promise<DeleteDirectChatResponseDto> => {
+    const response = await apiClient.delete<DeleteDirectChatResponseDto>(`/conversations/${conversationId}/for-me`);
     return response.data;
   },
 

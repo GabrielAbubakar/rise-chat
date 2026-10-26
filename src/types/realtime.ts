@@ -1,4 +1,5 @@
 import type { Socket } from "socket.io-client";
+import type { MessageResponseDto } from "@/features/chats/types";
 
 export type RealtimeErrorCode =
   | "AUTH_ACCESS_TOKEN_INVALID"
@@ -48,15 +49,7 @@ export interface TypingStoppedData {
   conversationId: string;
 }
 
-export interface MessageCreatedEventPayload {
-  id: string;
-  conversationId: string;
-  clientMessageId: string;
-  senderId: string;
-  kind: "text";
-  text: string;
-  createdAt: string;
-}
+export type MessageCreatedEventPayload = MessageResponseDto;
 
 export interface ReceiptUpdatedEventPayload {
   conversationId: string;

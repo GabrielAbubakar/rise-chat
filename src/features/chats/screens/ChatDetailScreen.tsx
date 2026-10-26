@@ -1,10 +1,17 @@
 import { useGetMe } from "@/features/settings/hooks/useProfile";
-import { ScreenContainer } from "@/shared/components";
-import { isSameDay, showInfoToast } from "@/shared/utils";
+import {
+  BaseButton,
+  BaseText,
+  ScreenContainer,
+  ScreenHeader,
+} from "@/shared/components";
+import { isSameDay, showApiErrorToast, showInfoToast } from "@/shared/utils";
+import { Ionicons } from "@expo/vector-icons";
 import { LegendList } from "@legendapp/list/react-native";
 import * as DocumentPicker from "expo-document-picker";
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
+import { useRouter } from "expo-router";
 import { useColorScheme } from "nativewind";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -24,6 +31,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import ChevronDownIcon from "@/assets/icons/solid/cheveron-down.svg";
 
+import { chatsApi } from "../api";
 import {
   AttachmentPickerMenu,
   AttachmentPreviewBar,
@@ -32,11 +40,13 @@ import {
   ChatMessageItem,
   ChatSearchNavigator,
 } from "../components";
+import { DeliveryStatus } from "../components/MessagePill";
 import { useChatRealtime } from "../hooks/useChatRealtime";
 import { useChatSearch } from "../hooks/useChatSearch";
 import {
   useConversationDetail,
   useConversationMessages,
+  useConversationReceipts,
   useMarkRead,
   useSendMessage,
 } from "../hooks/useChats";
@@ -51,15 +61,21 @@ export interface ChatDetailScreenProps {
 }
 
 export function ChatDetailScreen({ id, search }: ChatDetailScreenProps) {
+  const router = useRouter();
   const insets = useSafeAreaInsets();
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === "dark";
 
   const { data: user } = useGetMe();
+  const currentUserId = user?.id;
   const conversationId = id || "";
 
   // API Hooks
-  const { data: conversationDetail } = useConversationDetail(conversationId, {
+  const {
+    data: conversationDetail,
+    isLoading: isConversationLoading,
+    isError: isConversationError,
+  } = useConversationDetail(conversationId, {
     enabled: !!conversationId,
   });
 
@@ -73,17 +89,7 @@ export function ChatDetailScreen({ id, search }: ChatDetailScreenProps) {
 
   const sendMessageMutation = useSendMessage(conversationId);
   const { mutate: markRead } = useMarkRead(conversationId);
-
-  // Mark messages as read when opening the chat
-  useEffect(() => {
-    if (conversationId) {
-      markRead();
-    }
-  }, [conversationId, markRead]);
-
-  // WebSocket Hook (incoming messages, presence, typing indicators)
-  const { isOtherOnline, isOtherTyping, sendTypingStart, sendTypingStop } =
-    useChatRealtime(conversationId);
+  const { data: receiptsData } = useConversationReceipts(conversationId);
 
   // Flatten and sort messages oldest first
   const messages = useMemo(() => {
@@ -102,6 +108,46 @@ export function ChatDetailScreen({ id, search }: ChatDetailScreenProps) {
     });
   }, [messagesData]);
 
+  const lastReadMessageIdRef = useRef<string | null>(null);
+
+  // Mark messages as read and advance read receipts as incoming messages arrive and are viewed
+  useEffect(() => {
+    if (!conversationId) return;
+
+    // Find the latest incoming confirmed message from another participant
+    const incomingMessages = messages.filter(
+      (m) => m.senderId !== currentUserId && !m.id.startsWith("temp_"),
+    );
+    const latestIncoming = incomingMessages[incomingMessages.length - 1];
+
+    if (
+      latestIncoming?.id &&
+      latestIncoming.id !== lastReadMessageIdRef.current
+    ) {
+      lastReadMessageIdRef.current = latestIncoming.id;
+
+      markRead();
+      chatsApi
+        .markReceiptRead(conversationId, {
+          throughMessageId: latestIncoming.id,
+        })
+        .catch(() => {});
+      chatsApi
+        .markReceiptDelivered(conversationId, {
+          throughMessageId: latestIncoming.id,
+        })
+        .catch(() => {});
+    }
+  }, [conversationId, messages, currentUserId, markRead]);
+
+  // WebSocket Hook (incoming messages, presence, typing indicators)
+  const otherParticipantId =
+    conversationDetail?.type === "direct"
+      ? conversationDetail.otherParticipant?.id
+      : undefined;
+  const { isOtherOnline, isOtherTyping, sendTypingStart, sendTypingStop } =
+    useChatRealtime(conversationId, otherParticipantId);
+
   // Local UI State
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const [isAtBottom, setIsAtBottom] = useState(true);
@@ -115,6 +161,7 @@ export function ChatDetailScreen({ id, search }: ChatDetailScreenProps) {
     setSelectedAttachment,
     isUploadingAttachment,
     handleSendMessage,
+    handleRetryMessage,
   } = useSendChatMessage({
     conversationId,
     sendMessageMutation,
@@ -148,6 +195,13 @@ export function ChatDetailScreen({ id, search }: ChatDetailScreenProps) {
       });
       if (!result.canceled && result.assets[0]) {
         const asset = result.assets[0];
+        if (asset.fileSize && asset.fileSize > 52428800) {
+          showApiErrorToast(
+            new Error("Image exceeds 50 MB limit"),
+            "File Too Large",
+          );
+          return;
+        }
         handleSelectAttachment(
           asset.uri,
           asset.fileName || undefined,
@@ -163,11 +217,25 @@ export function ChatDetailScreen({ id, search }: ChatDetailScreenProps) {
   const handlePickDocument = useCallback(async () => {
     try {
       const result = await DocumentPicker.getDocumentAsync({
-        type: "*/*",
+        type: [
+          "application/pdf",
+          "text/plain",
+          "application/msword",
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        ],
         copyToCacheDirectory: true,
       });
       if (!result.canceled && result.assets[0]) {
         const doc = result.assets[0];
+        if (doc.size && doc.size > 52428800) {
+          showApiErrorToast(
+            new Error("Document exceeds 50 MB limit"),
+            "File Too Large",
+          );
+          return;
+        }
         handleSelectAttachment(
           doc.uri,
           doc.name,
@@ -272,6 +340,8 @@ export function ChatDetailScreen({ id, search }: ChatDetailScreenProps) {
   );
 
   const isDirect = conversationDetail?.type === "direct";
+  const isGroup = conversationDetail?.type === "group";
+
   const otherParticipant = isDirect
     ? conversationDetail?.otherParticipant
     : null;
@@ -285,6 +355,27 @@ export function ChatDetailScreen({ id, search }: ChatDetailScreenProps) {
     ? participantName.charAt(0).toUpperCase()
     : "?";
 
+  const participantsMap = useMemo(() => {
+    if (conversationDetail?.type === "group") {
+      return conversationDetail.participants.reduce(
+        (acc, p) => {
+          acc[p.id] = p;
+          return acc;
+        },
+        {} as Record<string, any>,
+      );
+    }
+    return {};
+  }, [conversationDetail]);
+
+  const groupMembersText = useMemo(() => {
+    if (!isGroup || !conversationDetail?.participants) return undefined;
+    return conversationDetail.participants
+      .filter((p) => p.id !== user?.id)
+      .map((p) => (p.displayName || "User").split(" ")[0])
+      .join(", ");
+  }, [isGroup, conversationDetail, user?.id]);
+
   const handleTextChange = useCallback(
     (text: string) => {
       setMessage(text);
@@ -295,6 +386,51 @@ export function ChatDetailScreen({ id, search }: ChatDetailScreenProps) {
       }
     },
     [setMessage, sendTypingStart, sendTypingStop],
+  );
+
+  const getDeliveryStatus = useCallback(
+    (item: MessageResponseDto): DeliveryStatus => {
+      if (item.status === "failed") return "failed";
+      if (item.status === "pending") return "pending";
+
+      if (!receiptsData?.items || receiptsData.items.length === 0) {
+        return "sent";
+      }
+
+      // Check frontiers from other participants
+      const otherFrontiers = receiptsData.items.filter(
+        (f) => !currentUserId || f.userId !== currentUserId,
+      );
+
+      if (otherFrontiers.length === 0) {
+        return "sent";
+      }
+
+      const itemTime = new Date(item.createdAt).getTime();
+
+      // Check if read by other participant(s)
+      const isRead = otherFrontiers.some((f) => {
+        if (!f.read) return false;
+        if (f.read.messageId === item.id) return true;
+        const readTime = new Date(f.read.at).getTime();
+        return !isNaN(readTime) && itemTime <= readTime;
+      });
+
+      if (isRead) return "read";
+
+      // Check if delivered to other participant(s)
+      const isDelivered = otherFrontiers.some((f) => {
+        if (!f.delivered) return false;
+        if (f.delivered.messageId === item.id) return true;
+        const deliveredTime = new Date(f.delivered.at).getTime();
+        return !isNaN(deliveredTime) && itemTime <= deliveredTime;
+      });
+
+      if (isDelivered) return "delivered";
+
+      return "sent";
+    },
+    [receiptsData, currentUserId],
   );
 
   const renderMessage = useCallback(
@@ -310,20 +446,96 @@ export function ChatDetailScreen({ id, search }: ChatDetailScreenProps) {
         matchingIndices.length > 0 &&
         matchingIndices[currentMatchIndex] === index;
 
+      const isMe = item.senderId === currentUserId;
+      let senderName = null;
+      let senderAvatar = null;
+
+      if (isGroup && !isMe) {
+        const participant = participantsMap[item.senderId];
+        senderName = participant?.displayName || null;
+        senderAvatar = participant?.avatarUrl || null;
+      }
+
+      const deliveryStatus = isMe ? getDeliveryStatus(item) : undefined;
+
       return (
         <ChatMessageItem
           item={item}
-          isMe={item.senderId === user?.id}
+          isMe={isMe}
           isCurrentMatch={isCurrentMatch}
           searchQuery={isSearching ? searchQuery : undefined}
           showDateSeparator={item.showDateSeparator ?? false}
+          senderName={senderName}
+          senderAvatar={senderAvatar}
+          isGroupChat={isGroup}
+          deliveryStatus={deliveryStatus}
+          onRetry={() => handleRetryMessage(item.clientMessageId)}
         />
       );
     },
-    [user?.id, isSearching, matchingIndices, currentMatchIndex, searchQuery],
+    [
+      currentUserId,
+      isSearching,
+      matchingIndices,
+      currentMatchIndex,
+      searchQuery,
+      isGroup,
+      participantsMap,
+      getDeliveryStatus,
+      handleRetryMessage,
+    ],
   );
 
-  // console.log(messages);
+  if (isConversationLoading) {
+    return (
+      <ScreenContainer
+        className="flex-1 bg-app dark:bg-app-dark items-center justify-center"
+        withPadding={false}
+      >
+        <ActivityIndicator size="large" color="#4ADE80" />
+      </ScreenContainer>
+    );
+  }
+
+  if (!conversationId || isConversationError || !conversationDetail) {
+    return (
+      <ScreenContainer
+        className="flex-1 bg-app dark:bg-app-dark"
+        withPadding={false}
+      >
+        <ScreenHeader
+          title="Conversation"
+          onBack={() => router.replace("/(tabs)/chats")}
+        />
+        <View className="flex-1 items-center justify-center px-6">
+          <View className="w-16 h-16 rounded-full bg-red-100 dark:bg-red-950/40 items-center justify-center mb-4">
+            <Ionicons
+              name="chatbubble-ellipses-outline"
+              size={32}
+              color="#EF4444"
+            />
+          </View>
+          <BaseText type="h3" className="text-center font-sf-bold mb-2">
+            Conversation Unavailable
+          </BaseText>
+          <BaseText
+            color="secondary"
+            className="text-center text-sm mb-6 max-w-[280px]"
+          >
+            This conversation does not exist, has been deleted, or you no longer
+            have access to it.
+          </BaseText>
+          <BaseButton
+            title="Return to Chats"
+            variant="primary"
+            onPress={() => router.replace("/(tabs)/chats")}
+            accessibilityRole="button"
+            accessibilityLabel="Return to chats list"
+          />
+        </View>
+      </ScreenContainer>
+    );
+  }
 
   return (
     <ScreenContainer
@@ -353,7 +565,8 @@ export function ChatDetailScreen({ id, search }: ChatDetailScreenProps) {
         isOtherTyping={isOtherTyping}
         conversationId={conversationId}
         searchInputRef={searchInputRef}
-        isGroup={conversationDetail?.type === "group"}
+        isGroup={isGroup}
+        groupMembersText={groupMembersText}
       />
 
       {/* Messages List */}
@@ -426,7 +639,7 @@ export function ChatDetailScreen({ id, search }: ChatDetailScreenProps) {
         <AttachmentPickerMenu
           isOpen={isAttachmentMenuOpen}
           onClose={() => setIsAttachmentMenuOpen(false)}
-          onSelectPhotoUri={(uri) => handleSelectAttachment(uri)}
+          onSelectPhotoUri={handleSelectAttachment}
           onPickPhotoOrGallery={handlePickPhotoOrGallery}
           onPickDocument={handlePickDocument}
           onPickLocation={handlePickLocation}

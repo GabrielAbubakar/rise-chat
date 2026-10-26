@@ -54,7 +54,7 @@ export interface MediaAssetResponseDto {
   id: string;
   purpose: MediaPurpose;
   status: "pending" | "ready" | "failed" | "deleted";
-  type: "image" | "audio";
+  type: "image" | "audio" | "video" | "document";
   contentType: MediaContentType;
   sizeBytes: number;
   originalFilename: string | null;

@@ -1,6 +1,6 @@
 import CameraIcon from "@/assets/icons/solid/camera.svg";
 import UserIcon from "@/assets/icons/solid/user.svg";
-import { mediaApi } from "@/features/media/api";
+import { uploadMedia } from "@/features/media/services";
 import {
   BaseButton,
   BaseInput,
@@ -9,7 +9,6 @@ import {
   ScreenHeader,
 } from "@/shared/components";
 import { showApiErrorToast, showSuccessToast } from "@/shared/utils";
-import axios from "axios";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
 import { useState } from "react";
@@ -22,24 +21,17 @@ import {
 } from "react-native";
 import { useGetMe, useSetAvatar, useUpdateMe } from "../hooks/useProfile";
 
-const generateUUID = () => {
-  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
-    const r = (Math.random() * 16) | 0;
-    const v = c === "x" ? r : (r & 0x3) | 0x8;
-    return v.toString(16);
-  });
-};
-
 export function EditProfileScreen() {
   const router = useRouter();
-  const { data: user } = useGetMe();
+  const { data: user, isLoading: isUserLoading } = useGetMe();
   const setAvatarMutation = useSetAvatar();
 
-  const [name, setName] = useState(user?.displayName || "Roberto William");
-  const [phoneNumber, setPhoneNumber] = useState(
-    user?.phoneNumber || "85830544382",
-  );
+  // Derived state pattern: track user input without cascading effect re-renders
+  const [nameInput, setNameInput] = useState<string | null>(null);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+
+  const name = nameInput ?? user?.displayName ?? "";
+  const phoneNumber = user?.phoneNumber ?? "";
 
   const { mutate: updateProfile, isPending } = useUpdateMe({
     onSuccess: (data) => {
@@ -68,54 +60,17 @@ export function EditProfileScreen() {
       setIsUploadingAvatar(true);
       const asset = result.assets[0];
 
-      const fileName = asset.fileName || `avatar_${Date.now()}.jpg`;
-      const mimeType = (asset.mimeType ||
-        (asset.uri.endsWith(".png")
-          ? "image/png"
-          : asset.uri.endsWith(".webp")
-            ? "image/webp"
-            : "image/jpeg")) as any;
-      const sizeBytes = asset.fileSize || 500000;
-
-      // Step 2: Authorize Upload (POST /v1/media/uploads)
-      const uploadAuth = await mediaApi.createUpload({
-        clientUploadId: generateUUID(),
-        purpose: "profile_avatar",
-        contentType: mimeType,
-        sizeBytes: sizeBytes,
-        originalFilename: fileName,
-      });
-
-      if (!uploadAuth.upload) {
-        // Media asset was already uploaded/ready
-        await setAvatarMutation.mutateAsync({ mediaId: uploadAuth.media.id });
-        showSuccessToast("Profile picture updated successfully!");
-        return;
-      }
-
-      // Step 3: Direct Multipart Transfer to Cloudinary (POST upload.url) via standalone axios
-      const formData = new FormData();
-      if (uploadAuth.upload.fields) {
-        Object.entries(uploadAuth.upload.fields).forEach(([key, val]) => {
-          formData.append(key, String(val));
-        });
-      }
-
-      formData.append("file", {
+      // Step 2: Upload via shared media upload service
+      const mediaAsset = await uploadMedia({
         uri: asset.uri,
-        name: fileName,
-        type: mimeType,
-      } as any);
-
-      await axios.post(uploadAuth.upload.url, formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
+        purpose: "profile_avatar",
+        fileName: asset.fileName || undefined,
+        mimeType: asset.mimeType || undefined,
+        sizeBytes: asset.fileSize || undefined,
       });
 
-      // Step 4: Complete Upload Verification & Set Profile Avatar
-      await mediaApi.completeUpload(uploadAuth.media.id);
-      await setAvatarMutation.mutateAsync({ mediaId: uploadAuth.media.id });
+      // Step 3: Destination operation: assign avatar to user profile
+      await setAvatarMutation.mutateAsync({ mediaId: mediaAsset.id });
 
       showSuccessToast("Profile picture updated successfully!");
     } catch (error: any) {
@@ -127,8 +82,17 @@ export function EditProfileScreen() {
   };
 
   const handleSave = () => {
-    updateProfile({ displayName: name });
+    if (!name.trim()) return;
+    updateProfile({ displayName: name.trim() });
   };
+
+  if (isUserLoading && !user) {
+    return (
+      <ScreenContainer className="flex-1 bg-app dark:bg-app-dark items-center justify-center">
+        <ActivityIndicator size="large" color="#10B981" />
+      </ScreenContainer>
+    );
+  }
 
   return (
     <ScreenContainer
@@ -180,7 +144,7 @@ export function EditProfileScreen() {
         <BaseInput
           label="Name"
           value={name}
-          onChangeText={setName}
+          onChangeText={setNameInput}
           leftComponent={
             <View className="mr-3">
               <UserIcon width={24} height={24} color="#6E8597" />
@@ -192,7 +156,7 @@ export function EditProfileScreen() {
           <PhoneInput
             label="Phone Number"
             value={phoneNumber}
-            onChangePhoneNumber={(raw) => setPhoneNumber(raw)}
+            onChangePhoneNumber={() => {}}
             defaultCountryCode="NG"
             disabled={true}
           />

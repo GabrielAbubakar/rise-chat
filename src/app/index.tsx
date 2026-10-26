@@ -1,14 +1,21 @@
 import { useAppStore } from "@/store";
 import { useAuthStore } from "@/store/useAuthStore";
+import { useSecurityStore } from "@/store/useSecurityStore";
 import { useGetMe } from "@/features/settings/hooks/useProfile";
 import { Redirect } from "expo-router";
 
 export default function Index() {
   const hasSeenOnboarding = useAppStore((state) => state.hasSeenOnboarding);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const isPinSet = useSecurityStore((state) => state.isPinSet);
+  const isAppUnlocked = useSecurityStore((state) => state.isAppUnlocked);
   const { data: user } = useGetMe({ enabled: isAuthenticated });
 
   if (isAuthenticated) {
+    if (isPinSet && !isAppUnlocked) {
+      return <Redirect href="/unlock" />;
+    }
+
     if (!user) return null; // Wait for React Query to hydrate
 
     if (user.profileComplete || user.displayName) {

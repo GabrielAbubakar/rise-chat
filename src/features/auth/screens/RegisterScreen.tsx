@@ -20,6 +20,8 @@ export function RegisterScreen() {
     // jumpToStep,
     phoneNumber,
     setPhoneNumber,
+    codeLength,
+    setCodeLength,
   } = useRegisterFlow();
 
   const { colorScheme } = useColorScheme();
@@ -30,10 +32,11 @@ export function RegisterScreen() {
       case 1:
         return (
           <PhoneStep
-            onSuccess={(newChallengeId, newResendSeconds, passedPhone) => {
+            onSuccess={(newChallengeId, newResendSeconds, passedPhone, newCodeLength) => {
               setChallengeId(newChallengeId);
               setResendSeconds(newResendSeconds);
               setPhoneNumber(passedPhone);
+              setCodeLength(newCodeLength);
               nextStep();
             }}
           />
@@ -44,7 +47,9 @@ export function RegisterScreen() {
             challengeId={challengeId}
             phoneNumber={phoneNumber}
             initialResendSeconds={resendSeconds}
+            codeLength={codeLength}
             onChallengeIdChanged={setChallengeId}
+            onCodeLengthChanged={setCodeLength}
             onSuccess={(hasProfile) => {
               if (hasProfile) {
                 // If profile is already complete, redirect to chats

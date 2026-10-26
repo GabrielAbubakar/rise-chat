@@ -1,6 +1,12 @@
 {
   "version": 1,
   "skills": {
+    "expo-animation": {
+      "source": "expo/skills",
+      "sourceType": "github",
+      "skillPath": "plugins/expo/skills/expo-animation/SKILL.md",
+      "computedHash": "f5c0b8e735bccfe0be886b194017d2c21472dfce51b7c244acda828527e783ac"
+    },
     "vercel-react-best-practices": {
       "source": "vercel-labs/agent-skills",
       "sourceType": "github",

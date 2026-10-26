@@ -1,21 +1,25 @@
 import { profileKeys, useGetMe } from "@/features/settings/hooks/useProfile";
 import { ProfileResponseDto } from "@/features/settings/types";
 import {
+  InfiniteData,
   useMutation,
   UseMutationOptions,
   useQueryClient,
 } from "@tanstack/react-query";
+import { useChatOutboxStore } from "../store";
 import { chatsApi } from "../api";
 import {
   ClearConversationMessagesResponseDto,
   ConversationResponseDto,
   ConversationSettingsResponseDto,
   CreateDirectConversationDto,
+  MessageHistoryResponseDto,
   MessageResponseDto,
   MuteConversationDto,
   SendMessageDto,
   UpdateConversationSettingsDto,
   UpdateReceiptDto,
+  DeleteDirectChatResponseDto,
 } from "../types";
 import { chatsKeys } from "./chatsKeys";
 import {
@@ -35,6 +39,7 @@ export const useCreateDirectConversation = (
 ) => {
   const queryClient = useQueryClient();
   return useMutation({
+    ...options,
     mutationFn: chatsApi.createDirect,
     onSuccess: (...args) => {
       queryClient.invalidateQueries({ queryKey: chatsKeys.list() });
@@ -42,8 +47,16 @@ export const useCreateDirectConversation = (
         options.onSuccess(...args);
       }
     },
-    ...options,
   });
+};
+
+export interface SendMessageContext {
+  clientMessageId: string;
+}
+
+export type SendMessageVariables = SendMessageDto & {
+  localAttachmentUri?: string;
+  localAttachmentName?: string;
 };
 
 export const useSendMessage = (
@@ -51,17 +64,37 @@ export const useSendMessage = (
   options?: UseMutationOptions<
     MessageResponseDto,
     Error,
-    SendMessageDto,
-    { previousData: unknown }
+    SendMessageVariables,
+    SendMessageContext
   >,
 ) => {
   const queryClient = useQueryClient();
   const { data: user } = useGetMe();
 
-  return useMutation({
-    mutationFn: (data: SendMessageDto) =>
-      chatsApi.sendMessage(conversationId, data),
-    onMutate: async (newMessageDto) => {
+  return useMutation<
+    MessageResponseDto,
+    Error,
+    SendMessageVariables,
+    SendMessageContext
+  >({
+    ...options,
+    mutationFn: (data: SendMessageVariables) => {
+      const payload: SendMessageDto = {
+        clientMessageId: data.clientMessageId,
+      };
+      const trimmedText = data.text?.trim();
+      if (trimmedText && trimmedText.length > 0) {
+        payload.text = trimmedText;
+      }
+      if (data.attachmentMediaIds && data.attachmentMediaIds.length > 0) {
+        payload.attachmentMediaIds = data.attachmentMediaIds;
+      }
+      if (data.replyToMessageId) {
+        payload.replyToMessageId = data.replyToMessageId;
+      }
+      return chatsApi.sendMessage(conversationId, payload);
+    },
+    onMutate: async (newMessageDto, mutation) => {
       const currentUser =
         user ?? queryClient.getQueryData<ProfileResponseDto>(profileKeys.me());
       const msgKey = [...chatsKeys.messages(conversationId), currentUser?.id];
@@ -69,76 +102,141 @@ export const useSendMessage = (
       await queryClient.cancelQueries({
         queryKey: chatsKeys.messages(conversationId),
       });
-      const previousData = queryClient.getQueryData(msgKey);
 
       const optimisticMsg: MessageResponseDto = {
         id: `temp_${Date.now()}`,
         conversationId,
         clientMessageId: newMessageDto.clientMessageId,
         senderId: currentUser?.id || "",
-        kind: "text",
-        text: newMessageDto.text,
+        kind: newMessageDto.attachmentMediaIds?.length || newMessageDto.localAttachmentUri ? "image" : "text",
+        text: newMessageDto.text || "",
+        attachments: newMessageDto.localAttachmentUri
+          ? [
+              {
+                mediaId: `temp_media_${Date.now()}`,
+                url: newMessageDto.localAttachmentUri,
+                type: "image",
+                contentType: "image/jpeg",
+                sizeBytes: 0,
+              },
+            ]
+          : undefined,
         createdAt: new Date().toISOString(),
+        status: "pending",
       };
 
-      queryClient.setQueryData(msgKey, (oldData: any) => {
-        if (!oldData || !oldData.pages || oldData.pages.length === 0) {
-          return {
-            pages: [
-              {
-                items: [optimisticMsg],
-                pageInfo: { hasNextPage: false, nextCursor: null },
-              },
-            ],
-            pageParams: [undefined],
-          };
-        }
-        const newPages = [...oldData.pages];
-        newPages[0] = {
-          ...newPages[0],
-          items: [optimisticMsg, ...newPages[0].items],
-        };
-        return { ...oldData, pages: newPages };
-      });
+      queryClient.setQueryData<InfiniteData<MessageHistoryResponseDto>>(
+        msgKey,
+        (oldData) => {
+          if (!oldData || !oldData.pages || oldData.pages.length === 0) {
+            return {
+              pages: [
+                {
+                  items: [optimisticMsg],
+                  pageInfo: { hasNextPage: false, nextCursor: null },
+                },
+              ],
+              pageParams: [undefined],
+            };
+          }
 
-      return { previousData };
+          // Check if message already exists (e.g. on retry)
+          const exists = oldData.pages.some((page) =>
+            page.items.some(
+              (item) => item.clientMessageId === newMessageDto.clientMessageId,
+            ),
+          );
+
+          if (exists) {
+            const newPages = oldData.pages.map((page) => ({
+              ...page,
+              items: page.items.map((item) =>
+                item.clientMessageId === newMessageDto.clientMessageId
+                  ? { ...item, status: "pending" as const }
+                  : item,
+              ),
+            }));
+            return { ...oldData, pages: newPages };
+          }
+
+          const newPages = [...oldData.pages];
+          newPages[0] = {
+            ...newPages[0],
+            items: [optimisticMsg, ...newPages[0].items],
+          };
+          return { ...oldData, pages: newPages };
+        },
+      );
+
+      let consumerContext: any;
+      if (options?.onMutate) {
+        consumerContext = await options.onMutate(newMessageDto, mutation);
+      }
+
+      return { clientMessageId: newMessageDto.clientMessageId, ...consumerContext };
     },
     onSuccess: (realMsg, variables, context, mutation) => {
       const currentUser =
         user ?? queryClient.getQueryData<ProfileResponseDto>(profileKeys.me());
       const msgKey = [...chatsKeys.messages(conversationId), currentUser?.id];
-      queryClient.setQueryData(msgKey, (oldData: any) => {
-        if (!oldData || !oldData.pages) return oldData;
-        const newPages = oldData.pages.map((page: any) => ({
-          ...page,
-          items: page.items.map((item: any) =>
-            item.clientMessageId === variables.clientMessageId ||
-            item.id === realMsg.id
-              ? realMsg
-              : item,
-          ),
-        }));
-        return { ...oldData, pages: newPages };
-      });
+      queryClient.setQueryData<InfiniteData<MessageHistoryResponseDto>>(
+        msgKey,
+        (oldData) => {
+          if (!oldData || !oldData.pages) return oldData;
+          const newPages = oldData.pages.map((page) => ({
+            ...page,
+            items: page.items.map((item) =>
+              item.clientMessageId === variables.clientMessageId ||
+              item.id === realMsg.id
+                ? { ...realMsg, status: "sent" as const }
+                : item,
+            ),
+          }));
+          return { ...oldData, pages: newPages };
+        },
+      );
+      useChatOutboxStore
+        .getState()
+        .updateOutboxStatus(variables.clientMessageId, "sent");
       queryClient.invalidateQueries({ queryKey: chatsKeys.list() });
       if (options?.onSuccess) {
         options.onSuccess(realMsg, variables, context, mutation);
       }
     },
-    onError: (err, variables, context: any, mutation) => {
-      if (context?.previousData) {
-        const currentUser =
-          user ?? queryClient.getQueryData<ProfileResponseDto>(profileKeys.me());
-        queryClient.setQueryData(
-          [...chatsKeys.messages(conversationId), currentUser?.id],
-          context.previousData,
-        );
-      }
+    onError: (err, variables, context, mutation) => {
+      console.error("[useSendMessage] Error sending message:", err);
+      const currentUser =
+        user ?? queryClient.getQueryData<ProfileResponseDto>(profileKeys.me());
+      const msgKey = [...chatsKeys.messages(conversationId), currentUser?.id];
+
+      // Update ONLY the failed message to status: "failed".
+      // Do NOT revert the entire cache snapshot, so unrelated incoming messages remain preserved!
+      queryClient.setQueryData<InfiniteData<MessageHistoryResponseDto>>(
+        msgKey,
+        (oldData) => {
+          if (!oldData || !oldData.pages) return oldData;
+          const newPages = oldData.pages.map((page) => ({
+            ...page,
+            items: page.items.map((item) =>
+              item.clientMessageId === variables.clientMessageId
+                ? { ...item, status: "failed" as const }
+                : item,
+            ),
+          }));
+          return { ...oldData, pages: newPages };
+        },
+      );
+
+      useChatOutboxStore
+        .getState()
+        .updateOutboxStatus(variables.clientMessageId, "failed", {
+          error: err?.message || "Failed to send message",
+        });
+
       if (options?.onError) {
         options.onError(err, variables, context, mutation);
       }
     },
-    ...options,
   });
 };
 
@@ -179,6 +277,7 @@ export const useUpdateConversationSettings = (
 ) => {
   const queryClient = useQueryClient();
   return useMutation({
+    ...options,
     mutationFn: (data) =>
       chatsApi.updateConversationSettings(conversationId, data),
     onSuccess: (...args) => {
@@ -188,7 +287,6 @@ export const useUpdateConversationSettings = (
       queryClient.invalidateQueries({ queryKey: chatsKeys.list() });
       if (options?.onSuccess) options.onSuccess(...args);
     },
-    ...options,
   });
 };
 
@@ -324,6 +422,7 @@ export const useFavoriteConversation = (
 ) => {
   const queryClient = useQueryClient();
   return useMutation({
+    ...options,
     mutationFn: () => chatsApi.favoriteConversation(conversationId),
     onSuccess: (...args) => {
       queryClient.invalidateQueries({
@@ -332,7 +431,6 @@ export const useFavoriteConversation = (
       queryClient.invalidateQueries({ queryKey: chatsKeys.list() });
       if (options?.onSuccess) options.onSuccess(...args);
     },
-    ...options,
   });
 };
 
@@ -342,6 +440,7 @@ export const useUnfavoriteConversation = (
 ) => {
   const queryClient = useQueryClient();
   return useMutation({
+    ...options,
     mutationFn: () => chatsApi.unfavoriteConversation(conversationId),
     onSuccess: (...args) => {
       queryClient.invalidateQueries({
@@ -350,7 +449,6 @@ export const useUnfavoriteConversation = (
       queryClient.invalidateQueries({ queryKey: chatsKeys.list() });
       if (options?.onSuccess) options.onSuccess(...args);
     },
-    ...options,
   });
 };
 
@@ -364,6 +462,7 @@ export const useClearMessages = (
 ) => {
   const queryClient = useQueryClient();
   return useMutation({
+    ...options,
     mutationFn: () => chatsApi.clearMessages(conversationId),
     onSuccess: (...args) => {
       queryClient.invalidateQueries({
@@ -371,6 +470,28 @@ export const useClearMessages = (
       });
       if (options?.onSuccess) options.onSuccess(...args);
     },
-    ...options,
   });
 };
+
+export const useDeleteForMe = (
+  conversationId: string,
+  options?: UseMutationOptions<
+    DeleteDirectChatResponseDto,
+    Error,
+    void
+  >,
+) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    ...options,
+    mutationFn: () => chatsApi.deleteForMe(conversationId),
+    onSuccess: (...args) => {
+      queryClient.invalidateQueries({
+        queryKey: chatsKeys.detail(conversationId),
+      });
+      queryClient.invalidateQueries({ queryKey: chatsKeys.list() });
+      if (options?.onSuccess) options.onSuccess(...args);
+    },
+  });
+};
+

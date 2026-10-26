@@ -1,5 +1,5 @@
-import { QueryClient } from "@tanstack/react-query";
-import { ConversationResponseDto } from "../types";
+import { QueryClient, type InfiniteData } from "@tanstack/react-query";
+import { ConversationResponseDto, ConversationListResponseDto } from "../types";
 import { chatsKeys } from "./chatsKeys";
 
 /**
@@ -16,11 +16,11 @@ export const optimisticallyTogglePin = async (
   const listKey = [...chatsKeys.list(), userId];
   const previousList = queryClient.getQueryData(listKey);
 
-  queryClient.setQueryData(listKey, (oldData: any) => {
+  queryClient.setQueryData<InfiniteData<ConversationListResponseDto>>(listKey, (oldData) => {
     if (!oldData || !oldData.pages) return oldData;
 
     const allItems: ConversationResponseDto[] = oldData.pages.flatMap(
-      (p: any) => p.items || [],
+      (p) => p.items || [],
     );
 
     const updatedItems = allItems.map((item) => {
@@ -40,12 +40,8 @@ export const optimisticallyTogglePin = async (
       const aPinned = a.settings?.pinned ? 1 : 0;
       const bPinned = b.settings?.pinned ? 1 : 0;
       if (aPinned !== bPinned) return bPinned - aPinned;
-      const aTime = a.lastActivityAt
-        ? new Date(a.lastActivityAt).getTime()
-        : 0;
-      const bTime = b.lastActivityAt
-        ? new Date(b.lastActivityAt).getTime()
-        : 0;
+      const aTime = a.lastActivityAt ? new Date(a.lastActivityAt).getTime() : 0;
+      const bTime = b.lastActivityAt ? new Date(b.lastActivityAt).getTime() : 0;
       return bTime - aTime;
     });
 
@@ -80,10 +76,10 @@ export const optimisticallyArchive = async (
 
   let archivedItem: ConversationResponseDto | null = null;
 
-  queryClient.setQueryData(listKey, (oldData: any) => {
+  queryClient.setQueryData<InfiniteData<ConversationListResponseDto>>(listKey, (oldData) => {
     if (!oldData || !oldData.pages) return oldData;
 
-    const newPages = oldData.pages.map((page: any) => {
+    const newPages = oldData.pages.map((page) => {
       const filtered = (page.items || []).filter(
         (item: ConversationResponseDto) => {
           if (item.id === conversationId) {
@@ -103,12 +99,13 @@ export const optimisticallyArchive = async (
   });
 
   if (archivedItem) {
-    queryClient.setQueryData(archivedKey, (oldData: any) => {
+    const targetItem: ConversationResponseDto = archivedItem;
+    queryClient.setQueryData<InfiniteData<ConversationListResponseDto>>(archivedKey, (oldData) => {
       if (!oldData || !oldData.pages) {
         return {
           pages: [
             {
-              items: [archivedItem],
+              items: [targetItem],
               pageInfo: { hasNextPage: false, nextCursor: null },
             },
           ],
@@ -118,7 +115,7 @@ export const optimisticallyArchive = async (
       const newPages = [...oldData.pages];
       newPages[0] = {
         ...newPages[0],
-        items: [archivedItem, ...newPages[0].items],
+        items: [targetItem, ...newPages[0].items],
       };
       return { ...oldData, pages: newPages };
     });
@@ -145,10 +142,10 @@ export const optimisticallyUnarchive = async (
 
   let unarchivedItem: ConversationResponseDto | null = null;
 
-  queryClient.setQueryData(archivedKey, (oldData: any) => {
+  queryClient.setQueryData<InfiniteData<ConversationListResponseDto>>(archivedKey, (oldData) => {
     if (!oldData || !oldData.pages) return oldData;
 
-    const newPages = oldData.pages.map((page: any) => {
+    const newPages = oldData.pages.map((page) => {
       const filtered = (page.items || []).filter(
         (item: ConversationResponseDto) => {
           if (item.id === conversationId) {
@@ -168,13 +165,14 @@ export const optimisticallyUnarchive = async (
   });
 
   if (unarchivedItem) {
-    queryClient.setQueryData(listKey, (oldData: any) => {
+    const targetItem: ConversationResponseDto = unarchivedItem;
+    queryClient.setQueryData<InfiniteData<ConversationListResponseDto>>(listKey, (oldData) => {
       if (!oldData || !oldData.pages) return oldData;
 
       const allItems: ConversationResponseDto[] = oldData.pages.flatMap(
-        (p: any) => p.items || [],
+        (p) => p.items || [],
       );
-      allItems.push(unarchivedItem!);
+      allItems.push(targetItem);
 
       allItems.sort((a, b) => {
         const aPinned = a.settings?.pinned ? 1 : 0;
@@ -189,7 +187,7 @@ export const optimisticallyUnarchive = async (
         return bTime - aTime;
       });
 
-      const newPages = oldData.pages.map((page: any, index: number) => {
+      const newPages = oldData.pages.map((page, index: number) => {
         if (index === 0) {
           return { ...page, items: allItems };
         }
@@ -217,10 +215,14 @@ export const optimisticallyToggleMute = async (
   const listKey = [...chatsKeys.list(), userId];
   const previousList = queryClient.getQueryData(listKey);
 
-  queryClient.setQueryData(listKey, (oldData: any) => {
+  const detailKey = [...chatsKeys.detail(conversationId), userId];
+  const previousDetail = queryClient.getQueryData(detailKey);
+
+  // 1. Optimistically update conversations list
+  queryClient.setQueryData<InfiniteData<ConversationListResponseDto>>(listKey, (oldData) => {
     if (!oldData || !oldData.pages) return oldData;
 
-    const newPages = oldData.pages.map((page: any) => ({
+    const newPages = oldData.pages.map((page) => ({
       ...page,
       items: (page.items || []).map((item: ConversationResponseDto) => {
         if (item.id === conversationId) {
@@ -229,6 +231,7 @@ export const optimisticallyToggleMute = async (
             settings: {
               ...item.settings,
               muted: targetMuted,
+              mutedUntil: targetMuted ? "2099-01-01T00:00:00.000Z" : null,
             },
           };
         }
@@ -239,5 +242,18 @@ export const optimisticallyToggleMute = async (
     return { ...oldData, pages: newPages };
   });
 
-  return { previousList };
+  // 2. Optimistically update conversation detail
+  queryClient.setQueryData<ConversationResponseDto>(detailKey, (oldDetail) => {
+    if (!oldDetail) return oldDetail;
+    return {
+      ...oldDetail,
+      settings: {
+        ...oldDetail.settings,
+        muted: targetMuted,
+        mutedUntil: targetMuted ? "2099-01-01T00:00:00.000Z" : null,
+      },
+    };
+  });
+
+  return { previousList, previousDetail, detailKey };
 };

@@ -31,22 +31,20 @@ export function ChatInputBar({
       <View className="flex-1 flex-row items-end bg-app dark:bg-neutral-700 rounded-[24px] px-4 py-2 border border-divider dark:border-neutral-600">
         <Pressable
           className={`mr-3 mb-[14px] p-1 rounded-full ${
-            isAttachmentMenuOpen
-              ? "bg-emerald-100 dark:bg-emerald-900/40"
-              : ""
+            isAttachmentMenuOpen ? "bg-emerald-100 dark:bg-emerald-900/40" : ""
           }`}
           onPress={onToggleAttachmentMenu}
           hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Attach media or file"
+          accessibilityHint="Opens attachment options including camera, photos, and documents"
+          accessibilityState={{ expanded: isAttachmentMenuOpen }}
         >
           <PaperClipIcon
             width={20}
             height={20}
             color={
-              isAttachmentMenuOpen
-                ? "#10B981"
-                : isDark
-                  ? "#9CA3AF"
-                  : "#6B7280"
+              isAttachmentMenuOpen ? "#10B981" : isDark ? "#9CA3AF" : "#6B7280"
             }
           />
         </Pressable>
@@ -57,11 +55,17 @@ export function ChatInputBar({
           value={message}
           onChangeText={onChangeText}
           multiline
+          accessibilityLabel="Message input"
+          accessibilityHint="Type your message to send"
         />
         <Pressable
           className="w-12 h-12 bg-primary-400 rounded-full items-center justify-center ml-3"
           onPress={onSend}
           disabled={isPending}
+          accessibilityRole="button"
+          accessibilityLabel="Send message"
+          accessibilityHint="Sends the typed message"
+          accessibilityState={{ disabled: isPending, busy: isPending }}
         >
           {isPending ? (
             <ActivityIndicator size="small" color="white" />

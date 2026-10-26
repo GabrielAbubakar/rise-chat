@@ -8,6 +8,7 @@ export function usePhoneStep(
     challengeId: string,
     resendInSeconds: number,
     phoneNumber: string,
+    codeLength: number,
   ) => void,
 ) {
   const [phoneNumber, setPhoneNumber] = useState("");
@@ -16,7 +17,12 @@ export function usePhoneStep(
 
   const { mutate: requestOtp, isPending: isRequestingOtp } = useRequestOtp({
     onSuccess: (data) => {
-      onSuccess(data.challengeId, data.resendInSeconds, fullPhoneNumber);
+      onSuccess(
+        data.challengeId,
+        data.resendInSeconds,
+        fullPhoneNumber,
+        data.codeLength || 4,
+      );
     },
     onError: (error) => {
       showApiErrorToast(

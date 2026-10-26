@@ -70,3 +70,39 @@ export const useFavoritesList = (params?: { limit?: number }) => {
     enabled: !!user?.id,
   });
 };
+
+export const useSearchMessages = (
+  conversationId: string,
+  params: { q: string; limit?: number },
+) => {
+  const { data: user } = useGetMe();
+  return useInfiniteQuery({
+    queryKey: [...chatsKeys.messages(conversationId), "search", params.q, user?.id],
+    queryFn: ({ pageParam }) =>
+      chatsApi.searchMessages(conversationId, { ...params, cursor: pageParam }),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => lastPage?.nextCursor || null,
+    enabled: !!conversationId && !!params.q && !!user?.id,
+  });
+};
+
+export const useMessage = (
+  conversationId: string,
+  messageId: string,
+) => {
+  const { data: user } = useGetMe();
+  return useQuery({
+    queryKey: [...chatsKeys.messages(conversationId), messageId, user?.id],
+    queryFn: () => chatsApi.getMessage(conversationId, messageId),
+    enabled: !!conversationId && !!messageId && !!user?.id,
+  });
+};
+
+export const useConversationReceipts = (conversationId: string) => {
+  const { data: user } = useGetMe();
+  return useQuery({
+    queryKey: [...chatsKeys.receipts(conversationId), user?.id],
+    queryFn: () => chatsApi.listReceipts(conversationId),
+    enabled: !!conversationId && !!user?.id,
+  });
+};

@@ -2,7 +2,7 @@ import { BottomSheetModal } from "@gorhom/bottom-sheet";
 import { Image } from "expo-image";
 import { useNavigation, useRouter } from "expo-router";
 import { useColorScheme } from "nativewind";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -44,11 +44,21 @@ import UserAddIcon from "@/assets/icons/solid/user-add.svg";
 import UserIcon from "@/assets/icons/solid/user.svg";
 
 // Utilities
-import { formatLastSeen } from "@/shared/utils";
+import {
+  formatLastSeen,
+  showApiErrorToast,
+  showSuccessToast,
+} from "@/shared/utils";
 
 // API Hooks & Dummy Media
-import { DUMMY_PHOTOS } from "@shared/constants/dummyData";
+import { useBlockUser } from "@/features/settings/hooks/useProfile";
 import { useConversationDetail } from "../hooks/useChats";
+import {
+  useMuteConversation,
+  useUnmuteConversation,
+} from "../hooks/useConversationActions";
+import { useConversationMessages } from "../hooks/useConversationQueries";
+import { useLeaveGroup } from "../hooks/useGroupActions";
 
 export interface ProfileScreenProps {
   id?: string;
@@ -62,8 +72,6 @@ export function ProfileScreen({ id }: ProfileScreenProps) {
   const isDark = colorScheme === "dark";
   const { primary } = useThemeColors();
 
-  // const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
-  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [isSearchMode, setIsSearchMode] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -93,6 +101,101 @@ export function ProfileScreen({ id }: ProfileScreenProps) {
     { enabled: !!conversationId },
   );
 
+  const muteMutation = useMuteConversation(conversationId);
+  const unmuteMutation = useUnmuteConversation(conversationId);
+  const isMutePending = muteMutation.isPending || unmuteMutation.isPending;
+
+  // Optimistic UI state to ensure zero-latency switch animation without rebound
+  const [pendingNotifications, setPendingNotifications] = useState<
+    boolean | null
+  >(null);
+
+  // Derive notifications from server-authoritative mute settings
+  const isMuted = Boolean(
+    conversationDetail?.settings?.muted ||
+    (conversationDetail?.settings?.mutedUntil &&
+      new Date(conversationDetail.settings.mutedUntil) > new Date()),
+  );
+  const serverNotificationsEnabled = !isMuted;
+  const notificationsEnabled =
+    pendingNotifications ?? serverNotificationsEnabled;
+
+  const handleToggleNotifications = (enable: boolean) => {
+    if (isMutePending) return;
+
+    if (enable) {
+      setPendingNotifications(true);
+      unmuteMutation.mutate(undefined, {
+        onError: () => setPendingNotifications(null),
+        onSettled: () => setPendingNotifications(null),
+      });
+    } else {
+      Alert.alert(
+        "Mute Notifications",
+        `Select mute duration for ${name}:`,
+        [
+          {
+            text: "8 Hours",
+            onPress: () => {
+              setPendingNotifications(false);
+              muteMutation.mutate(
+                { duration: "8_hours" },
+                {
+                  onError: () => setPendingNotifications(null),
+                  onSettled: () => setPendingNotifications(null),
+                },
+              );
+            },
+          },
+          {
+            text: "24 Hours",
+            onPress: () => {
+              setPendingNotifications(false);
+              muteMutation.mutate(
+                { duration: "24_hours" },
+                {
+                  onError: () => setPendingNotifications(null),
+                  onSettled: () => setPendingNotifications(null),
+                },
+              );
+            },
+          },
+          {
+            text: "1 Week",
+            onPress: () => {
+              setPendingNotifications(false);
+              muteMutation.mutate(
+                { duration: "7_days" },
+                {
+                  onError: () => setPendingNotifications(null),
+                  onSettled: () => setPendingNotifications(null),
+                },
+              );
+            },
+          },
+          {
+            text: "Always",
+            onPress: () => {
+              setPendingNotifications(false);
+              muteMutation.mutate(
+                { duration: "always" },
+                {
+                  onError: () => setPendingNotifications(null),
+                  onSettled: () => setPendingNotifications(null),
+                },
+              );
+            },
+          },
+          {
+            text: "Cancel",
+            style: "cancel",
+            onPress: () => setPendingNotifications(null),
+          },
+        ],
+      );
+    }
+  };
+
   const isDirect = conversationDetail?.type === "direct";
   const otherParticipant = isDirect
     ? conversationDetail?.otherParticipant
@@ -119,7 +222,36 @@ export function ProfileScreen({ id }: ProfileScreenProps) {
         )
       : groupParticipants;
 
-  const previewPhotos = DUMMY_PHOTOS.slice(0, 5);
+  const { data: messagesData } = useConversationMessages(conversationId);
+  const previewPhotos = useMemo(() => {
+    if (!messagesData?.pages) return [];
+
+    const photos: { id: string; url: string }[] = [];
+    const TARGET_COUNT = 5;
+
+    for (const page of messagesData.pages) {
+      for (const item of page.items) {
+        if (!item.attachments) continue;
+        for (const att of item.attachments) {
+          const isImage =
+            att.type === "image" ||
+            att.contentType?.startsWith("image/") ||
+            /\.(jpg|jpeg|png|webp|gif|heic)$/i.test(att.url);
+
+          if (isImage && att.url) {
+            photos.push({ id: att.mediaId || att.url, url: att.url });
+            if (photos.length >= TARGET_COUNT) {
+              return photos;
+            }
+          }
+        }
+      }
+    }
+
+    return photos;
+  }, [messagesData]);
+
+  const photosCount = previewPhotos.length;
 
   const handleOpenMediaTab = (tab: "photos" | "stars" | "links") => {
     router.push({
@@ -142,13 +274,47 @@ export function ProfileScreen({ id }: ProfileScreenProps) {
     });
   };
 
+  const { mutate: leaveGroup, isPending: isLeavingGroup } = useLeaveGroup(
+    conversationId,
+    {
+      onSuccess: () => {
+        showSuccessToast("Left group successfully");
+        router.replace("/(tabs)/chats");
+      },
+      onError: (error) => {
+        showApiErrorToast(error, "Failed to leave group");
+      },
+    },
+  );
+
+  const { mutate: blockUser, isPending: isBlockingUser } = useBlockUser({
+    onSuccess: () => {
+      showSuccessToast(`${name} has been blocked`);
+      router.replace("/(tabs)/chats");
+    },
+    onError: (error) => {
+      showApiErrorToast(error, "Failed to block contact");
+    },
+  });
+
   const handleBlockContact = () => {
+    if (!otherParticipant?.id) {
+      showApiErrorToast(
+        new Error("Contact details are unavailable"),
+        "Cannot block contact",
+      );
+      return;
+    }
     Alert.alert(
       "Block Contact",
       `Are you sure you want to block ${name}? You won't receive messages or calls from them.`,
       [
         { text: "Cancel", style: "cancel" },
-        { text: "Block", style: "destructive", onPress: () => router.back() },
+        {
+          text: "Block",
+          style: "destructive",
+          onPress: () => blockUser(otherParticipant.id),
+        },
       ],
     );
   };
@@ -159,7 +325,7 @@ export function ProfileScreen({ id }: ProfileScreenProps) {
       {
         text: "Leave",
         style: "destructive",
-        onPress: () => router.back(),
+        onPress: () => leaveGroup(),
       },
     ]);
   };
@@ -281,6 +447,7 @@ export function ProfileScreen({ id }: ProfileScreenProps) {
           Media, Links, and Docs
         </BaseText>
         <MediaSummaryRows
+          photosCount={photosCount}
           previewPhotos={previewPhotos}
           isDark={isDark}
           onOpenMediaTab={handleOpenMediaTab}
@@ -332,11 +499,16 @@ export function ProfileScreen({ id }: ProfileScreenProps) {
       <View className="bg-neutral-200 dark:bg-neutral-700 h-3 w-full mt-2" />
       <Pressable
         onPress={handleLeaveGroup}
+        disabled={isLeavingGroup}
         className="flex-row items-center p-4 border-t border-neutral-200 dark:border-neutral-700/50 mt-1"
       >
-        <LogoutIcon width={22} height={22} color="#EF4444" />
+        {isLeavingGroup ? (
+          <ActivityIndicator size="small" color="#EF4444" />
+        ) : (
+          <LogoutIcon width={22} height={22} color="#EF4444" />
+        )}
         <BaseText className="text-red-500 font-sf-medium text-base ml-3">
-          Leave group
+          {isLeavingGroup ? "Leaving group..." : "Leave group"}
         </BaseText>
       </Pressable>
     </View>
@@ -443,6 +615,7 @@ export function ProfileScreen({ id }: ProfileScreenProps) {
               </BaseText>
 
               <MediaSummaryRows
+                photosCount={photosCount}
                 previewPhotos={previewPhotos}
                 isDark={isDark}
                 onOpenMediaTab={handleOpenMediaTab}
@@ -454,26 +627,41 @@ export function ProfileScreen({ id }: ProfileScreenProps) {
                   <BaseText className="text-neutral-900 dark:text-white font-sf-medium text-base ml-3">
                     Notifications
                   </BaseText>
+                  {isMutePending && (
+                    <ActivityIndicator
+                      size="small"
+                      color={primary}
+                      className="ml-2"
+                    />
+                  )}
                 </View>
-                <Switch
-                  value={notificationsEnabled}
-                  onValueChange={setNotificationsEnabled}
-                  trackColor={{
-                    false: isDark ? "#3A566A" : "#E5E7EB",
-                    true: primary,
-                  }}
-                  thumbColor="#FFFFFF"
-                />
+                <View style={{ opacity: isMutePending ? 0.6 : 1 }}>
+                  <Switch
+                    value={notificationsEnabled}
+                    onValueChange={handleToggleNotifications}
+                    disabled={isMutePending}
+                    trackColor={{
+                      false: isDark ? "#3A566A" : "#E5E7EB",
+                      true: primary,
+                    }}
+                    thumbColor="#FFFFFF"
+                  />
+                </View>
               </View>
             </View>
             <View className="bg-neutral-200 dark:bg-neutral-700 h-3 w-full" />
             <Pressable
               onPress={handleBlockContact}
+              disabled={isBlockingUser}
               className="flex-row items-center p-4 border-t border-neutral-200 dark:border-neutral-700/50 mt-1"
             >
-              <BanIcon width={22} height={22} color="#EF4444" />
+              {isBlockingUser ? (
+                <ActivityIndicator size="small" color="#EF4444" />
+              ) : (
+                <BanIcon width={22} height={22} color="#EF4444" />
+              )}
               <BaseText className="text-red-500 font-sf-medium text-base ml-3">
-                Block contact
+                {isBlockingUser ? "Blocking contact..." : "Block contact"}
               </BaseText>
             </Pressable>
           </View>
