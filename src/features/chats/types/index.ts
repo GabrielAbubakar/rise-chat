@@ -118,6 +118,7 @@ export interface MessageAttachmentResponseDto {
   height?: number | null;
   durationMs?: number | null;
   url: string;
+  originalFilename?: string | null;
 }
 
 export interface MessageAttachmentDto {

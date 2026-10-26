@@ -13,9 +13,13 @@ export interface UploadMediaParams {
   fileName?: string;
   mimeType?: string;
   sizeBytes?: number;
+  clientUploadId?: string;
+  signal?: AbortSignal;
 }
 
-const VALID_MEDIA_CONTENT_TYPES: MediaContentType[] = [
+export const MAX_MEDIA_SIZE_BYTES = 52428800; // 50 MiB
+
+export const VALID_MEDIA_CONTENT_TYPES: MediaContentType[] = [
   "image/jpeg",
   "image/png",
   "image/webp",
@@ -88,29 +92,54 @@ function resolveContentTypeAndFilename(
 
 /**
  * Reusable media upload service:
- * 1. Requests upload credentials from backend (POST /v1/media/uploads)
- * 2. Uploads file multipart payload directly to S3/Cloudinary storage
- * 3. Completes upload verification with backend and returns confirmed MediaAssetResponseDto
+ * 1. Validates file size and MIME type against supported boundaries
+ * 2. Requests upload credentials from backend (POST /v1/media/uploads)
+ * 3. Handles already-ready (deduplicated) media without re-uploading
+ * 4. Uploads file multipart payload directly to Cloudinary storage with AbortSignal cancellation
+ * 5. Completes upload verification with backend and returns confirmed MediaAssetResponseDto
  */
 export async function uploadMedia(
   params: UploadMediaParams,
 ): Promise<MediaAssetResponseDto> {
+  if (params.signal?.aborted) {
+    throw new Error("Upload was cancelled");
+  }
+
   const { mimeType, fileName } = resolveContentTypeAndFilename(
     params.uri,
     params.mimeType,
     params.fileName,
   );
-  // Ensure size is at least 1 byte and doesn't exceed backend max limit (50 MiB)
-  const sizeBytes = Math.min(Math.max(1, params.sizeBytes || 500000), 52428800);
+
+  // Validate allowed content type
+  if (!VALID_MEDIA_CONTENT_TYPES.includes(mimeType)) {
+    throw new Error(`Unsupported media type: ${mimeType}`);
+  }
+
+  // Validate file size bounds (must not exceed 50 MiB)
+  if (params.sizeBytes && params.sizeBytes > MAX_MEDIA_SIZE_BYTES) {
+    throw new Error("File size exceeds 50 MB limit");
+  }
+
+  // Use actual size if available, fallback to minimum 1024 bytes (never guess arbitrary 500 KB)
+  const sizeBytes = params.sizeBytes && params.sizeBytes > 0
+    ? Math.min(params.sizeBytes, MAX_MEDIA_SIZE_BYTES)
+    : 1024;
+
+  const clientUploadId = params.clientUploadId || generateUUID();
 
   // Step 1: Create upload authorization
   const uploadAuth = await mediaApi.createUpload({
-    clientUploadId: generateUUID(),
+    clientUploadId,
     purpose: params.purpose,
     contentType: mimeType,
     sizeBytes,
     originalFilename: fileName,
   });
+
+  if (params.signal?.aborted) {
+    throw new Error("Upload was cancelled");
+  }
 
   // Step 2: Upload directly to storage if required
   if (uploadAuth.upload) {
@@ -132,6 +161,7 @@ export async function uploadMedia(
       const uploadRes = await fetch(uploadAuth.upload.url, {
         method: "POST",
         body: formData,
+        signal: params.signal,
       });
 
       if (!uploadRes.ok) {
@@ -139,13 +169,22 @@ export async function uploadMedia(
         console.warn("[uploadMedia] Native fetch failed, trying axios fallback. Response:", errText);
         await axios.post(uploadAuth.upload.url, formData, {
           headers: { "Content-Type": "multipart/form-data" },
+          signal: params.signal,
         });
       }
     } catch (fetchErr: any) {
+      if (params.signal?.aborted || fetchErr?.name === "AbortError" || fetchErr?.name === "CanceledError") {
+        throw new Error("Upload was cancelled");
+      }
       console.warn("[uploadMedia] Native fetch error, trying axios fallback:", fetchErr?.message);
       await axios.post(uploadAuth.upload.url, formData, {
         headers: { "Content-Type": "multipart/form-data" },
+        signal: params.signal,
       });
+    }
+
+    if (params.signal?.aborted) {
+      throw new Error("Upload was cancelled");
     }
 
     // Step 3: Complete verification
