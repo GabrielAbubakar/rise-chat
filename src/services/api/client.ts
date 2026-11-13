@@ -36,9 +36,14 @@ const processQueue = (
   failedQueue = [];
 };
 
-// Request Interceptor: Attach access token
+// Request Interceptor: Attach access token and stamp initiating session
 apiClient.interceptors.request.use(
   async (config: InternalAxiosRequestConfig) => {
+    // Stamp the initiating session generation on the request config
+    if ((config as any)._sessionGeneration === undefined) {
+      (config as any)._sessionGeneration = tokenStorage.getSessionGeneration();
+    }
+
     const token = await tokenStorage.getAccessToken();
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
@@ -60,6 +65,7 @@ apiClient.interceptors.response.use(
   async (error: AxiosError) => {
     const originalRequest = error.config as InternalAxiosRequestConfig & {
       _retry?: boolean;
+      _sessionGeneration?: number;
     };
 
     // Handle 401 Unauthorized errors for token refresh
@@ -68,14 +74,26 @@ apiClient.interceptors.response.use(
       originalRequest &&
       !originalRequest._retry
     ) {
-      const sessionGeneration = tokenStorage.getSessionGeneration();
+      const requestSession = originalRequest._sessionGeneration;
+      const currentSession = tokenStorage.getSessionGeneration();
+
+      // F5 FIX: If request was initiated under an earlier session (e.g. user logged out or switched accounts),
+      // discard immediately. Do not refresh token for new session, do not replay under new credentials.
+      if (requestSession !== undefined && requestSession !== currentSession) {
+        console.log(
+          `🛑 [Auth Module] Dropping 401 from stale session (request: ${requestSession}, current: ${currentSession})`,
+        );
+        return Promise.reject(
+          new Error("Stale request from previous session dropped"),
+        );
+      }
 
       if (isRefreshing) {
         return new Promise(function (resolve, reject) {
-          failedQueue.push({ resolve, reject, sessionGeneration });
+          failedQueue.push({ resolve, reject, sessionGeneration: currentSession });
         })
           .then((token) => {
-            if (tokenStorage.getSessionGeneration() !== sessionGeneration) {
+            if (tokenStorage.getSessionGeneration() !== currentSession) {
               return Promise.reject(
                 new Error("Session invalidated while waiting for refresh"),
               );
@@ -93,7 +111,7 @@ apiClient.interceptors.response.use(
       originalRequest._retry = true;
       isRefreshing = true;
       console.log(
-        `⏳ [Auth Module] Attempting token refresh (session: ${sessionGeneration})...`,
+        `⏳ [Auth Module] Attempting token refresh (session: ${currentSession})...`,
       );
 
       try {
@@ -111,14 +129,14 @@ apiClient.interceptors.response.use(
         );
 
         // Guard against late writes: check if user logged out or session rotated during refresh
-        if (tokenStorage.getSessionGeneration() !== sessionGeneration) {
+        if (tokenStorage.getSessionGeneration() !== currentSession) {
           console.log(
             "🛑 [Auth Module] Session invalidated during refresh; discarding returned tokens.",
           );
           processQueue(
             new Error("Session invalidated during refresh"),
             null,
-            sessionGeneration,
+            currentSession,
           );
           return Promise.reject(
             new Error("Session invalidated during refresh"),
@@ -135,7 +153,7 @@ apiClient.interceptors.response.use(
         }
 
         console.log("✨ [Auth Module] Token refreshed successfully");
-        processQueue(null, newAccessToken, sessionGeneration);
+        processQueue(null, newAccessToken, currentSession);
 
         return apiClient(originalRequest);
       } catch (refreshError: any) {
@@ -143,20 +161,23 @@ apiClient.interceptors.response.use(
           "🚨 [Auth Module] Token refresh failed:",
           refreshError?.message,
         );
-        processQueue(refreshError, null, sessionGeneration);
+        processQueue(refreshError, null, currentSession);
 
-        // Distinguish network/timeout failure from rejected credentials
-        const isAuthRejection =
-          refreshError.response?.status === 401 ||
-          refreshError.response?.status === 403 ||
-          !refreshError.response;
+        // F6 FIX: Distinguish genuine credential rejection (401/403) from temporary network/server errors
+        const status = refreshError.response?.status;
+        const isAuthRejection = status === 401 || status === 403;
 
         if (
           isAuthRejection &&
-          tokenStorage.getSessionGeneration() === sessionGeneration
+          tokenStorage.getSessionGeneration() === currentSession
         ) {
-          const { useAuthStore } = await import("@/store/useAuthStore");
+          // eslint-disable-next-line @typescript-eslint/no-require-imports
+          const { useAuthStore } = require("@/store/useAuthStore");
           await useAuthStore.getState().logout();
+        } else {
+          console.warn(
+            "⚠️ [Auth Module] Temporary refresh failure (offline/timeout/server error). Retaining session.",
+          );
         }
 
         return Promise.reject(refreshError);

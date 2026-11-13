@@ -3,9 +3,9 @@ import { useGetMe } from "@/features/settings/hooks/useProfile";
 import type {
   MessageCreatedEventPayload,
   PresenceChangedEventPayload,
+  ReceiptUpdatedEventPayload,
   TypingStartedEventPayload,
   TypingStoppedEventPayload,
-  ReceiptUpdatedEventPayload,
 } from "@/types/realtime";
 import { useQueryClient, type InfiniteData } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
@@ -16,10 +16,7 @@ import type {
 } from "../types";
 import { chatsKeys } from "./useChats";
 
-export function useChatRealtime(
-  conversationId: string,
-  targetUserId?: string,
-) {
+export function useChatRealtime(conversationId: string, targetUserId?: string) {
   const { socket, reconcileVersion } = useRealtime();
   const { data: currentUser } = useGetMe();
   const currentUserId = currentUser?.id;
@@ -228,10 +225,12 @@ export function useChatRealtime(
     socket.on("receipt.delivered", handleReceiptUpdated);
     socket.on("receipt.read", handleReceiptUpdated);
 
+    const typingTimeouts = typingTimeoutsRef.current;
+
     return () => {
       // Clear all active typing timers and reset transient state on unmount/conversation switch
-      typingTimeoutsRef.current.forEach((t) => clearTimeout(t));
-      typingTimeoutsRef.current.clear();
+      typingTimeouts.forEach((t) => clearTimeout(t));
+      typingTimeouts.clear();
       setTypingUserIds(new Set());
       setOnlineUserIds(new Set());
 
@@ -281,4 +280,3 @@ export function useChatRealtime(
     sendTypingStop,
   };
 }
-

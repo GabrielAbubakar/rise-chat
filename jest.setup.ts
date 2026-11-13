@@ -1,5 +1,11 @@
 import "@testing-library/react-native/dist/matchers/extend-expect";
 
+// Set fallback environment variables for tests
+process.env.EXPO_PUBLIC_API_URL =
+  process.env.EXPO_PUBLIC_API_URL || "https://api.example.com/v1";
+process.env.EXPO_PUBLIC_WS_URL =
+  process.env.EXPO_PUBLIC_WS_URL || "wss://api.example.com/chat";
+
 // react-native-worklets mock
 jest.mock("react-native-worklets", () =>
   // eslint-disable-next-line @typescript-eslint/no-require-imports

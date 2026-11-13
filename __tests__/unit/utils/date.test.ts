@@ -4,6 +4,7 @@ import {
   isSameDay,
   formatChatDateSeparator,
   formatChatItemDate,
+  formatLastMessageTime,
 } from '@/shared/utils/date';
 
 describe('Date utils', () => {
@@ -59,6 +60,35 @@ describe('Date utils', () => {
     it('formats a valid date string to time format', () => {
       const date = new Date(2026, 0, 1, 14, 30, 0);
       const result = formatTime(date.toISOString());
+      expect(result).toBeTruthy();
+    });
+  });
+
+  describe('formatLastMessageTime', () => {
+    it('returns empty string for null or empty input', () => {
+      expect(formatLastMessageTime(null)).toBe('');
+      expect(formatLastMessageTime('')).toBe('');
+    });
+
+    it('returns a time stamp (not "Today") when the date is today', () => {
+      const now = new Date();
+      const result = formatLastMessageTime(now.toISOString());
+      expect(result).not.toBe('Today');
+      // Should match time format e.g. "14:30" or "02:30 PM"
+      expect(result).toMatch(/\d{1,2}:\d{2}/);
+    });
+
+    it('returns "Yesterday" when the date was yesterday', () => {
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      expect(formatLastMessageTime(yesterday.toISOString())).toBe('Yesterday');
+    });
+
+    it('returns a formatted date string for older dates', () => {
+      const olderDate = new Date(2025, 5, 15);
+      const result = formatLastMessageTime(olderDate.toISOString());
+      expect(result).not.toBe('Today');
+      expect(result).not.toBe('Yesterday');
       expect(result).toBeTruthy();
     });
   });

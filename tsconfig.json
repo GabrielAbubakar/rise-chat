@@ -5,7 +5,6 @@
     "strict": true,
     "types": ["jest"],
     "paths": {
-      "@/*": ["./src/*"],
       "@core": ["./src/core"],
       "@core/*": ["./src/core/*"],
       "@features": ["./src/features"],
@@ -18,7 +17,8 @@
       "@services/*": ["./src/services/*"],
       "@types": ["./src/types"],
       "@types/*": ["./src/types/*"],
-      "@/assets/*": ["./assets/*"]
+      "@/assets/*": ["./assets/*"],
+      "@/*": ["./src/*"]
     }
   },
   "include": [

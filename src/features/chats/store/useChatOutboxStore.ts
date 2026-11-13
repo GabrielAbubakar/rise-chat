@@ -7,6 +7,7 @@ const OUTBOX_KEY = "chat_outbox_v1";
 
 export interface OutboxEntry {
   clientMessageId: string;
+  ownerId: string;
   conversationId: string;
   text?: string;
   attachment?: SelectedAttachment | null;
@@ -26,7 +27,12 @@ interface ChatOutboxStoreState {
   ) => void;
   removeOutboxEntry: (clientMessageId: string) => void;
   getOutboxEntry: (clientMessageId: string) => OutboxEntry | undefined;
-  getConversationOutbox: (conversationId: string) => OutboxEntry[];
+  getConversationOutbox: (
+    ownerId: string,
+    conversationId: string,
+  ) => OutboxEntry[];
+  getAllOutboxEntries: (ownerId?: string) => OutboxEntry[];
+  clearActiveSession: (ownerId?: string) => void;
 }
 
 function loadInitialOutbox(): Record<string, OutboxEntry> {
@@ -96,9 +102,32 @@ export const useChatOutboxStore = create<ChatOutboxStoreState>((set, get) => ({
     return get().entries[clientMessageId];
   },
 
-  getConversationOutbox: (conversationId: string) => {
+  getConversationOutbox: (ownerId: string, conversationId: string) => {
     return Object.values(get().entries).filter(
-      (entry) => entry.conversationId === conversationId,
+      (entry) =>
+        entry.ownerId === ownerId && entry.conversationId === conversationId,
     );
+  },
+
+  getAllOutboxEntries: (ownerId?: string) => {
+    const all = Object.values(get().entries);
+    if (!ownerId) return all;
+    return all.filter((entry) => entry.ownerId === ownerId);
+  },
+
+  clearActiveSession: (ownerId?: string) => {
+    set((state) => {
+      if (!ownerId) {
+        return { entries: {} };
+      }
+      const nextEntries = { ...state.entries };
+      Object.keys(nextEntries).forEach((id) => {
+        if (nextEntries[id].ownerId === ownerId) {
+          delete nextEntries[id];
+        }
+      });
+      persistOutbox(nextEntries);
+      return { entries: nextEntries };
+    });
   },
 }));

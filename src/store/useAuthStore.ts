@@ -1,9 +1,11 @@
+import { clientPersister, queryClient } from "@/core/queryClient";
+import { useChatDraftsStore } from "@/features/chats/store/useChatDraftsStore";
+import { useChatOutboxStore } from "@/features/chats/store/useChatOutboxStore";
+import { tokenStorage } from "@/services/api/token";
+import { clearPinCode } from "@/services/security/pin";
 import { createMMKV } from "react-native-mmkv";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
-import { tokenStorage } from "@/services/api/token";
-import { clearPinCode } from "@/services/security/pin";
-import { clientPersister, queryClient } from "@/core/queryClient";
 import { createZustandStorage } from "./storage";
 import { useSecurityStore } from "./useSecurityStore";
 
@@ -46,6 +48,11 @@ export const useAuthStore = create<AuthState>()(
         useSecurityStore.getState().reset();
         queryClient.clear();
         await clientPersister.removeClient();
+
+        // Teardown active in-memory drafts & outbox
+        useChatDraftsStore.getState().clearActiveSession();
+        useChatOutboxStore.getState().clearActiveSession();
+
         set({ isAuthenticated: false });
       },
     }),
