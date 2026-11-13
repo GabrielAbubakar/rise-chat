@@ -57,23 +57,31 @@ export function useOptimisticMutation<
     onError: (err, variables, context, mutation) => {
       const currentUser =
         user ?? queryClient.getQueryData<ProfileResponseDto>(profileKeys.me());
-      if (context && (context as any).previousList) {
-        queryClient.setQueryData(
-          [...chatsKeys.list(), currentUser?.id],
-          (context as any).previousList,
-        );
-      }
-      if (context && (context as any).previousArchived) {
-        queryClient.setQueryData(
-          [...chatsKeys.archived(), currentUser?.id],
-          (context as any).previousArchived,
-        );
-      }
-      if (context && (context as any).previousDetail && (context as any).detailKey) {
-        queryClient.setQueryData(
-          (context as any).detailKey,
-          (context as any).previousDetail,
-        );
+      if (context && typeof (context as any).rollback === "function") {
+        (context as any).rollback(queryClient, currentUser?.id);
+      } else {
+        if (context && (context as any).previousList) {
+          queryClient.setQueryData(
+            [...chatsKeys.list(), currentUser?.id],
+            (context as any).previousList,
+          );
+        }
+        if (context && (context as any).previousArchived) {
+          queryClient.setQueryData(
+            [...chatsKeys.archived(), currentUser?.id],
+            (context as any).previousArchived,
+          );
+        }
+        if (
+          context &&
+          (context as any).previousDetail &&
+          (context as any).detailKey
+        ) {
+          queryClient.setQueryData(
+            (context as any).detailKey,
+            (context as any).previousDetail,
+          );
+        }
       }
       showInfoToast(errorMessage, "Action Failed");
       if (options?.onError) {
