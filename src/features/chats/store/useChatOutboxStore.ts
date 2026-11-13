@@ -1,3 +1,4 @@
+import { UploadStage } from "@/features/media/services/uploadService";
 import { createMMKV } from "react-native-mmkv";
 import { create } from "zustand";
 import { SelectedAttachment } from "../components";
@@ -5,13 +6,17 @@ import { SelectedAttachment } from "../components";
 const storage = createMMKV({ id: "chat-outbox-storage" });
 const OUTBOX_KEY = "chat_outbox_v1";
 
+export type OutboxUploadStage = UploadStage;
+
 export interface OutboxEntry {
   clientMessageId: string;
   ownerId: string;
   conversationId: string;
   text?: string;
   attachment?: SelectedAttachment | null;
+  clientUploadId?: string;
   uploadedMediaId?: string;
+  uploadStage?: OutboxUploadStage;
   status: "pending" | "failed" | "sent";
   createdAt: string;
   error?: string;
@@ -23,7 +28,12 @@ interface ChatOutboxStoreState {
   updateOutboxStatus: (
     clientMessageId: string,
     status: "pending" | "failed" | "sent",
-    updates?: { uploadedMediaId?: string; error?: string },
+    updates?: {
+      uploadedMediaId?: string;
+      clientUploadId?: string;
+      uploadStage?: OutboxUploadStage;
+      error?: string;
+    },
   ) => void;
   removeOutboxEntry: (clientMessageId: string) => void;
   getOutboxEntry: (clientMessageId: string) => OutboxEntry | undefined;
@@ -69,7 +79,12 @@ export const useChatOutboxStore = create<ChatOutboxStoreState>((set, get) => ({
   updateOutboxStatus: (
     clientMessageId: string,
     status: "pending" | "failed" | "sent",
-    updates?: { uploadedMediaId?: string; error?: string },
+    updates?: {
+      uploadedMediaId?: string;
+      clientUploadId?: string;
+      uploadStage?: OutboxUploadStage;
+      error?: string;
+    },
   ) => {
     set((state) => {
       const existing = state.entries[clientMessageId];
@@ -78,7 +93,9 @@ export const useChatOutboxStore = create<ChatOutboxStoreState>((set, get) => ({
       const updated: OutboxEntry = {
         ...existing,
         status,
+        clientUploadId: updates?.clientUploadId ?? existing.clientUploadId,
         uploadedMediaId: updates?.uploadedMediaId ?? existing.uploadedMediaId,
+        uploadStage: updates?.uploadStage ?? existing.uploadStage,
         error: updates?.error ?? existing.error,
       };
 

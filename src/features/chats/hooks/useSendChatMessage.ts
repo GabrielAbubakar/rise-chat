@@ -1,7 +1,9 @@
 import { uploadMedia } from "@/features/media/services";
 import { profileKeys, useGetMe } from "@/features/settings/hooks/useProfile";
 import { ProfileResponseDto } from "@/features/settings/types";
+import { tokenStorage } from "@/services/api/token";
 import { generateUUID, showApiErrorToast, showInfoToast } from "@/shared/utils";
+import { useAuthStore } from "@/store/useAuthStore";
 import { InfiniteData, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useState } from "react";
 import { SelectedAttachment } from "../components";
@@ -199,9 +201,13 @@ export function useSendChatMessage({
   const handleSendMessage = useCallback(async () => {
     if ((!message.trim() && !selectedAttachment) || !conversationId) return;
 
+    const initiatingSessionGen = tokenStorage.getSessionGeneration();
+    const initiatingUserId = currentUserId;
+
     const textToSend = message.trim();
     const currentAttachment = selectedAttachment;
     const clientMessageId = generateUUID();
+    const clientUploadId = currentAttachment ? generateUUID() : undefined;
 
     // 1. Move draft into durable outbox entry
     const outboxEntry: OutboxEntry = {
@@ -210,6 +216,8 @@ export function useSendChatMessage({
       conversationId,
       text: textToSend || undefined,
       attachment: currentAttachment,
+      clientUploadId,
+      uploadStage: currentAttachment ? "authorizing" : undefined,
       status: "pending",
       createdAt: new Date().toISOString(),
     };
@@ -244,12 +252,49 @@ export function useSendChatMessage({
           fileName: currentAttachment.fileName || undefined,
           mimeType: currentAttachment.mimeType || undefined,
           sizeBytes: currentAttachment.fileSize || undefined,
+          clientUploadId,
+          sessionGeneration: initiatingSessionGen,
+          ownerId: initiatingUserId,
+          onStageChange: (progress) => {
+            // Guard against ended session before writing to outbox
+            if (
+              tokenStorage.getSessionGeneration() !== initiatingSessionGen ||
+              !useAuthStore.getState().isAuthenticated
+            ) {
+              return;
+            }
+            updateOutboxStatus(clientMessageId, "pending", {
+              clientUploadId: progress.clientUploadId,
+              uploadedMediaId: progress.mediaId,
+              uploadStage: progress.stage,
+            });
+          },
         });
+
+        // F8 FIX: Guard after every await before next authenticated operation or local write
+        if (
+          tokenStorage.getSessionGeneration() !== initiatingSessionGen ||
+          !useAuthStore.getState().isAuthenticated
+        ) {
+          console.warn(
+            "🛑 [useSendChatMessage] Session changed/ended after uploadMedia; aborting message send.",
+          );
+          return;
+        }
+
         uploadedMediaId = mediaAsset.id;
         updateOutboxStatus(clientMessageId, "pending", {
           uploadedMediaId: mediaAsset.id,
+          uploadStage: "completed",
         });
       } catch (error: any) {
+        // Guard: do not update state or show toasts if session ended / changed
+        if (
+          tokenStorage.getSessionGeneration() !== initiatingSessionGen ||
+          !useAuthStore.getState().isAuthenticated
+        ) {
+          return;
+        }
         showApiErrorToast(error, "Failed to upload attachment");
         updateOutboxStatus(clientMessageId, "failed", {
           error: error?.message || "Upload failed",
@@ -260,6 +305,17 @@ export function useSendChatMessage({
       } finally {
         setIsUploadingAttachment(false);
       }
+    }
+
+    // F8 FIX: Guard before final mutation submission
+    if (
+      tokenStorage.getSessionGeneration() !== initiatingSessionGen ||
+      !useAuthStore.getState().isAuthenticated
+    ) {
+      console.warn(
+        "🛑 [useSendChatMessage] Session changed/ended before message send mutation; aborting.",
+      );
+      return;
     }
 
     // 5. Submit message with clientMessageId
@@ -303,6 +359,9 @@ export function useSendChatMessage({
         return;
       }
 
+      const initiatingSessionGen = tokenStorage.getSessionGeneration();
+      const initiatingUserId = currentUserId;
+
       const textToSend = entry?.text;
       const attachment = entry?.attachment;
       let uploadedMediaId = entry?.uploadedMediaId;
@@ -311,8 +370,8 @@ export function useSendChatMessage({
       updateOutboxStatus(clientMessageId, "pending");
       setOptimisticMessageStatus(clientMessageId, "pending");
 
-      // Upload if media was not yet uploaded
-      if (attachment && !uploadedMediaId) {
+      // Upload if media was not yet uploaded or verification failed
+      if (attachment && entry.uploadStage !== "completed") {
         try {
           setIsUploadingAttachment(true);
           const mediaAsset = await uploadMedia({
@@ -321,12 +380,46 @@ export function useSendChatMessage({
             fileName: attachment.fileName || undefined,
             mimeType: attachment.mimeType || undefined,
             sizeBytes: attachment.fileSize || undefined,
+            clientUploadId: entry.clientUploadId,
+            existingMediaId: entry.uploadedMediaId,
+            existingStage: entry.uploadStage,
+            sessionGeneration: initiatingSessionGen,
+            ownerId: initiatingUserId,
+            onStageChange: (progress) => {
+              if (
+                tokenStorage.getSessionGeneration() !== initiatingSessionGen ||
+                !useAuthStore.getState().isAuthenticated
+              ) {
+                return;
+              }
+              updateOutboxStatus(clientMessageId, "pending", {
+                clientUploadId: progress.clientUploadId,
+                uploadedMediaId: progress.mediaId,
+                uploadStage: progress.stage,
+              });
+            },
           });
+
+          // F8 FIX: Guard after await
+          if (
+            tokenStorage.getSessionGeneration() !== initiatingSessionGen ||
+            !useAuthStore.getState().isAuthenticated
+          ) {
+            return;
+          }
+
           uploadedMediaId = mediaAsset.id;
           updateOutboxStatus(clientMessageId, "pending", {
             uploadedMediaId: mediaAsset.id,
+            uploadStage: "completed",
           });
         } catch (error: any) {
+          if (
+            tokenStorage.getSessionGeneration() !== initiatingSessionGen ||
+            !useAuthStore.getState().isAuthenticated
+          ) {
+            return;
+          }
           showApiErrorToast(error, "Failed to upload attachment on retry");
           updateOutboxStatus(clientMessageId, "failed", {
             error: error?.message || "Upload failed",
@@ -337,6 +430,14 @@ export function useSendChatMessage({
         } finally {
           setIsUploadingAttachment(false);
         }
+      }
+
+      // F8 FIX: Guard before retrying mutation
+      if (
+        tokenStorage.getSessionGeneration() !== initiatingSessionGen ||
+        !useAuthStore.getState().isAuthenticated
+      ) {
+        return;
       }
 
       // Retry sending using the EXACT SAME clientMessageId

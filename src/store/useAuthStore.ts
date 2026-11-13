@@ -1,6 +1,7 @@
 import { clientPersister, queryClient } from "@/core/queryClient";
 import { useChatDraftsStore } from "@/features/chats/store/useChatDraftsStore";
 import { useChatOutboxStore } from "@/features/chats/store/useChatOutboxStore";
+import { abortAllUploads } from "@/features/media/services/uploadService";
 import { tokenStorage } from "@/services/api/token";
 import { clearPinCode } from "@/services/security/pin";
 import { createMMKV } from "react-native-mmkv";
@@ -43,6 +44,7 @@ export const useAuthStore = create<AuthState>()(
       },
       logout: async () => {
         tokenStorage.incrementSessionGeneration();
+        abortAllUploads();
         await tokenStorage.clearTokens();
         await clearPinCode();
         useSecurityStore.getState().reset();

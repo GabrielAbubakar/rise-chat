@@ -1,11 +1,25 @@
 import axios from "axios";
 import { generateUUID } from "@/shared/utils";
+import { tokenStorage } from "@/services/api/token";
 import { mediaApi } from "../api";
 import {
   MediaAssetResponseDto,
   MediaContentType,
   MediaPurpose,
 } from "../types";
+
+export type UploadStage =
+  | "idle"
+  | "authorizing"
+  | "authorized"
+  | "transferred"
+  | "completed";
+
+export interface UploadStageProgress {
+  stage: UploadStage;
+  clientUploadId: string;
+  mediaId?: string;
+}
 
 export interface UploadMediaParams {
   uri: string;
@@ -15,6 +29,11 @@ export interface UploadMediaParams {
   sizeBytes?: number;
   clientUploadId?: string;
   signal?: AbortSignal;
+  existingMediaId?: string;
+  existingStage?: UploadStage;
+  onStageChange?: (progress: UploadStageProgress) => void;
+  sessionGeneration?: number;
+  ownerId?: string;
 }
 
 export const MAX_MEDIA_SIZE_BYTES = 52428800; // 50 MiB
@@ -40,6 +59,20 @@ export const VALID_MEDIA_CONTENT_TYPES: MediaContentType[] = [
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   "application/vnd.openxmlformats-officedocument.presentationml.presentation",
 ];
+
+// Active controller registry to abort in-flight uploads on logout / session termination
+const activeUploadControllers = new Set<AbortController>();
+
+export function abortAllUploads(): void {
+  activeUploadControllers.forEach((controller) => {
+    try {
+      controller.abort();
+    } catch {
+      // ignore
+    }
+  });
+  activeUploadControllers.clear();
+}
 
 function resolveContentTypeAndFilename(
   uri: string,
@@ -93,99 +126,180 @@ function resolveContentTypeAndFilename(
 /**
  * Reusable media upload service:
  * 1. Validates file size and MIME type against supported boundaries
- * 2. Requests upload credentials from backend (POST /v1/media/uploads)
- * 3. Handles already-ready (deduplicated) media without re-uploading
- * 4. Uploads file multipart payload directly to Cloudinary storage with AbortSignal cancellation
- * 5. Completes upload verification with backend and returns confirmed MediaAssetResponseDto
+ * 2. Statically binds session generation and lifecycle AbortSignals
+ * 3. Requests upload credentials from backend (POST /v1/media/uploads)
+ * 4. Handles already-ready (deduplicated) media without re-uploading
+ * 5. Uploads file multipart payload directly to Cloudinary storage with AbortSignal cancellation
+ * 6. Supports stage resumption: skips byte upload if stage is already "transferred"
+ * 7. Completes upload verification with backend and returns confirmed MediaAssetResponseDto
  */
 export async function uploadMedia(
   params: UploadMediaParams,
 ): Promise<MediaAssetResponseDto> {
-  if (params.signal?.aborted) {
-    throw new Error("Upload was cancelled");
-  }
+  const internalController = new AbortController();
+  activeUploadControllers.add(internalController);
 
-  const { mimeType, fileName } = resolveContentTypeAndFilename(
-    params.uri,
-    params.mimeType,
-    params.fileName,
-  );
-
-  // Validate allowed content type
-  if (!VALID_MEDIA_CONTENT_TYPES.includes(mimeType)) {
-    throw new Error(`Unsupported media type: ${mimeType}`);
-  }
-
-  // Validate file size bounds (must not exceed 50 MiB)
-  if (params.sizeBytes && params.sizeBytes > MAX_MEDIA_SIZE_BYTES) {
-    throw new Error("File size exceeds 50 MB limit");
-  }
-
-  // Use actual size if available, fallback to minimum 1024 bytes (never guess arbitrary 500 KB)
-  const sizeBytes = params.sizeBytes && params.sizeBytes > 0
-    ? Math.min(params.sizeBytes, MAX_MEDIA_SIZE_BYTES)
-    : 1024;
-
-  const clientUploadId = params.clientUploadId || generateUUID();
-
-  // Step 1: Create upload authorization
-  const uploadAuth = await mediaApi.createUpload({
-    clientUploadId,
-    purpose: params.purpose,
-    contentType: mimeType,
-    sizeBytes,
-    originalFilename: fileName,
-  });
-
-  if (params.signal?.aborted) {
-    throw new Error("Upload was cancelled");
-  }
-
-  // Step 2: Upload directly to storage if required
-  if (uploadAuth.upload) {
-    const formData = new FormData();
-    if (uploadAuth.upload.fields) {
-      Object.entries(uploadAuth.upload.fields).forEach(([key, val]) => {
-        formData.append(key, String(val));
-      });
-    }
-
-    formData.append("file", {
-      uri: params.uri,
-      name: fileName,
-      type: mimeType,
-    } as any);
-
-    // Step 2: Upload directly to storage if required
-    // Standalone Axios uses React Native's native XMLHttpRequest network layer, which streams
-    // the local file directly from disk via { uri, name, type } without triggering
-    // Expo WinterCG fetch's "Unsupported FormDataPart implementation" error.
+  const onExternalAbort = () => {
     try {
-      await axios.post(uploadAuth.upload.url, formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-        signal: params.signal,
-      });
-    } catch (uploadErr: any) {
-      if (
-        params.signal?.aborted ||
-        uploadErr?.name === "AbortError" ||
-        uploadErr?.name === "CanceledError" ||
-        uploadErr?.code === "ERR_CANCELED"
-      ) {
-        throw new Error("Upload was cancelled");
-      }
-      console.warn("[uploadMedia] Upload error:", uploadErr?.message);
-      throw uploadErr;
+      internalController.abort();
+    } catch {
+      // ignore
     }
+  };
 
-    if (params.signal?.aborted) {
+  if (params.signal) {
+    if (params.signal.aborted) {
+      activeUploadControllers.delete(internalController);
       throw new Error("Upload was cancelled");
     }
-
-    // Step 3: Complete verification
-    return await mediaApi.completeUpload(uploadAuth.media.id);
+    params.signal.addEventListener("abort", onExternalAbort);
   }
 
-  // Already uploaded / deduplicated
-  return uploadAuth.media;
+  const checkCancelled = () => {
+    if (internalController.signal.aborted || params.signal?.aborted) {
+      throw new Error("Upload was cancelled");
+    }
+    if (params.sessionGeneration !== undefined) {
+      const currentGen = tokenStorage.getSessionGeneration();
+      if (currentGen !== params.sessionGeneration) {
+        throw new Error("Upload aborted: Session generation mismatch");
+      }
+    }
+  };
+
+  try {
+    checkCancelled();
+
+    const { mimeType, fileName } = resolveContentTypeAndFilename(
+      params.uri,
+      params.mimeType,
+      params.fileName,
+    );
+
+    // Validate allowed content type
+    if (!VALID_MEDIA_CONTENT_TYPES.includes(mimeType)) {
+      throw new Error(`Unsupported media type: ${mimeType}`);
+    }
+
+    // Validate file size bounds (must not exceed 50 MiB)
+    if (params.sizeBytes && params.sizeBytes > MAX_MEDIA_SIZE_BYTES) {
+      throw new Error("File size exceeds 50 MB limit");
+    }
+
+    // Use actual size if available, fallback to minimum 1024 bytes (never guess arbitrary 500 KB)
+    const sizeBytes =
+      params.sizeBytes && params.sizeBytes > 0
+        ? Math.min(params.sizeBytes, MAX_MEDIA_SIZE_BYTES)
+        : 1024;
+
+    const clientUploadId = params.clientUploadId || generateUUID();
+
+    // F9 FIX: If bytes were already transferred, skip authorization and binary transfer!
+    // Directly retry backend verification with the existing mediaId
+    if (params.existingStage === "transferred" && params.existingMediaId) {
+      checkCancelled();
+      const verifiedMedia = await mediaApi.completeUpload(params.existingMediaId);
+      checkCancelled();
+      params.onStageChange?.({
+        stage: "completed",
+        clientUploadId,
+        mediaId: verifiedMedia.id,
+      });
+      return verifiedMedia;
+    }
+
+    // Step 1: Create upload authorization
+    params.onStageChange?.({
+      stage: "authorizing",
+      clientUploadId,
+    });
+    checkCancelled();
+
+    const uploadAuth = await mediaApi.createUpload({
+      clientUploadId,
+      purpose: params.purpose,
+      contentType: mimeType,
+      sizeBytes,
+      originalFilename: fileName,
+    });
+
+    checkCancelled();
+    params.onStageChange?.({
+      stage: "authorized",
+      clientUploadId,
+      mediaId: uploadAuth.media.id,
+    });
+
+    // Step 2: Upload directly to storage if required
+    if (uploadAuth.upload) {
+      const formData = new FormData();
+      if (uploadAuth.upload.fields) {
+        Object.entries(uploadAuth.upload.fields).forEach(([key, val]) => {
+          formData.append(key, String(val));
+        });
+      }
+
+      formData.append("file", {
+        uri: params.uri,
+        name: fileName,
+        type: mimeType,
+      } as any);
+
+      // Standalone Axios uses React Native's native XMLHttpRequest network layer, which streams
+      // the local file directly from disk via { uri, name, type } without triggering
+      // Expo WinterCG fetch's "Unsupported FormDataPart implementation" error.
+      try {
+        await axios.post(uploadAuth.upload.url, formData, {
+          headers: { "Content-Type": "multipart/form-data" },
+          signal: internalController.signal,
+        });
+      } catch (uploadErr: any) {
+        if (
+          internalController.signal.aborted ||
+          params.signal?.aborted ||
+          uploadErr?.name === "AbortError" ||
+          uploadErr?.name === "CanceledError" ||
+          uploadErr?.code === "ERR_CANCELED"
+        ) {
+          throw new Error("Upload was cancelled");
+        }
+        console.warn("[uploadMedia] Upload error:", uploadErr?.message);
+        throw uploadErr;
+      }
+
+      checkCancelled();
+
+      // F9 FIX: Persist that byte transfer succeeded BEFORE calling completeUpload
+      params.onStageChange?.({
+        stage: "transferred",
+        clientUploadId,
+        mediaId: uploadAuth.media.id,
+      });
+
+      // Step 3: Complete verification
+      const verifiedMedia = await mediaApi.completeUpload(uploadAuth.media.id);
+      checkCancelled();
+
+      params.onStageChange?.({
+        stage: "completed",
+        clientUploadId,
+        mediaId: verifiedMedia.id,
+      });
+
+      return verifiedMedia;
+    }
+
+    // Already uploaded / deduplicated
+    params.onStageChange?.({
+      stage: "completed",
+      clientUploadId,
+      mediaId: uploadAuth.media.id,
+    });
+    return uploadAuth.media;
+  } finally {
+    if (params.signal) {
+      params.signal.removeEventListener("abort", onExternalAbort);
+    }
+    activeUploadControllers.delete(internalController);
+  }
 }
