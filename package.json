@@ -108,7 +108,9 @@
     "type-check": "npm run typecheck",
     "lint": "expo lint",
     "lint-fix": "expo lint --fix",
-    "verify": "npm run typecheck && npm run lint && npm run test:ci",
+    "export:android": "expo export --platform android",
+    "export:ios": "expo export --platform ios",
+    "verify": "npm run typecheck && npm run lint && npm run test:ci && npm run export:android && npm run export:ios",
     "prepare": "husky"
   },
   "lint-staged": {
