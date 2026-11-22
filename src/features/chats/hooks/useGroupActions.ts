@@ -1,5 +1,5 @@
+import { useSessionMutation } from "@/core/useSessionMutation";
 import {
-  useMutation,
   UseMutationOptions,
   useQueryClient,
 } from "@tanstack/react-query";
@@ -22,7 +22,7 @@ export const useCreateGroup = (
   >,
 ) => {
   const queryClient = useQueryClient();
-  return useMutation({
+  return useSessionMutation({
     ...options,
     mutationFn: chatsApi.createGroup,
     onSuccess: (...args) => {
@@ -41,7 +41,7 @@ export const useUpdateGroup = (
   >,
 ) => {
   const queryClient = useQueryClient();
-  return useMutation({
+  return useSessionMutation({
     ...options,
     mutationFn: (data) => chatsApi.updateGroup(conversationId, data),
     onSuccess: (...args) => {
@@ -63,7 +63,7 @@ export const useSetGroupAvatar = (
   >,
 ) => {
   const queryClient = useQueryClient();
-  return useMutation({
+  return useSessionMutation({
     ...options,
     mutationFn: (data) => chatsApi.setGroupAvatar(conversationId, data),
     onSuccess: (...args) => {
@@ -81,7 +81,7 @@ export const useDeleteGroup = (
   options?: UseMutationOptions<void, Error, void>,
 ) => {
   const queryClient = useQueryClient();
-  return useMutation({
+  return useSessionMutation({
     ...options,
     mutationFn: () => chatsApi.deleteGroup(conversationId),
     onSuccess: (...args) => {
@@ -100,7 +100,7 @@ export const useAddGroupMembers = (
   >,
 ) => {
   const queryClient = useQueryClient();
-  return useMutation({
+  return useSessionMutation({
     ...options,
     mutationFn: (data) => chatsApi.addGroupMembers(conversationId, data),
     onSuccess: (...args) => {
@@ -117,7 +117,7 @@ export const useRemoveGroupMember = (
   options?: UseMutationOptions<void, Error, string>,
 ) => {
   const queryClient = useQueryClient();
-  return useMutation({
+  return useSessionMutation({
     ...options,
     mutationFn: (memberId) =>
       chatsApi.removeGroupMember(conversationId, memberId),
@@ -139,7 +139,7 @@ export const useUpdateGroupMemberRole = (
   >,
 ) => {
   const queryClient = useQueryClient();
-  return useMutation({
+  return useSessionMutation({
     ...options,
     mutationFn: ({ memberId, data }) =>
       chatsApi.updateGroupMemberRole(conversationId, memberId, data),
@@ -161,7 +161,7 @@ export const useTransferGroupOwnership = (
   >,
 ) => {
   const queryClient = useQueryClient();
-  return useMutation({
+  return useSessionMutation({
     ...options,
     mutationFn: (data) =>
       chatsApi.transferGroupOwnership(conversationId, data),
@@ -179,7 +179,7 @@ export const useLeaveGroup = (
   options?: UseMutationOptions<void, Error, void>,
 ) => {
   const queryClient = useQueryClient();
-  return useMutation({
+  return useSessionMutation({
     ...options,
     mutationFn: () => chatsApi.leaveGroup(conversationId),
     onSuccess: (...args) => {

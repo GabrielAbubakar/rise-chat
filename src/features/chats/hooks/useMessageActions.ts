@@ -1,5 +1,5 @@
+import { useSessionMutation } from "@/core/useSessionMutation";
 import {
-  useMutation,
   UseMutationOptions,
   useQueryClient,
 } from "@tanstack/react-query";
@@ -17,7 +17,7 @@ export const useUpdateMessage = (
   options?: UseMutationOptions<MessageResponseDto, Error, UpdateMessageDto>,
 ) => {
   const queryClient = useQueryClient();
-  return useMutation({
+  return useSessionMutation({
     ...options,
     mutationFn: (data: UpdateMessageDto) =>
       chatsApi.updateMessage(conversationId, messageId, data),
@@ -36,7 +36,7 @@ export const useDeleteMessage = (
   options?: UseMutationOptions<void, Error, void>,
 ) => {
   const queryClient = useQueryClient();
-  return useMutation({
+  return useSessionMutation({
     ...options,
     mutationFn: () => chatsApi.deleteMessage(conversationId, messageId),
     onSuccess: (...args) => {
@@ -54,7 +54,7 @@ export const useAddReaction = (
   options?: UseMutationOptions<MessageResponseDto, Error, AddReactionDto>,
 ) => {
   const queryClient = useQueryClient();
-  return useMutation({
+  return useSessionMutation({
     ...options,
     mutationFn: (data: AddReactionDto) =>
       chatsApi.addReaction(conversationId, messageId, data),
@@ -73,7 +73,7 @@ export const useRemoveReaction = (
   options?: UseMutationOptions<void, Error, void>,
 ) => {
   const queryClient = useQueryClient();
-  return useMutation({
+  return useSessionMutation({
     ...options,
     mutationFn: () => chatsApi.removeReaction(conversationId, messageId),
     onSuccess: (...args) => {

@@ -1,8 +1,8 @@
+import { useSessionMutation } from "@/core/useSessionMutation";
 import { profileKeys, useGetMe } from "@/features/settings/hooks/useProfile";
 import { ProfileResponseDto } from "@/features/settings/types";
 import {
   InfiniteData,
-  useMutation,
   UseMutationOptions,
   useQueryClient,
 } from "@tanstack/react-query";
@@ -38,7 +38,7 @@ export const useCreateDirectConversation = (
   >,
 ) => {
   const queryClient = useQueryClient();
-  return useMutation({
+  return useSessionMutation({
     ...options,
     mutationFn: chatsApi.createDirect,
     onSuccess: (...args) => {
@@ -71,7 +71,7 @@ export const useSendMessage = (
   const queryClient = useQueryClient();
   const { data: user } = useGetMe();
 
-  return useMutation<
+  return useSessionMutation<
     MessageResponseDto,
     Error,
     SendMessageVariables,
@@ -242,7 +242,7 @@ export const useSendMessage = (
 
 export const useMarkRead = (conversationId: string) => {
   const queryClient = useQueryClient();
-  return useMutation({
+  return useSessionMutation({
     mutationFn: () => chatsApi.markRead(conversationId),
     onSuccess: () => {
       queryClient.invalidateQueries({
@@ -254,14 +254,14 @@ export const useMarkRead = (conversationId: string) => {
 };
 
 export const useMarkReceiptDelivered = (conversationId: string) => {
-  return useMutation({
+  return useSessionMutation({
     mutationFn: (data: UpdateReceiptDto) =>
       chatsApi.markReceiptDelivered(conversationId, data),
   });
 };
 
 export const useMarkReceiptRead = (conversationId: string) => {
-  return useMutation({
+  return useSessionMutation({
     mutationFn: (data: UpdateReceiptDto) =>
       chatsApi.markReceiptRead(conversationId, data),
   });
@@ -276,7 +276,7 @@ export const useUpdateConversationSettings = (
   >,
 ) => {
   const queryClient = useQueryClient();
-  return useMutation({
+  return useSessionMutation({
     ...options,
     mutationFn: (data) =>
       chatsApi.updateConversationSettings(conversationId, data),
@@ -421,7 +421,7 @@ export const useFavoriteConversation = (
   options?: UseMutationOptions<ConversationSettingsResponseDto, Error, void>,
 ) => {
   const queryClient = useQueryClient();
-  return useMutation({
+  return useSessionMutation({
     ...options,
     mutationFn: () => chatsApi.favoriteConversation(conversationId),
     onSuccess: (...args) => {
@@ -439,7 +439,7 @@ export const useUnfavoriteConversation = (
   options?: UseMutationOptions<ConversationSettingsResponseDto, Error, void>,
 ) => {
   const queryClient = useQueryClient();
-  return useMutation({
+  return useSessionMutation({
     ...options,
     mutationFn: () => chatsApi.unfavoriteConversation(conversationId),
     onSuccess: (...args) => {
@@ -461,7 +461,7 @@ export const useClearMessages = (
   >,
 ) => {
   const queryClient = useQueryClient();
-  return useMutation({
+  return useSessionMutation({
     ...options,
     mutationFn: () => chatsApi.clearMessages(conversationId),
     onSuccess: (...args) => {
@@ -482,7 +482,7 @@ export const useDeleteForMe = (
   >,
 ) => {
   const queryClient = useQueryClient();
-  return useMutation({
+  return useSessionMutation({
     ...options,
     mutationFn: () => chatsApi.deleteForMe(conversationId),
     onSuccess: (...args) => {

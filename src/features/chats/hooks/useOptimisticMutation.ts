@@ -1,9 +1,9 @@
+import { useSessionMutation } from "@/core/useSessionMutation";
 import { profileKeys, useGetMe } from "@/features/settings/hooks/useProfile";
 import { ProfileResponseDto } from "@/features/settings/types";
 import { showInfoToast } from "@/shared/utils";
 import {
   QueryClient,
-  useMutation,
   UseMutationOptions,
   useQueryClient,
 } from "@tanstack/react-query";
@@ -35,7 +35,7 @@ export function useOptimisticMutation<
   const queryClient = useQueryClient();
   const { data: user } = useGetMe();
 
-  return useMutation<TData, Error, TVariables, TContext>({
+  return useSessionMutation<TData, Error, TVariables, TContext>({
     ...options,
     mutationFn,
     onMutate: async (variables, context) => {

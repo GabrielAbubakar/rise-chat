@@ -38,7 +38,8 @@ export default function SetupPinScreen() {
         if (newConfirmPin.length === 4) {
           if (newConfirmPin === pin) {
             // PIN matched, save it
-            await savePinCode(pin);
+            // false = session ended while saving; don't mark a PIN for the new session
+            if (!(await savePinCode(pin))) return;
             setPinStatus(true);
             setAppUnlocked(true);
             Toast.show({
