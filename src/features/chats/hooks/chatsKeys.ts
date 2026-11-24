@@ -10,6 +10,9 @@ export const chatsKeys = {
   detail: (id: string) => [...chatsKeys.conversations(), "detail", id] as const,
   messages: (id: string) =>
     [...chatsKeys.conversations(), "messages", id] as const,
+  /** A single message (e.g. a reply target). Kept outside `messages(id)` so list cache updates never touch it. */
+  message: (conversationId: string, messageId: string) =>
+    [...chatsKeys.conversations(), "message", conversationId, messageId] as const,
   receipts: (id: string) =>
     [...chatsKeys.conversations(), "receipts", id] as const,
 };

@@ -16,12 +16,15 @@ export interface AttachmentItemProps {
   attachment: MessageAttachmentResponseDto;
   isMe: boolean;
   hasText: boolean;
+  /** Forwarded so a long press on the attachment opens the message menu. */
+  onLongPress?: () => void;
 }
 
 export function AttachmentItem({
   attachment,
   isMe,
   hasText,
+  onLongPress,
 }: AttachmentItemProps) {
   const isImage =
     attachment.type === "image" ||
@@ -50,6 +53,7 @@ export function AttachmentItem({
     return (
       <Pressable
         onPress={handleOpen}
+        onLongPress={onLongPress}
         className="overflow-hidden rounded-xl"
         style={{ marginBottom: hasText ? 8 : 0 }}
       >
@@ -66,6 +70,7 @@ export function AttachmentItem({
     return (
       <Pressable
         onPress={handleOpen}
+        onLongPress={onLongPress}
         className="w-[220px] h-[160px] rounded-xl bg-neutral-900 justify-center items-center overflow-hidden"
         style={{ marginBottom: hasText ? 8 : 0 }}
       >
@@ -91,6 +96,7 @@ export function AttachmentItem({
     return (
       <Pressable
         onPress={handleOpen}
+        onLongPress={onLongPress}
         className={`flex-row items-center py-2 px-3 rounded-xl ${
           isMe ? "bg-white/20" : "bg-neutral-100 dark:bg-neutral-700"
         }`}
@@ -135,6 +141,7 @@ export function AttachmentItem({
   return (
     <Pressable
       onPress={handleOpen}
+      onLongPress={onLongPress}
       className={`flex-row items-center p-3 rounded-xl border ${
         isMe
           ? "bg-white/15 border-white/25"

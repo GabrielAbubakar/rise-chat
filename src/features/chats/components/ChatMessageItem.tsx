@@ -1,8 +1,9 @@
 import { BaseText } from "@/shared/components";
 import { formatChatDateSeparator, formatTime } from "@/shared/utils";
-import { memo } from "react";
+import { memo, useCallback, useMemo } from "react";
 import { View } from "react-native";
 import { MessageResponseDto } from "../types";
+import type { MessageAnchor } from "./MessageActionsMenu";
 import { DeliveryStatus, MessagePill } from "./MessagePill";
 
 export interface ChatMessageItemProps {
@@ -16,6 +17,13 @@ export interface ChatMessageItemProps {
   isGroupChat?: boolean;
   deliveryStatus?: DeliveryStatus;
   onRetry?: () => void;
+  currentUserId?: string;
+  /** The replied-to message when it is in the loaded history. */
+  replyToMessage?: MessageResponseDto;
+  getSenderName: (senderId: string) => string;
+  onLongPressMessage?: (item: MessageResponseDto, anchor: MessageAnchor) => void;
+  onPressReaction?: (item: MessageResponseDto, emoji: string) => void;
+  onPressReplyQuote?: (messageId: string) => void;
 }
 
 export const ChatMessageItem = memo(
@@ -30,7 +38,48 @@ export const ChatMessageItem = memo(
     isGroupChat,
     deliveryStatus,
     onRetry,
+    currentUserId,
+    replyToMessage,
+    getSenderName,
+    onLongPressMessage,
+    onPressReaction,
+    onPressReplyQuote,
   }: ChatMessageItemProps) => {
+    const isDeleted = !!item.deletedAt;
+    // Deleted placeholders have no actions; pending/failed sends only allow Copy.
+    const canOpenMenu = !isDeleted && !!onLongPressMessage;
+
+    const handleLongPress = useCallback(
+      (anchor: MessageAnchor) => onLongPressMessage?.(item, anchor),
+      [onLongPressMessage, item],
+    );
+
+    const handlePressReaction = useCallback(
+      (emoji: string) => onPressReaction?.(item, emoji),
+      [onPressReaction, item],
+    );
+
+    const replyToMessageId = item.replyToMessageId;
+    const replyQuote = useMemo(
+      () =>
+        replyToMessageId
+          ? {
+              conversationId: item.conversationId,
+              replyToMessageId,
+              replyToMessage,
+              getSenderName,
+              onPress: onPressReplyQuote,
+            }
+          : undefined,
+      [
+        replyToMessageId,
+        item.conversationId,
+        replyToMessage,
+        getSenderName,
+        onPressReplyQuote,
+      ],
+    );
+
     return (
       <View>
         {showDateSeparator ? (
@@ -56,16 +105,31 @@ export const ChatMessageItem = memo(
           status={item.status}
           deliveryStatus={deliveryStatus}
           onRetry={onRetry}
+          isDeleted={isDeleted}
+          isEdited={!!item.editedAt}
+          reactions={item.reactions}
+          currentUserId={currentUserId}
+          replyQuote={replyQuote}
+          onLongPress={canOpenMenu ? handleLongPress : undefined}
+          onPressReaction={onPressReaction ? handlePressReaction : undefined}
         />
       </View>
     );
   },
   (prev, next) => {
+    // `item` is a fresh object on every render (the screen adds
+    // showDateSeparator), so compare the fields that affect rendering.
     return (
       prev.item.id === next.item.id &&
       prev.item.status === next.item.status &&
+      prev.item.version === next.item.version &&
       prev.item.text === next.item.text &&
       prev.item.attachments === next.item.attachments &&
+      prev.item.reactions === next.item.reactions &&
+      prev.item.deletedAt === next.item.deletedAt &&
+      prev.item.editedAt === next.item.editedAt &&
+      prev.item.replyToMessageId === next.item.replyToMessageId &&
+      prev.replyToMessage === next.replyToMessage &&
       prev.deliveryStatus === next.deliveryStatus &&
       prev.isCurrentMatch === next.isCurrentMatch &&
       prev.searchQuery === next.searchQuery &&
@@ -73,7 +137,12 @@ export const ChatMessageItem = memo(
       prev.senderName === next.senderName &&
       prev.senderAvatar === next.senderAvatar &&
       prev.isGroupChat === next.isGroupChat &&
-      prev.onRetry === next.onRetry
+      prev.currentUserId === next.currentUserId &&
+      prev.onRetry === next.onRetry &&
+      prev.getSenderName === next.getSenderName &&
+      prev.onLongPressMessage === next.onLongPressMessage &&
+      prev.onPressReaction === next.onPressReaction &&
+      prev.onPressReplyQuote === next.onPressReplyQuote
     );
   },
 );

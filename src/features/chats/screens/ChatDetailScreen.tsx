@@ -5,10 +5,18 @@ import {
   ScreenContainer,
   ScreenHeader,
 } from "@/shared/components";
-import { isSameDay, showApiErrorToast, showInfoToast } from "@/shared/utils";
+import {
+  AppError,
+  isSameDay,
+  showApiErrorToast,
+  showInfoToast,
+} from "@/shared/utils";
+import { useQueryClient } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
 import { LegendList } from "@legendapp/list/react-native";
+import * as Clipboard from "expo-clipboard";
 import * as DocumentPicker from "expo-document-picker";
+import * as Haptics from "expo-haptics";
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
@@ -16,6 +24,7 @@ import { useColorScheme } from "nativewind";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   BackHandler,
   Dimensions,
   Keyboard,
@@ -39,19 +48,37 @@ import {
   ChatInputBar,
   ChatMessageItem,
   ChatSearchNavigator,
+  MessageActionsMenu,
+  MessageAnchor,
+  ReplyPreviewBar,
 } from "../components";
 import { DeliveryStatus } from "../components/MessagePill";
 import { useChatRealtime } from "../hooks/useChatRealtime";
 import { useChatSearch } from "../hooks/useChatSearch";
 import {
+  chatsKeys,
   useConversationDetail,
   useConversationMessages,
   useConversationReceipts,
+  useDeleteMessage,
   useMarkRead,
+  useReactToMessage,
   useSendMessage,
+  useUpdateMessage,
 } from "../hooks/useChats";
 import { useSendChatMessage } from "../hooks/useSendChatMessage";
-import { MessageResponseDto } from "../types";
+import {
+  MESSAGE_REACTION_EMOJIS,
+  MessageReactionEmoji,
+  MessageResponseDto,
+} from "../types";
+
+/** Real, server-confirmed messages; pending or failed sends can't be replied to, reacted to or deleted. */
+const isSyncedMessage = (m: MessageResponseDto) =>
+  !m.id.startsWith("temp_") && m.status !== "pending" && m.status !== "failed";
+
+const isReactionEmoji = (emoji: string): emoji is MessageReactionEmoji =>
+  (MESSAGE_REACTION_EMOJIS as readonly string[]).includes(emoji);
 
 const { height: windowHeight } = Dimensions.get("window");
 
@@ -107,6 +134,92 @@ export function ChatDetailScreen({ id, search }: ChatDetailScreenProps) {
       return { ...msg, showDateSeparator };
     });
   }, [messagesData]);
+
+  // Cache objects keyed by id; identity only changes when a message changes,
+  // so reply quotes can be memo-compared by reference.
+  const messageById = useMemo(() => {
+    const map = new Map<string, MessageResponseDto>();
+    messagesData?.pages.forEach((page) =>
+      page.items.forEach((m) => map.set(m.id, m)),
+    );
+    return map;
+  }, [messagesData]);
+
+  // Message actions
+  const [replyToId, setReplyToId] = useState<string | null>(null);
+  const replyTarget = replyToId ? messageById.get(replyToId) : undefined;
+  // Drop the reply if its target disappears or is deleted meanwhile.
+  const activeReplyTarget =
+    replyTarget && !replyTarget.deletedAt ? replyTarget : undefined;
+  const clearReply = useCallback(() => setReplyToId(null), []);
+
+  const [actionTarget, setActionTarget] = useState<{
+    messageId: string;
+    anchor: MessageAnchor;
+  } | null>(null);
+  const actionMessage = actionTarget
+    ? messageById.get(actionTarget.messageId)
+    : undefined;
+  const closeActionMenu = useCallback(() => setActionTarget(null), []);
+
+  const { mutate: reactToMessage } = useReactToMessage(conversationId, {
+    onError: (error) => showApiErrorToast(error, "Couldn't update reaction"),
+  });
+  const { mutate: deleteMessage } = useDeleteMessage(conversationId, {
+    onError: (error) => showApiErrorToast(error, "Couldn't delete message"),
+  });
+
+  // Editing your own message reuses the composer; its text lives apart from
+  // the draft so cancelling an edit leaves the draft untouched.
+  const queryClient = useQueryClient();
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editText, setEditText] = useState("");
+  const editTarget = editingId ? messageById.get(editingId) : undefined;
+  const activeEditTarget =
+    editTarget && !editTarget.deletedAt ? editTarget : undefined;
+  const isEditing = !!activeEditTarget;
+  const cancelEdit = useCallback(() => {
+    setEditingId(null);
+    setEditText("");
+  }, []);
+
+  const { mutate: updateMessage } = useUpdateMessage(conversationId, {
+    onError: (error) => {
+      if (error instanceof AppError && error.statusCode === 409) {
+        // MESSAGE_VERSION_CONFLICT / MESSAGE_DELETED: someone changed it first.
+        showApiErrorToast(
+          error,
+          "This message changed before your edit was saved.",
+          "Edit not saved",
+        );
+        queryClient.invalidateQueries({
+          queryKey: chatsKeys.messages(conversationId),
+        });
+        return;
+      }
+      showApiErrorToast(error, "Couldn't save your edit");
+    },
+  });
+
+  const handleSubmitEdit = useCallback(() => {
+    const target = activeEditTarget;
+    if (!target) return;
+    const trimmed = editText.trim();
+    const hasAttachments = !!target.attachments?.length;
+    if (!trimmed && !hasAttachments) {
+      showInfoToast("A message can't be empty. Delete it instead.");
+      return;
+    }
+    const nextText = trimmed || null;
+    if (nextText !== (target.text?.trim() || null)) {
+      updateMessage({
+        messageId: target.id,
+        text: nextText,
+        expectedVersion: target.version ?? 0,
+      });
+    }
+    cancelEdit();
+  }, [activeEditTarget, editText, updateMessage, cancelEdit]);
 
   const lastReadMessageIdRef = useRef<string | null>(null);
 
@@ -166,6 +279,8 @@ export function ChatDetailScreen({ id, search }: ChatDetailScreenProps) {
     conversationId,
     sendMessageMutation,
     sendTypingStop,
+    replyToMessageId: activeReplyTarget?.id ?? null,
+    onReplyConsumed: clearReply,
     onMessageSent: () => {
       // Give the list a brief moment to process the optimistic update, then scroll down
       setTimeout(() => {
@@ -260,6 +375,7 @@ export function ChatDetailScreen({ id, search }: ChatDetailScreenProps) {
   const listRef = useRef<any>(null);
   const searchInputRef = useRef<TextInput>(null);
   const composerRef = useRef<View>(null);
+  const composerInputRef = useRef<TextInput>(null);
 
   // Scroll to index helper for search
   const handleScrollToIndex = useCallback((index: number) => {
@@ -292,6 +408,10 @@ export function ChatDetailScreen({ id, search }: ChatDetailScreenProps) {
   // Back button handler for search mode
   useEffect(() => {
     const onBackPress = () => {
+      if (isEditing) {
+        cancelEdit();
+        return true;
+      }
       if (isSearching) {
         handleExitSearch();
         return true;
@@ -305,7 +425,7 @@ export function ChatDetailScreen({ id, search }: ChatDetailScreenProps) {
     );
 
     return () => backHandler.remove();
-  }, [isSearching, handleExitSearch]);
+  }, [isSearching, handleExitSearch, isEditing, cancelEdit]);
 
   // Keyboard visibility listener
   useEffect(() => {
@@ -367,6 +487,108 @@ export function ChatDetailScreen({ id, search }: ChatDetailScreenProps) {
     }
     return {};
   }, [conversationDetail]);
+
+  const getSenderName = useCallback(
+    (senderId: string) => {
+      if (senderId === currentUserId) return "You";
+      if (isGroup) return participantsMap[senderId]?.displayName || "Member";
+      return otherParticipant?.displayName || participantName;
+    },
+    [currentUserId, isGroup, participantsMap, otherParticipant, participantName],
+  );
+
+  const toggleReaction = useCallback(
+    (message: MessageResponseDto, emoji: MessageReactionEmoji) => {
+      if (!isSyncedMessage(message) || message.deletedAt) return;
+      const mine = message.reactions?.find((r) => r.userId === currentUserId);
+      reactToMessage({
+        messageId: message.id,
+        emoji: mine?.emoji === emoji ? null : emoji,
+      });
+    },
+    [currentUserId, reactToMessage],
+  );
+
+  const handleLongPressMessage = useCallback(
+    (message: MessageResponseDto, anchor: MessageAnchor) => {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+      setIsAttachmentMenuOpen(false);
+      setActionTarget({ messageId: message.id, anchor });
+    },
+    [],
+  );
+
+  const handlePressReaction = useCallback(
+    (message: MessageResponseDto, emoji: string) => {
+      if (isReactionEmoji(emoji)) toggleReaction(message, emoji);
+    },
+    [toggleReaction],
+  );
+
+  const handlePressReplyQuote = useCallback(
+    (messageId: string) => {
+      const index = messages.findIndex((m) => m.id === messageId);
+      if (index === -1) {
+        showInfoToast("Scroll up to load the original message");
+        return;
+      }
+      listRef.current?.scrollToIndex({ index, animated: true, viewPosition: 0.5 });
+    },
+    [messages],
+  );
+
+  const handleMenuReact = useCallback(
+    (emoji: MessageReactionEmoji) => {
+      if (actionMessage) toggleReaction(actionMessage, emoji);
+      closeActionMenu();
+    },
+    [actionMessage, toggleReaction, closeActionMenu],
+  );
+
+  const handleMenuReply = useCallback(() => {
+    if (actionMessage) setReplyToId(actionMessage.id);
+    cancelEdit();
+    closeActionMenu();
+    setTimeout(() => composerInputRef.current?.focus(), 150);
+  }, [actionMessage, cancelEdit, closeActionMenu]);
+
+  const handleMenuEdit = useCallback(() => {
+    if (actionMessage) {
+      setReplyToId(null);
+      setIsAttachmentMenuOpen(false);
+      setEditingId(actionMessage.id);
+      setEditText(actionMessage.text ?? "");
+    }
+    closeActionMenu();
+    setTimeout(() => composerInputRef.current?.focus(), 150);
+  }, [actionMessage, closeActionMenu]);
+
+  const handleMenuCopy = useCallback(() => {
+    const text = actionMessage?.text?.trim();
+    closeActionMenu();
+    if (!text) return;
+    Clipboard.setStringAsync(text)
+      .then(() => showInfoToast("Message copied"))
+      .catch((error) => showApiErrorToast(error, "Couldn't copy message"));
+  }, [actionMessage, closeActionMenu]);
+
+  const handleMenuDelete = useCallback(() => {
+    const target = actionMessage;
+    closeActionMenu();
+    if (!target) return;
+    Alert.alert(
+      "Delete message?",
+      "This message will be deleted for everyone in this chat.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: () => deleteMessage({ messageId: target.id }),
+        },
+      ],
+    );
+  }, [actionMessage, closeActionMenu, deleteMessage]);
 
   const groupMembersText = useMemo(() => {
     if (!isGroup || !conversationDetail?.participants) return undefined;
@@ -470,6 +692,16 @@ export function ChatDetailScreen({ id, search }: ChatDetailScreenProps) {
           isGroupChat={isGroup}
           deliveryStatus={deliveryStatus}
           onRetry={() => handleRetryMessage(item.clientMessageId)}
+          currentUserId={currentUserId}
+          replyToMessage={
+            item.replyToMessageId
+              ? messageById.get(item.replyToMessageId)
+              : undefined
+          }
+          getSenderName={getSenderName}
+          onLongPressMessage={handleLongPressMessage}
+          onPressReaction={handlePressReaction}
+          onPressReplyQuote={handlePressReplyQuote}
         />
       );
     },
@@ -483,6 +715,11 @@ export function ChatDetailScreen({ id, search }: ChatDetailScreenProps) {
       participantsMap,
       getDeliveryStatus,
       handleRetryMessage,
+      messageById,
+      getSenderName,
+      handleLongPressMessage,
+      handlePressReaction,
+      handlePressReplyQuote,
     ],
   );
 
@@ -652,7 +889,22 @@ export function ChatDetailScreen({ id, search }: ChatDetailScreenProps) {
       {!isSearching ? (
         <View style={{ width: "100%", backgroundColor: "transparent" }}>
           <View ref={composerRef}>
-            {selectedAttachment ? (
+            {activeEditTarget ? (
+              <ReplyPreviewBar
+                mode="edit"
+                message={activeEditTarget}
+                onCancel={cancelEdit}
+                isDark={isDark}
+              />
+            ) : activeReplyTarget ? (
+              <ReplyPreviewBar
+                message={activeReplyTarget}
+                senderName={getSenderName(activeReplyTarget.senderId)}
+                onCancel={clearReply}
+                isDark={isDark}
+              />
+            ) : null}
+            {selectedAttachment && !isEditing ? (
               <AttachmentPreviewBar
                 attachment={selectedAttachment}
                 onRemove={() => setSelectedAttachment(null)}
@@ -660,10 +912,14 @@ export function ChatDetailScreen({ id, search }: ChatDetailScreenProps) {
               />
             ) : null}
             <ChatInputBar
-              message={message}
-              onChangeText={handleTextChange}
-              onSend={handleSendMessage}
-              isPending={sendMessageMutation.isPending || isUploadingAttachment}
+              message={isEditing ? editText : message}
+              onChangeText={isEditing ? setEditText : handleTextChange}
+              onSend={isEditing ? handleSubmitEdit : handleSendMessage}
+              isEditing={isEditing}
+              isPending={
+                !isEditing &&
+                (sendMessageMutation.isPending || isUploadingAttachment)
+              }
               insetsBottom={isKeyboardVisible ? 12 : insets.bottom}
               isDark={isDark}
               onToggleAttachmentMenu={() => {
@@ -675,10 +931,43 @@ export function ChatDetailScreen({ id, search }: ChatDetailScreenProps) {
                 });
               }}
               isAttachmentMenuOpen={isAttachmentMenuOpen}
+              inputRef={composerInputRef}
             />
           </View>
         </View>
       ) : null}
+
+      {/* Long-press message actions */}
+      <MessageActionsMenu
+        visible={!!actionMessage}
+        anchor={actionTarget?.anchor ?? null}
+        isMe={actionMessage?.senderId === currentUserId}
+        myReaction={
+          actionMessage?.reactions?.find((r) => r.userId === currentUserId)
+            ?.emoji
+        }
+        canReact={!!actionMessage && isSyncedMessage(actionMessage)}
+        canReply={!!actionMessage && isSyncedMessage(actionMessage) && !isSearching}
+        canCopy={!!actionMessage?.text?.trim()}
+        canEdit={
+          !!actionMessage &&
+          isSyncedMessage(actionMessage) &&
+          actionMessage.senderId === currentUserId &&
+          !isSearching
+        }
+        onEdit={handleMenuEdit}
+        canDelete={
+          !!actionMessage &&
+          isSyncedMessage(actionMessage) &&
+          actionMessage.senderId === currentUserId
+        }
+        onReact={handleMenuReact}
+        onReply={handleMenuReply}
+        onCopy={handleMenuCopy}
+        onDelete={handleMenuDelete}
+        onClose={closeActionMenu}
+        isDark={isDark}
+      />
     </ScreenContainer>
   );
 }
