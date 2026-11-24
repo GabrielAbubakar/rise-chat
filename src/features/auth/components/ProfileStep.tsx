@@ -18,7 +18,9 @@ export function ProfileStep({ step, nextStep, prevStep }: ProfileStepProps) {
     username,
     setUsername,
     photoUri,
+    avatarStage,
     pickImage,
+    removePhoto,
     isUpdatingProfile,
     finishRegistration,
   } = useProfileStep();
@@ -61,6 +63,10 @@ export function ProfileStep({ step, nextStep, prevStep }: ProfileStepProps) {
   }
 
   if (step === 4) {
+    const isUploading = avatarStage === "uploading";
+    const isSaving = avatarStage === "verified" || avatarStage === "saved";
+    const isFailed = avatarStage === "failed";
+
     return (
       <View className="flex-1 w-full">
         <BaseText
@@ -79,13 +85,46 @@ export function ProfileStep({ step, nextStep, prevStep }: ProfileStepProps) {
                   source={{ uri: photoUri }}
                   className="w-32 h-32 rounded-full"
                 />
-                <View className="absolute -right-2 -top-2 bg-primary rounded-full w-10 h-10 items-center justify-center border-4 border-app dark:border-app-dark">
-                  <Feather name="check" size={20} color="white" />
-                </View>
+                <Pressable
+                  onPress={removePhoto}
+                  disabled={isUpdatingProfile}
+                  hitSlop={8}
+                  className="absolute -right-2 -top-2 bg-neutral-600 dark:bg-neutral-500 rounded-full w-8 h-8 items-center justify-center border-2 border-white dark:border-neutral-900"
+                >
+                  <Feather name="x" size={16} color="white" />
+                </Pressable>
               </View>
-              <BaseText className="text-center mt-6 text-neutral-400 dark:text-neutral-400 font-medium">
-                Done! Your photo{"\n"}successfully uploaded
+
+              <BaseText className="text-center mt-6 text-neutral-600 dark:text-neutral-300 font-sf-bold text-base">
+                {isUploading
+                  ? "Uploading photo..."
+                  : isSaving
+                    ? "Saving profile..."
+                    : isFailed
+                      ? "Upload failed"
+                      : "Photo selected"}
               </BaseText>
+
+              <BaseText className="text-center mt-1 text-neutral-400 dark:text-neutral-400 text-sm">
+                {isUploading
+                  ? "Sending to secure storage..."
+                  : isSaving
+                    ? "Applying changes..."
+                    : isFailed
+                      ? "Could not upload photo. Tap Retry below."
+                      : "Tap Next to upload photo and finish setup"}
+              </BaseText>
+
+              {!isUpdatingProfile && (
+                <Pressable
+                  onPress={pickImage}
+                  className="mt-3 px-3 py-1 rounded-full bg-neutral-100 dark:bg-neutral-700"
+                >
+                  <BaseText className="text-xs text-primary font-sf-medium">
+                    Choose different photo
+                  </BaseText>
+                </Pressable>
+              )}
             </View>
           ) : (
             <Pressable
@@ -105,7 +144,15 @@ export function ProfileStep({ step, nextStep, prevStep }: ProfileStepProps) {
         <View className="w-full pb-10">
           {photoUri ? (
             <BaseButton
-              title="Next"
+              title={
+                isUploading
+                  ? "Uploading Photo..."
+                  : isSaving
+                    ? "Saving Profile..."
+                    : isFailed
+                      ? "Retry"
+                      : "Next"
+              }
               onPress={finishRegistration}
               loading={isUpdatingProfile}
               disabled={isUpdatingProfile}

@@ -1,16 +1,17 @@
-import React from "react";
-import { Pressable, TextInput, View } from "react-native";
-import { useRouter } from "expo-router";
+import ArrowLeftIcon from "@/assets/icons/solid/cheveron-left.svg";
+import PhoneIcon from "@/assets/icons/solid/phone.svg";
+import SearchIcon from "@/assets/icons/solid/search.svg";
+import VideoIcon from "@/assets/icons/solid/video-camera.svg";
 import {
   Avatar,
   BaseText,
   BaseTouchableOpacity,
   ScreenHeader,
 } from "@/shared/components";
-import ArrowLeftIcon from "@/assets/icons/solid/cheveron-left.svg";
-import PhoneIcon from "@/assets/icons/solid/phone.svg";
-import SearchIcon from "@/assets/icons/solid/search.svg";
-import VideoIcon from "@/assets/icons/solid/video-camera.svg";
+import { useRouter } from "expo-router";
+import React from "react";
+import { Pressable, TextInput, View } from "react-native";
+import { TypingIndicator } from "./TypingIndicator";
 
 export interface ChatHeaderProps {
   isSearching: boolean;
@@ -26,6 +27,7 @@ export interface ChatHeaderProps {
   conversationId: string;
   searchInputRef: React.RefObject<TextInput | null>;
   isGroup?: boolean;
+  groupMembersText?: string;
 }
 
 export function ChatHeader({
@@ -42,6 +44,7 @@ export function ChatHeader({
   conversationId,
   searchInputRef,
   isGroup = false,
+  groupMembersText,
 }: ChatHeaderProps) {
   const router = useRouter();
 
@@ -53,7 +56,11 @@ export function ChatHeader({
   const avatarInitials = isGroup ? undefined : participantInitials;
 
   return (
-    <ScreenHeader useSafeArea withPadding={false} className="z-10 shadow-sm pt-4">
+    <ScreenHeader
+      useSafeArea
+      withPadding={false}
+      className="z-10 shadow-sm pt-4"
+    >
       {isSearching ? (
         /* Search Header Bar */
         <View className="flex-row items-center justify-between px-4 pb-4 pt-2 gap-3">
@@ -70,7 +77,10 @@ export function ChatHeader({
               returnKeyType="search"
             />
             {searchQuery.length > 0 && (
-              <Pressable onPress={() => onSearchQueryChange("")} className="p-1">
+              <Pressable
+                onPress={() => onSearchQueryChange("")}
+                className="p-1"
+              >
                 <BaseText className="text-white/80 font-sf-bold text-xs">
                   ✕
                 </BaseText>
@@ -113,13 +123,17 @@ export function ChatHeader({
                 <BaseText className="text-white text-[18px] font-sf-bold">
                   {participantName}
                 </BaseText>
-                <BaseText type="body-md" className="text-white/80 mt-0.5">
-                  {isOtherTyping
-                    ? "typing..."
-                    : isOtherOnline
-                      ? "Online"
-                      : "Offline"}
-                </BaseText>
+                {isOtherTyping ? (
+                  <TypingIndicator />
+                ) : (
+                  <BaseText type="body-md" className="text-white/80 mt-0.5" numberOfLines={1}>
+                    {isGroup
+                      ? groupMembersText
+                      : isOtherOnline
+                        ? "Online"
+                        : "Offline"}
+                  </BaseText>
+                )}
               </View>
             </BaseTouchableOpacity>
           </View>

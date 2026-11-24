@@ -5,6 +5,8 @@ import { createZustandStorage } from "./storage";
 interface AppState {
   hasSeenOnboarding: boolean;
   setHasSeenOnboarding: (value: boolean) => void;
+  pendingRoute: string | null;
+  setPendingRoute: (route: string | null) => void;
 }
 
 export const useAppStore = create<AppState>()(
@@ -12,6 +14,8 @@ export const useAppStore = create<AppState>()(
     (set) => ({
       hasSeenOnboarding: false,
       setHasSeenOnboarding: (value) => set({ hasSeenOnboarding: value }),
+      pendingRoute: null,
+      setPendingRoute: (route) => set({ pendingRoute: route }),
     }),
     {
       name: "app-state",

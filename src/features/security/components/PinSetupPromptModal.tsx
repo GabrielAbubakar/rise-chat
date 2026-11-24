@@ -1,6 +1,6 @@
 import LockIcon from "@/assets/icons/solid/lock-closed.svg";
 import { BaseButton, BaseText } from "@/shared/components";
-import { colors } from "@/shared/constants/tokens";
+import { useThemeColors } from "@/shared/hooks";
 import React from "react";
 import { Modal, View } from "react-native";
 
@@ -15,6 +15,8 @@ export const PinSetupPromptModal: React.FC<PinSetupPromptModalProps> = ({
   onAccept,
   onDecline,
 }) => {
+  const { primary } = useThemeColors();
+
   return (
     <Modal
       transparent={true}
@@ -32,7 +34,7 @@ export const PinSetupPromptModal: React.FC<PinSetupPromptModalProps> = ({
             }}
             className="w-[60px] h-[60px] rounded-2xl justify-center items-center mb-5 -mt-16 bg-white dark:bg-neutral-700"
           >
-            <LockIcon width={24} height={24} color={colors.primary.DEFAULT} />
+            <LockIcon width={24} height={24} color={primary} />
           </View>
 
           <BaseText type="h4" className="mb-3" align="center">

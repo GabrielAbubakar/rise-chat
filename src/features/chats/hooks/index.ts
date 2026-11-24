@@ -7,3 +7,4 @@ export * from "./useGroupActions";
 export * from "./useDiscoveryActions";
 export * from "./useChatRealtime";
 export * from "./useChatSearch";
+export * from "./useContactDiscovery";

@@ -4,7 +4,12 @@ import { BaseText, PhoneInput, BaseButton } from '@/shared/components';
 import { usePhoneStep } from '../hooks/usePhoneStep';
 
 interface PhoneStepProps {
-  onSuccess: (challengeId: string, resendInSeconds: number, phoneNumber: string) => void;
+  onSuccess: (
+    challengeId: string,
+    resendInSeconds: number,
+    phoneNumber: string,
+    codeLength: number,
+  ) => void;
 }
 
 export function PhoneStep({ onSuccess }: PhoneStepProps) {

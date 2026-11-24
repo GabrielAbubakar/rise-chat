@@ -1,11 +1,16 @@
 import { Ionicons } from "@expo/vector-icons";
 import { View } from "react-native";
 import { ToastConfig } from "react-native-toast-message";
+
+import { colors } from "@/shared/constants";
 import { BaseText } from "./BaseText";
 
 export const toastConfig: ToastConfig = {
   success: (props) => (
-    <View className="w-[90%] bg-surface dark:bg-surface-dark rounded-xl px-4 py-3 shadow-sm border-l-4 border-green-500 flex-row items-center">
+    <View
+      style={{ borderColor: colors.primary.DEFAULT }}
+      className="w-[90%] bg-surface dark:bg-surface-dark rounded-xl px-4 py-3 shadow-sm border-l-4 flex-row items-center"
+    >
       <View className="flex-1">
         <BaseText
           type="body-md"

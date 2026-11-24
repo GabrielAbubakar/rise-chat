@@ -15,6 +15,7 @@ export function useRegisterFlow() {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [challengeId, setChallengeId] = useState('');
   const [resendSeconds, setResendSeconds] = useState(60);
+  const [codeLength, setCodeLength] = useState(4);
 
   const nextStep = () => setStep((prev) => Math.min(prev + 1, 4));
   const prevStep = () => setStep((prev) => Math.max(prev - 1, 1));
@@ -60,5 +61,7 @@ export function useRegisterFlow() {
     setChallengeId,
     resendSeconds,
     setResendSeconds,
+    codeLength,
+    setCodeLength,
   };
 }

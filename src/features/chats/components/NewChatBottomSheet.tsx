@@ -3,12 +3,10 @@ import {
   BottomSheetSectionList,
   BottomSheetTextInput,
 } from "@gorhom/bottom-sheet";
-import * as Contacts from "expo-contacts/legacy";
 import { useRouter } from "expo-router";
 import {
   forwardRef,
   useDeferredValue,
-  useEffect,
   useImperativeHandle,
   useMemo,
   useRef,
@@ -26,36 +24,43 @@ import {
   BaseText,
 } from "@/shared/components";
 import { useColorScheme } from "nativewind";
+import { useCreateDirectConversation, useSearchUsers } from "../hooks/useChats";
 import {
-  useCreateDirectConversation,
-  useMatchContacts,
-  useSearchUsers,
-} from "../hooks/useChats";
-import { ContactMatchDto } from "../types";
-
-export interface ContactItem {
-  id: string;
-  name: string;
-  phone?: string;
-  avatar?: string;
-  participantId?: string;
-}
+  useContactDiscovery,
+  type ContactItem,
+} from "../hooks/useContactDiscovery";
+export type { ContactItem };
 
 export const NewChatBottomSheet = forwardRef<BottomSheetModal>((props, ref) => {
   const innerRef = useRef<BottomSheetModal>(null);
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
-  const [localContacts, setLocalContacts] = useState<ContactItem[]>([]);
-  const [matchedUsers, setMatchedUsers] = useState<ContactMatchDto[]>([]);
-  const [permissionStatus, setPermissionStatus] =
-    useState<Contacts.PermissionStatus | null>(null);
   const [selectedParticipantId, setSelectedParticipantId] = useState<
     string | null
   >(null);
 
   const [resetKey, setResetKey] = useState(0);
 
-  useImperativeHandle(ref, () => innerRef.current as BottomSheetModal);
+  useImperativeHandle(
+    ref,
+    () =>
+      ({
+        ...innerRef.current,
+        present: (...args: any[]) => {
+          setIsOpen(true);
+          innerRef.current?.present(...args);
+        },
+        dismiss: (...args: any[]) => {
+          setIsOpen(false);
+          innerRef.current?.dismiss(...args);
+        },
+        close: (...args: any[]) => {
+          setIsOpen(false);
+          innerRef.current?.close(...args);
+        },
+      }) as any,
+  );
+
 
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === "dark";
@@ -64,12 +69,9 @@ export const NewChatBottomSheet = forwardRef<BottomSheetModal>((props, ref) => {
   // Snap points
   const snapPoints = useMemo(() => ["85%"], []);
 
-  // API Mutations and Queries
-  const { mutate: matchContacts } = useMatchContacts({
-    onSuccess: (data) => {
-      setMatchedUsers(data.matches || []);
-    },
-  });
+  // Use normalized, batched, deduplicated contact discovery
+  const { localContacts, matchedUsers, permissionStatus } =
+    useContactDiscovery(isOpen);
 
   const deferredSearchQuery = useDeferredValue(searchQuery);
 
@@ -89,54 +91,6 @@ export const NewChatBottomSheet = forwardRef<BottomSheetModal>((props, ref) => {
       setSelectedParticipantId(null);
     },
   });
-
-  // Read local device contacts and run /contacts/match API
-  useEffect(() => {
-    if (!isOpen) return;
-
-    let isMounted = true;
-    (async () => {
-      try {
-        const { status } = await Contacts.requestPermissionsAsync();
-        if (!isMounted) return;
-        setPermissionStatus(status);
-
-        if (status === "granted") {
-          const { data } = await Contacts.getContactsAsync({
-            fields: [Contacts.Fields.PhoneNumbers, Contacts.Fields.Image],
-          });
-          if (!isMounted) return;
-
-          if (data.length > 0) {
-            const mappedContacts: ContactItem[] = data
-              .filter((c) => c.name)
-              .map((c) => ({
-                id: c.id,
-                name: c.name,
-                phone: c.phoneNumbers?.[0]?.number,
-                avatar: c.imageAvailable && c.image ? c.image.uri : undefined,
-              }));
-
-            setLocalContacts(mappedContacts);
-
-            // Collect phone numbers to match on backend
-            const phoneNumbers = data
-              .flatMap((c) => c.phoneNumbers?.map((p) => p.number))
-              .filter((num): num is string => Boolean(num));
-
-            if (phoneNumbers.length > 0) {
-              matchContacts({ phoneNumbers });
-            }
-          }
-        }
-      } catch (error) {
-        console.error("Failed to fetch contacts", error);
-      }
-    })();
-    return () => {
-      isMounted = false;
-    };
-  }, [isOpen, matchContacts]);
 
   // Map local contacts with matched user data
   const processedContacts = useMemo(() => {
@@ -343,11 +297,11 @@ export const NewChatBottomSheet = forwardRef<BottomSheetModal>((props, ref) => {
         </View>
 
         {/* Permission Denied Fallback */}
-        {permissionStatus === "denied" ? (
+        {permissionStatus === "denied" && deferredSearchQuery.length < 3 ? (
           <View className="flex-1 items-center justify-center px-10">
             <BaseText className="text-center text-neutral-500 dark:text-neutral-400 font-sf-medium">
-              Contacts permission is required to find and add your friends.
-              Please enable it in your device settings.
+              Contacts permission is required to find and add your friends. You
+              can still search for users globally above.
             </BaseText>
           </View>
         ) : deferredSearchQuery.length >= 3 ? (

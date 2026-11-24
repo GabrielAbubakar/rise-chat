@@ -15,11 +15,18 @@ let isRefreshing = false;
 let failedQueue: {
   resolve: (value?: unknown) => void;
   reject: (reason?: any) => void;
+  sessionGeneration: number;
 }[] = [];
 
-const processQueue = (error: any, token: string | null = null) => {
+const processQueue = (
+  error: any,
+  token: string | null = null,
+  currentSession: number,
+) => {
   failedQueue.forEach((prom) => {
-    if (error) {
+    if (prom.sessionGeneration !== currentSession) {
+      prom.reject(new Error("Session expired/logged out while queued"));
+    } else if (error) {
       prom.reject(error);
     } else {
       prom.resolve(token);
@@ -34,7 +41,6 @@ apiClient.interceptors.request.use(
   async (config: InternalAxiosRequestConfig) => {
     const token = await tokenStorage.getAccessToken();
     if (token && config.headers) {
-      // console.log(token);
       config.headers.Authorization = `Bearer ${token}`;
     } else if (config.headers) {
       delete config.headers.Authorization;
@@ -62,11 +68,18 @@ apiClient.interceptors.response.use(
       originalRequest &&
       !originalRequest._retry
     ) {
+      const sessionGeneration = tokenStorage.getSessionGeneration();
+
       if (isRefreshing) {
         return new Promise(function (resolve, reject) {
-          failedQueue.push({ resolve, reject });
+          failedQueue.push({ resolve, reject, sessionGeneration });
         })
           .then((token) => {
+            if (tokenStorage.getSessionGeneration() !== sessionGeneration) {
+              return Promise.reject(
+                new Error("Session invalidated while waiting for refresh"),
+              );
+            }
             if (originalRequest.headers) {
               originalRequest.headers.Authorization = "Bearer " + token;
             }
@@ -79,7 +92,9 @@ apiClient.interceptors.response.use(
 
       originalRequest._retry = true;
       isRefreshing = true;
-      console.log("⏳ [Auth Module] Attempting token refresh...");
+      console.log(
+        `⏳ [Auth Module] Attempting token refresh (session: ${sessionGeneration})...`,
+      );
 
       try {
         const refreshToken = await tokenStorage.getRefreshToken();
@@ -88,10 +103,27 @@ apiClient.interceptors.response.use(
           throw new Error("No refresh token available");
         }
 
-        // We make a raw axios call to avoid interceptor loops
-        const { data } = await axios.post(`${env.API_URL}/auth/refresh`, {
-          refreshToken,
-        });
+        // Bounded 10s request timeout to avoid indefinitely hanging requests
+        const { data } = await axios.post(
+          `${env.API_URL}/auth/refresh`,
+          { refreshToken },
+          { timeout: 10000 },
+        );
+
+        // Guard against late writes: check if user logged out or session rotated during refresh
+        if (tokenStorage.getSessionGeneration() !== sessionGeneration) {
+          console.log(
+            "🛑 [Auth Module] Session invalidated during refresh; discarding returned tokens.",
+          );
+          processQueue(
+            new Error("Session invalidated during refresh"),
+            null,
+            sessionGeneration,
+          );
+          return Promise.reject(
+            new Error("Session invalidated during refresh"),
+          );
+        }
 
         const newAccessToken = data.accessToken;
         const newRefreshToken = data.refreshToken;
@@ -103,16 +135,29 @@ apiClient.interceptors.response.use(
         }
 
         console.log("✨ [Auth Module] Token refreshed successfully");
-        processQueue(null, newAccessToken);
+        processQueue(null, newAccessToken, sessionGeneration);
 
         return apiClient(originalRequest);
-      } catch (refreshError) {
-        console.log("🚨 [Auth Module] Token refresh failed, logging out");
-        processQueue(refreshError, null);
-        // Clear tokens if refresh fails to force a re-login
-        // Trigger a global sign-out event
-        const { useAuthStore } = await import("@/store/useAuthStore");
-        await useAuthStore.getState().logout();
+      } catch (refreshError: any) {
+        console.log(
+          "🚨 [Auth Module] Token refresh failed:",
+          refreshError?.message,
+        );
+        processQueue(refreshError, null, sessionGeneration);
+
+        // Distinguish network/timeout failure from rejected credentials
+        const isAuthRejection =
+          refreshError.response?.status === 401 ||
+          refreshError.response?.status === 403 ||
+          !refreshError.response;
+
+        if (
+          isAuthRejection &&
+          tokenStorage.getSessionGeneration() === sessionGeneration
+        ) {
+          const { useAuthStore } = await import("@/store/useAuthStore");
+          await useAuthStore.getState().logout();
+        }
 
         return Promise.reject(refreshError);
       } finally {

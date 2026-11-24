@@ -1,8 +1,9 @@
 import { useRouter } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
 import { useColorScheme } from "nativewind";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Alert, Pressable, View } from "react-native";
+import { useConversationMessages } from "../hooks/useConversationQueries";
 
 // Shared Components
 import { ScreenContainer, ScreenHeader } from "@/shared/components";
@@ -13,7 +14,6 @@ import SearchIcon from "@/assets/icons/solid/search.svg";
 // Dummy Data
 import {
   DUMMY_CHATS,
-  DUMMY_PHOTOS,
   DUMMY_SHARED_LINKS,
   DUMMY_STARRED_MESSAGES,
 } from "@shared/constants/dummyData";
@@ -40,6 +40,25 @@ export function ChatMediaScreen({ id, initialTab }: ChatMediaScreenProps) {
   const router = useRouter();
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === "dark";
+
+  const { data: messagesData } = useConversationMessages(id || "");
+  const conversationMediaPhotos = useMemo(() => {
+    if (!messagesData?.pages) return [];
+    return messagesData.pages.flatMap((page) =>
+      page.items.flatMap((item) =>
+        (item.attachments || [])
+          .filter(
+            (att) =>
+              att.type === "image" ||
+              att.contentType?.startsWith("image/") ||
+              /\.(jpg|jpeg|png|webp|gif|heic)$/i.test(att.url),
+          )
+          .map((att) => ({ id: att.mediaId, url: att.url })),
+      ),
+    );
+  }, [messagesData]);
+
+  const photosToDisplay = conversationMediaPhotos;
 
   const normalizeTab = (val?: string | string[]): MediaTab => {
     const raw = Array.isArray(val) ? val[0] : val;
@@ -125,7 +144,7 @@ export function ChatMediaScreen({ id, initialTab }: ChatMediaScreenProps) {
 
       {/* Tab Content Views */}
       <View className="flex-1">
-        {activeTab === "photos" && <MediaPhotosTab photos={DUMMY_PHOTOS} />}
+        {activeTab === "photos" && <MediaPhotosTab photos={photosToDisplay} />}
         {activeTab === "stars" && (
           <MediaStarsTab messages={DUMMY_STARRED_MESSAGES} isDark={isDark} />
         )}

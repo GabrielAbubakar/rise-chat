@@ -85,11 +85,77 @@ The following will be permanently stuck on the default Green color defined in `g
 
 ---
 
+## 3. Navigation Theming (React Navigation & Expo Router)
+
+While NativeWind styles the components you write yourself in JSX (like screens, buttons, and headers), **Expo Router and React Navigation generate internal native views** under the hood that you do not directly control.
+
+### The Problem: White Flashes During Screen Transitions
+Navigators like `<Tabs>` (especially with `animation: "shift"`) and `<Stack>` create internal background canvases to hold screens while animating transitions. 
+
+Because those container views are created internally by React Navigation, they do not have your NativeWind `className="dark:bg-app-dark"` on them. Instead, React Navigation styles its internal canvas using `theme.colors.background` from React Navigation's `ThemeProvider`.
+
+Without a properly configured `ThemeProvider`:
+1. React Navigation falls back to its default light theme background (`rgb(242, 242, 242)`).
+2. During tab switching or stack push/pop animations, the sliding screens expose the white navigator canvas for a few frames, causing an unsightly **white flash** in dark mode.
+
+### How it Works (`src/core/providers/AppProviders.tsx`)
+
+We provide customized navigation themes directly into Expo Router's `<ThemeProvider>`:
+
+```tsx
+import { colors } from "@/shared/constants";
+import { DarkTheme, DefaultTheme, ThemeProvider } from "expo-router";
+import { useColorScheme as useRNColorScheme } from "react-native";
+import { useThemeStore } from "@/store";
+
+// Map our exact design tokens to React Navigation's theme contract
+const CustomDarkTheme = {
+  ...DarkTheme,
+  colors: {
+    ...DarkTheme.colors,
+    background: colors.app.dark,    // #081C2C
+    card: colors.surface.dark,       // #163043
+  },
+};
+
+const CustomDefaultTheme = {
+  ...DefaultTheme,
+  colors: {
+    ...DefaultTheme.colors,
+    background: colors.app.DEFAULT, // #F5F7F9
+    card: colors.surface.DEFAULT,   // #FFFFFF
+  },
+};
+
+export function AppProviders({ children }: AppProvidersProps) {
+  const themePreference = useThemeStore((state) => state.themePreference);
+  const systemScheme = useRNColorScheme();
+
+  // Resolve 'system' against the device's actual OS theme
+  const isDark =
+    themePreference === "dark" ||
+    (themePreference === "system" && systemScheme === "dark");
+
+  return (
+    <ThemeProvider value={isDark ? CustomDarkTheme : CustomDefaultTheme}>
+      {children}
+    </ThemeProvider>
+  );
+}
+```
+
+### Key Takeaways
+1. **Always resolve `'system'`**: Never check `themePreference === 'dark'` alone. When `themePreference` is `'system'`, inspect the device OS scheme using `useColorScheme()`.
+2. **Global Inheritance**: Once `CustomDarkTheme` has `background: colors.app.dark`, all Expo Router `<Tabs>` shift animations, stack screen backdrops, and bottom sheets inherit `#081C2C` automatically without needing manual `sceneStyle` overrides on every screen.
+
+---
+
 ## Summary Cheat Sheet
 
 | Requirement | Approach | Example |
 |---|---|---|
-| **Light / Dark Backgrounds** | Tailwind `dark:` modifier | `className="bg-white dark:bg-neutral-800"` |
-| **Light / Dark Text** | Tailwind `dark:` modifier | `className="text-black dark:text-white"` |
+| **Screen & Component Backgrounds** | Tailwind `dark:` modifier | `className="bg-app dark:bg-app-dark"` |
+| **Component Text Colors** | Tailwind `dark:` modifier | `className="text-black dark:text-white"` |
 | **Dynamic Primary Backgrounds** | `useThemeColors` + Inline styles | `style={{ backgroundColor: primary }}` |
 | **Dynamic Primary Text / Icons**| `useThemeColors` + Props/Styles | `color={primary}` |
+| **Navigator Canvas & Transition Backdrops** | `ThemeProvider` in `AppProviders` | `value={isDark ? CustomDarkTheme : CustomDefaultTheme}` |

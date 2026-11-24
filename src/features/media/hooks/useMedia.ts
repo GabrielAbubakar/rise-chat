@@ -10,8 +10,8 @@ export const useCreateMediaUpload = (
   options?: UseMutationOptions<CreateMediaUploadResponseDto, Error, CreateMediaUploadDto>
 ) => {
   return useMutation({
-    mutationFn: mediaApi.createUpload,
     ...options,
+    mutationFn: mediaApi.createUpload,
   });
 };
 
@@ -19,7 +19,7 @@ export const useCompleteMediaUpload = (
   options?: UseMutationOptions<MediaAssetResponseDto, Error, string>
 ) => {
   return useMutation({
-    mutationFn: mediaApi.completeUpload,
     ...options,
+    mutationFn: mediaApi.completeUpload,
   });
 };

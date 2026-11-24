@@ -36,8 +36,24 @@ export function useOptimisticMutation<
   const { data: user } = useGetMe();
 
   return useMutation<TData, Error, TVariables, TContext>({
+    ...options,
     mutationFn,
-    onMutate: (variables) => onMutate(queryClient, user?.id, variables),
+    onMutate: async (variables, context) => {
+      const internalContext = await onMutate(queryClient, user?.id, variables);
+      if (options?.onMutate) {
+        const consumerContext = await options.onMutate(variables, context);
+        if (
+          typeof internalContext === "object" &&
+          internalContext !== null &&
+          typeof consumerContext === "object" &&
+          consumerContext !== null
+        ) {
+          return { ...internalContext, ...consumerContext };
+        }
+        return (consumerContext ?? internalContext) as TContext;
+      }
+      return internalContext;
+    },
     onError: (err, variables, context, mutation) => {
       const currentUser =
         user ?? queryClient.getQueryData<ProfileResponseDto>(profileKeys.me());
@@ -53,9 +69,20 @@ export function useOptimisticMutation<
           (context as any).previousArchived,
         );
       }
+      if (context && (context as any).previousDetail && (context as any).detailKey) {
+        queryClient.setQueryData(
+          (context as any).detailKey,
+          (context as any).previousDetail,
+        );
+      }
       showInfoToast(errorMessage, "Action Failed");
       if (options?.onError) {
         options.onError(err, variables, context, mutation);
+      }
+    },
+    onSuccess: (data, variables, context, mutation) => {
+      if (options?.onSuccess) {
+        options.onSuccess(data, variables, context, mutation);
       }
     },
     onSettled: (data, error, variables, context, mutation) => {
@@ -66,6 +93,5 @@ export function useOptimisticMutation<
         options.onSettled(data, error, variables, context, mutation);
       }
     },
-    ...options,
   });
 }

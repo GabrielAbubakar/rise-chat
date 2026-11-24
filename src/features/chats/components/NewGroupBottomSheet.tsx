@@ -1,27 +1,23 @@
-import { mediaApi } from "@/features/media/api";
+import { uploadMedia } from "@/features/media/services";
 import {
-  Avatar,
   BaseBottomSheet,
   BaseButton,
   BaseInput,
   BaseText,
 } from "@/shared/components";
-import { generateUUID, showApiErrorToast } from "@/shared/utils";
+import { showApiErrorToast } from "@/shared/utils";
 import {
   BottomSheetFlatList,
   BottomSheetModal,
   BottomSheetScrollView,
   BottomSheetTextInput,
 } from "@gorhom/bottom-sheet";
-import axios from "axios";
-import * as Contacts from "expo-contacts/legacy";
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
-import React, {
+import {
   forwardRef,
   useCallback,
   useDeferredValue,
-  useEffect,
   useMemo,
   useState,
 } from "react";
@@ -29,83 +25,18 @@ import { ActivityIndicator, Pressable, View } from "react-native";
 import { chatsApi } from "../api";
 
 import CameraIcon from "@/assets/icons/solid/add-a-photo.svg";
-import CheckIcon from "@/assets/icons/solid/check.svg";
 import SearchIcon from "@/assets/icons/solid/search.svg";
 import { useThemeColors } from "@/shared/hooks";
 import { useRouter } from "expo-router";
 import { useColorScheme } from "nativewind";
+import { useCreateGroup, useSearchUsers } from "../hooks/useChats";
 import {
-  useCreateGroup,
-  useMatchContacts,
-  useSearchUsers,
-} from "../hooks/useChats";
-import { ContactMatchDto } from "../types";
-import { ContactItem } from "./NewChatBottomSheet";
+  useContactDiscovery,
+  type ContactItem,
+} from "../hooks/useContactDiscovery";
+import { GroupContactCard } from "./GroupContactCard";
 
 export type NewGroupBottomSheetProps = object;
-
-interface GroupContactCardProps {
-  item: ContactItem;
-  isSelected: boolean;
-  onToggle: (id: string) => void;
-}
-
-const GroupContactCard = React.memo(
-  ({ item, isSelected, onToggle }: GroupContactCardProps) => {
-    const { primaryShades } = useThemeColors();
-    return (
-      <Pressable
-        onPress={() => onToggle(item.participantId || item.id)}
-        disabled={!item.participantId}
-        className={`items-center w-16 ${!item.participantId ? "opacity-40" : ""}`}
-      >
-        <View className="relative mb-2">
-          <View
-            className="rounded-full overflow-hidden border-2"
-            style={{
-              borderColor: isSelected ? primaryShades[400] : "transparent",
-            }}
-          >
-            <Avatar
-              type={item.avatar ? "image" : "initials"}
-              source={item.avatar}
-              initials={item.name.charAt(0)}
-              size={52}
-            />
-          </View>
-          {isSelected && (
-            <View className="absolute inset-0 bg-black/40 rounded-full items-center justify-center m-[2px]">
-              <View
-                className="w-6 h-6 items-center justify-center"
-                style={{
-                  borderRadius: 12,
-                  backgroundColor: primaryShades[400],
-                }}
-              >
-                <CheckIcon width={12} height={12} color="white" />
-              </View>
-            </View>
-          )}
-        </View>
-        <BaseText
-          type="body-md"
-          className="text-center font-sf-medium text-neutral-900 dark:text-white"
-          numberOfLines={1}
-        >
-          {item.name.split(" ")[0]}
-        </BaseText>
-      </Pressable>
-    );
-  },
-  (prevProps, nextProps) =>
-    prevProps.isSelected === nextProps.isSelected &&
-    prevProps.item.id === nextProps.item.id &&
-    prevProps.item.participantId === nextProps.item.participantId &&
-    prevProps.item.name === nextProps.item.name &&
-    prevProps.item.avatar === nextProps.item.avatar,
-);
-
-GroupContactCard.displayName = "GroupContactCard";
 
 export const NewGroupBottomSheet = forwardRef<
   BottomSheetModal,
@@ -143,18 +74,14 @@ export const NewGroupBottomSheet = forwardRef<
     }
   };
 
-  const [contacts, setContacts] = useState<ContactItem[]>([]);
-  const [matchedUsers, setMatchedUsers] = useState<ContactMatchDto[]>([]);
-  const [permissionStatus, setPermissionStatus] =
-    useState<Contacts.PermissionStatus | null>(null);
-
   const [resetKey, setResetKey] = useState(0); // Used to remount uncontrolled inputs on dismiss
 
-  const { mutate: matchContacts } = useMatchContacts({
-    onSuccess: (data) => {
-      setMatchedUsers(data.matches || []);
-    },
-  });
+  // Normalized, deduplicated, and batched contact discovery
+  const {
+    localContacts: contacts,
+    matchedUsers,
+    permissionStatus,
+  } = useContactDiscovery(isOpen);
 
   const createGroupMutation = useCreateGroup();
 
@@ -174,43 +101,13 @@ export const NewGroupBottomSheet = forwardRef<
 
       if (groupAvatarUri) {
         try {
-          const type = groupAvatarUri.endsWith(".png")
-            ? "image/png"
-            : groupAvatarUri.endsWith(".webp")
-              ? "image/webp"
-              : "image/jpeg";
-
-          const uploadAuth = await mediaApi.createUpload({
-            clientUploadId: generateUUID(),
+          const mediaAsset = await uploadMedia({
+            uri: groupAvatarUri,
             purpose: "group_avatar",
-            contentType: type as any,
-            sizeBytes: 500000,
-            originalFilename: `avatar_${Date.now()}.jpg`,
           });
-
-          if (uploadAuth.upload) {
-            const formData = new FormData();
-            if (uploadAuth.upload.fields) {
-              Object.entries(uploadAuth.upload.fields).forEach(([key, val]) => {
-                formData.append(key, String(val));
-              });
-            }
-
-            formData.append("file", {
-              uri: groupAvatarUri,
-              name: `avatar_${Date.now()}.jpg`,
-              type: type,
-            } as any);
-
-            await axios.post(uploadAuth.upload.url, formData, {
-              headers: { "Content-Type": "multipart/form-data" },
-            });
-
-            await mediaApi.completeUpload(uploadAuth.media.id);
-            await chatsApi.setGroupAvatar(conversation.id, {
-              mediaId: uploadAuth.media.id,
-            });
-          }
+          await chatsApi.setGroupAvatar(conversation.id, {
+            mediaId: mediaAsset.id,
+          });
         } catch (error: any) {
           showApiErrorToast(error, "Failed to upload group photo");
         } finally {
@@ -232,51 +129,6 @@ export const NewGroupBottomSheet = forwardRef<
       setIsUploadingAvatar(false);
     }
   };
-
-  useEffect(() => {
-    if (!isOpen) return;
-    let isMounted = true;
-    (async () => {
-      try {
-        const { status } = await Contacts.requestPermissionsAsync();
-        if (!isMounted) return;
-        setPermissionStatus(status);
-
-        if (status === "granted") {
-          const { data } = await Contacts.getContactsAsync({
-            fields: [Contacts.Fields.PhoneNumbers, Contacts.Fields.Image],
-          });
-          if (!isMounted) return;
-
-          if (data.length > 0) {
-            const mappedContacts: ContactItem[] = data
-              .filter((c) => c.name)
-              .map((c) => ({
-                id: c.id,
-                name: c.name,
-                phone: c.phoneNumbers?.[0]?.number,
-                avatar: c.imageAvailable && c.image ? c.image.uri : undefined,
-              }));
-
-            setContacts(mappedContacts);
-
-            const phoneNumbers = data
-              .flatMap((c) => c.phoneNumbers?.map((p) => p.number))
-              .filter((num): num is string => Boolean(num));
-
-            if (phoneNumbers.length > 0) {
-              matchContacts({ phoneNumbers });
-            }
-          }
-        }
-      } catch (error) {
-        console.error("Failed to fetch contacts", error);
-      }
-    })();
-    return () => {
-      isMounted = false;
-    };
-  }, [isOpen, matchContacts]);
 
   const processedContacts = useMemo(() => {
     const matchedPhoneMap = new Map<string, string>();
@@ -389,11 +241,11 @@ export const NewGroupBottomSheet = forwardRef<
         }
       />
 
-      {permissionStatus === "denied" ? (
+      {permissionStatus === "denied" && deferredSearchQuery.length < 3 ? (
         <View className="flex-1 items-center justify-center px-10">
           <BaseText className="text-center text-neutral-500 dark:text-neutral-400 font-sf-medium">
-            Contacts permission is required to find and add your friends. Please
-            enable it in your device settings.
+            Contacts permission is required to find and add your friends. You
+            can still search for users globally above.
           </BaseText>
         </View>
       ) : isGlobalSearching ? (

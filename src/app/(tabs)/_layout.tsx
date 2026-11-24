@@ -4,7 +4,7 @@ import { tabs } from "@/shared/constants/tabs";
 import { colors } from "@/shared/constants/tokens";
 import { useThemeColors } from "@/shared/hooks";
 import { useSecurityStore } from "@/store/useSecurityStore";
-import { Tabs, useRouter } from "expo-router";
+import { Redirect, Tabs, useRouter } from "expo-router";
 import { BottomTabNavigationOptions } from "expo-router/build/react-navigation/bottom-tabs";
 import { useColorScheme } from "nativewind";
 import { useState } from "react";
@@ -17,23 +17,31 @@ export default function TabsLayout() {
   const { primary } = useThemeColors();
 
   const isPinSet = useSecurityStore((state) => state.isPinSet);
-  const hasSkippedPinSetup = useSecurityStore(
-    (state) => state.hasSkippedPinSetup,
+  const isAppUnlocked = useSecurityStore((state) => state.isAppUnlocked);
+  const hasSeenPinPrompt = useSecurityStore(
+    (state) => state.hasSeenPinPrompt || state.hasSkippedPinSetup,
   );
-  const markPinSetupSkipped = useSecurityStore(
-    (state) => state.markPinSetupSkipped,
+  const markPinPromptSeen = useSecurityStore(
+    (state) => state.markPinPromptSeen,
   );
 
   const [hasDismissedPrompt, setHasDismissedPrompt] = useState(false);
-  const showPinPrompt = !isPinSet && !hasSkippedPinSetup && !hasDismissedPrompt;
+
+  // If the app is locked with a PIN, immediately redirect to unlock without mounting tabs
+  if (isPinSet && !isAppUnlocked) {
+    return <Redirect href="/unlock" />;
+  }
+
+  const showPinPrompt = !isPinSet && !hasSeenPinPrompt && !hasDismissedPrompt;
 
   const handleAcceptPinSetup = () => {
+    markPinPromptSeen();
     setHasDismissedPrompt(true);
     router.push("/setup-pin");
   };
 
   const handleDeclinePinSetup = () => {
-    markPinSetupSkipped();
+    markPinPromptSeen();
     setHasDismissedPrompt(true);
   };
 
@@ -49,6 +57,9 @@ export default function TabsLayout() {
     tabBarActiveTintColor: primary,
     tabBarInactiveTintColor: colors.neutral[300],
     animation: "shift",
+    // sceneStyle: {
+    //   backgroundColor: isDark ? colors.app.dark : colors.app.DEFAULT,
+    // },
   };
 
   function renderTabBarIcon(
@@ -65,7 +76,11 @@ export default function TabsLayout() {
 
   return (
     <>
-      <Tabs screenOptions={screenOptions}>
+      <Tabs
+        initialRouteName="chats/index"
+        backBehavior="initialRoute"
+        screenOptions={screenOptions}
+      >
         {tabs.map((tab) => (
           <Tabs.Screen
             key={tab.name}

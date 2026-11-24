@@ -1,19 +1,26 @@
+import { useRealtime } from "@/core/providers/RealtimeProvider";
 import { BaseText, ScreenContainer, ScreenHeader } from "@/shared/components";
 import { BottomSheetModal } from "@gorhom/bottom-sheet";
 import { LegendList } from "@legendapp/list/react-native";
 import * as Haptics from "expo-haptics";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useColorScheme } from "nativewind";
-import { useCallback, useRef, useState } from "react";
-import { BackHandler, Pressable, RefreshControl, View } from "react-native";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  ActivityIndicator,
+  BackHandler,
+  Pressable,
+  RefreshControl,
+  View,
+} from "react-native";
 import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
 
 // Components
 import {
   ChatFabMenu,
   ChatItem,
-  closeActiveChatItemSwipeable,
   ChatSearchInput,
+  closeActiveChatItemSwipeable,
   NewChatBottomSheet,
   NewGroupBottomSheet,
 } from "../components";
@@ -24,7 +31,9 @@ import BookmarkIcon from "@/assets/icons/solid/bookmark.svg";
 import TrashIcon from "@/assets/icons/solid/trash.svg";
 import VolumeOffIcon from "@/assets/icons/solid/volume-off.svg";
 
+import { useQueryClient } from "@tanstack/react-query";
 import {
+  chatsKeys,
   useArchivedConversationsList,
   useConversationsList,
 } from "../hooks/useChats";
@@ -38,11 +47,51 @@ export function ChatsScreen() {
   const [selectedChats, setSelectedChats] = useState<Set<string>>(new Set());
   const newChatBottomSheetRef = useRef<BottomSheetModal>(null);
   const newGroupBottomSheetRef = useRef<BottomSheetModal>(null);
-  const { data: conversations, refetch, isFetching } = useConversationsList();
+
+  const {
+    data: conversations,
+    refetch,
+    isFetching,
+    isLoading,
+    isError,
+    error,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useConversationsList();
+
   const { data: archivedConversations } = useArchivedConversationsList();
-  // const userID = useAuthStore((state) => state.user?.id);
-  const displayConversations =
-    conversations?.pages.flatMap((page) => page.items) || [];
+
+  const allConversations = useMemo(() => {
+    if (!conversations?.pages) return [];
+    return conversations.pages.flatMap((page) => page.items);
+  }, [conversations]);
+
+  const displayConversations = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return allConversations;
+
+    return allConversations.filter((chat) => {
+      const name =
+        chat.type === "direct"
+          ? chat.otherParticipant.displayName || ""
+          : chat.name || "";
+      const preview = chat.latestMessage?.preview || "";
+
+      return (
+        name.toLowerCase().includes(q) || preview.toLowerCase().includes(q)
+      );
+    });
+  }, [allConversations, searchQuery]);
+
+  const { activityVersion, reconcileVersion } = useRealtime();
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    if (activityVersion > 0 || reconcileVersion > 0) {
+      queryClient.invalidateQueries({ queryKey: chatsKeys.list() });
+    }
+  }, [activityVersion, reconcileVersion, queryClient]);
 
   const handleNewChatPress = () => {
     newChatBottomSheetRef.current?.present();
@@ -151,6 +200,61 @@ export function ChatsScreen() {
     );
   };
 
+  const renderEmptyComponent = () => {
+    if (isLoading && !conversations) {
+      return (
+        <View className="flex-1 py-16 items-center justify-center">
+          <ActivityIndicator size="large" color="#4ADE80" />
+          <BaseText className="text-neutral-500 dark:text-neutral-400 mt-4 text-sm font-medium">
+            Loading conversations...
+          </BaseText>
+        </View>
+      );
+    }
+
+    if (isError && !conversations) {
+      return (
+        <View className="flex-1 py-16 items-center justify-center px-6">
+          <BaseText className="text-red-500 font-bold text-center mb-2">
+            Failed to load conversations
+          </BaseText>
+          <BaseText className="text-neutral-500 dark:text-neutral-400 text-center text-xs mb-4">
+            {error?.message || "Please check your network and try again."}
+          </BaseText>
+          <Pressable
+            onPress={() => refetch()}
+            className="bg-primary-400 px-5 py-2.5 rounded-lg active:opacity-80"
+          >
+            <BaseText className="text-white font-sf-bold text-sm">
+              Retry
+            </BaseText>
+          </Pressable>
+        </View>
+      );
+    }
+
+    if (searchQuery.trim().length > 0) {
+      return (
+        <View className="flex-1 py-16 items-center justify-center px-6">
+          <BaseText className="text-neutral-500 dark:text-neutral-400 text-center">
+            No chats found matching "{searchQuery.trim()}"
+          </BaseText>
+        </View>
+      );
+    }
+
+    return (
+      <View className="flex-1 py-16 items-center justify-center px-6">
+        <BaseText className="text-neutral-500 dark:text-neutral-400 text-center font-medium">
+          No chats yet
+        </BaseText>
+        <BaseText className="text-neutral-400 dark:text-neutral-500 text-center text-xs mt-1">
+          Start a new conversation with your contacts
+        </BaseText>
+      </View>
+    );
+  };
+
   return (
     <ScreenContainer
       className="flex-1 bg-app dark:bg-app-dark"
@@ -209,10 +313,19 @@ export function ChatsScreen() {
           }
           ItemSeparatorComponent={() => <View className="h-2" />}
           recycleItems={true}
-          ListEmptyComponent={
-            <View className="flex-1 items-center justify-center">
-              <BaseText>No chats yet</BaseText>
-            </View>
+          ListEmptyComponent={renderEmptyComponent}
+          onEndReached={() => {
+            if (hasNextPage && !isFetchingNextPage && !searchQuery.trim()) {
+              fetchNextPage();
+            }
+          }}
+          onEndReachedThreshold={0.5}
+          ListFooterComponent={
+            isFetchingNextPage ? (
+              <View className="py-4 items-center justify-center">
+                <ActivityIndicator size="small" color="#4ADE80" />
+              </View>
+            ) : null
           }
           className="p-3"
           contentContainerClassName="pb-20"
@@ -231,3 +344,4 @@ export function ChatsScreen() {
     </ScreenContainer>
   );
 }
+

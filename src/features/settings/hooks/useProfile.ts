@@ -47,10 +47,11 @@ export const useBlocksList = (options?: Partial<UseQueryOptions<BlockListRespons
 export const useBlockUser = (options?: UseMutationOptions<BlockResponseDto, Error, string>) => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: profileApi.blockUser,
     ...options,
+    mutationFn: profileApi.blockUser,
     onSuccess: (data, variables, context) => {
       queryClient.invalidateQueries({ queryKey: profileKeys.blocks() });
+      queryClient.invalidateQueries({ queryKey: ['chats'] });
       if (options?.onSuccess) {
         (options.onSuccess as Function)(data, variables, context);
       }
@@ -61,10 +62,11 @@ export const useBlockUser = (options?: UseMutationOptions<BlockResponseDto, Erro
 export const useUnblockUser = (options?: UseMutationOptions<void, Error, string>) => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: profileApi.unblockUser,
     ...options,
+    mutationFn: profileApi.unblockUser,
     onSuccess: (data, variables, context) => {
       queryClient.invalidateQueries({ queryKey: profileKeys.blocks() });
+      queryClient.invalidateQueries({ queryKey: ['chats'] });
       if (options?.onSuccess) {
         (options.onSuccess as Function)(data, variables, context);
       }

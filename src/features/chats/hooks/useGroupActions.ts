@@ -23,12 +23,12 @@ export const useCreateGroup = (
 ) => {
   const queryClient = useQueryClient();
   return useMutation({
+    ...options,
     mutationFn: chatsApi.createGroup,
     onSuccess: (...args) => {
       queryClient.invalidateQueries({ queryKey: chatsKeys.list() });
       if (options?.onSuccess) options.onSuccess(...args);
     },
-    ...options,
   });
 };
 
@@ -42,6 +42,7 @@ export const useUpdateGroup = (
 ) => {
   const queryClient = useQueryClient();
   return useMutation({
+    ...options,
     mutationFn: (data) => chatsApi.updateGroup(conversationId, data),
     onSuccess: (...args) => {
       queryClient.invalidateQueries({
@@ -50,7 +51,6 @@ export const useUpdateGroup = (
       queryClient.invalidateQueries({ queryKey: chatsKeys.list() });
       if (options?.onSuccess) options.onSuccess(...args);
     },
-    ...options,
   });
 };
 
@@ -64,6 +64,7 @@ export const useSetGroupAvatar = (
 ) => {
   const queryClient = useQueryClient();
   return useMutation({
+    ...options,
     mutationFn: (data) => chatsApi.setGroupAvatar(conversationId, data),
     onSuccess: (...args) => {
       queryClient.invalidateQueries({
@@ -72,7 +73,6 @@ export const useSetGroupAvatar = (
       queryClient.invalidateQueries({ queryKey: chatsKeys.list() });
       if (options?.onSuccess) options.onSuccess(...args);
     },
-    ...options,
   });
 };
 
@@ -82,12 +82,12 @@ export const useDeleteGroup = (
 ) => {
   const queryClient = useQueryClient();
   return useMutation({
+    ...options,
     mutationFn: () => chatsApi.deleteGroup(conversationId),
     onSuccess: (...args) => {
       queryClient.invalidateQueries({ queryKey: chatsKeys.list() });
       if (options?.onSuccess) options.onSuccess(...args);
     },
-    ...options,
   });
 };
 
@@ -101,6 +101,7 @@ export const useAddGroupMembers = (
 ) => {
   const queryClient = useQueryClient();
   return useMutation({
+    ...options,
     mutationFn: (data) => chatsApi.addGroupMembers(conversationId, data),
     onSuccess: (...args) => {
       queryClient.invalidateQueries({
@@ -108,7 +109,6 @@ export const useAddGroupMembers = (
       });
       if (options?.onSuccess) options.onSuccess(...args);
     },
-    ...options,
   });
 };
 
@@ -118,6 +118,7 @@ export const useRemoveGroupMember = (
 ) => {
   const queryClient = useQueryClient();
   return useMutation({
+    ...options,
     mutationFn: (memberId) =>
       chatsApi.removeGroupMember(conversationId, memberId),
     onSuccess: (...args) => {
@@ -126,7 +127,6 @@ export const useRemoveGroupMember = (
       });
       if (options?.onSuccess) options.onSuccess(...args);
     },
-    ...options,
   });
 };
 
@@ -140,6 +140,7 @@ export const useUpdateGroupMemberRole = (
 ) => {
   const queryClient = useQueryClient();
   return useMutation({
+    ...options,
     mutationFn: ({ memberId, data }) =>
       chatsApi.updateGroupMemberRole(conversationId, memberId, data),
     onSuccess: (...args) => {
@@ -148,7 +149,6 @@ export const useUpdateGroupMemberRole = (
       });
       if (options?.onSuccess) options.onSuccess(...args);
     },
-    ...options,
   });
 };
 
@@ -162,6 +162,7 @@ export const useTransferGroupOwnership = (
 ) => {
   const queryClient = useQueryClient();
   return useMutation({
+    ...options,
     mutationFn: (data) =>
       chatsApi.transferGroupOwnership(conversationId, data),
     onSuccess: (...args) => {
@@ -170,7 +171,6 @@ export const useTransferGroupOwnership = (
       });
       if (options?.onSuccess) options.onSuccess(...args);
     },
-    ...options,
   });
 };
 
@@ -180,11 +180,14 @@ export const useLeaveGroup = (
 ) => {
   const queryClient = useQueryClient();
   return useMutation({
+    ...options,
     mutationFn: () => chatsApi.leaveGroup(conversationId),
     onSuccess: (...args) => {
       queryClient.invalidateQueries({ queryKey: chatsKeys.list() });
+      queryClient.invalidateQueries({
+        queryKey: chatsKeys.detail(conversationId),
+      });
       if (options?.onSuccess) options.onSuccess(...args);
     },
-    ...options,
   });
 };

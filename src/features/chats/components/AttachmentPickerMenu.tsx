@@ -2,19 +2,18 @@ import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import * as MediaLibrary from "expo-media-library/legacy";
 import { useEffect, useState } from "react";
-import {
-  Image,
-  ScrollView,
-  Text,
-  TouchableOpacity,
-  View
-} from "react-native";
+import { Image, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import Animated, { FadeInUp, FadeOutDown } from "react-native-reanimated";
 
 export interface AttachmentPickerMenuProps {
   isOpen: boolean;
   onClose: () => void;
-  onSelectPhotoUri: (uri: string) => void;
+  onSelectPhotoUri: (
+    uri: string,
+    fileName?: string,
+    mimeType?: string,
+    fileSize?: number,
+  ) => void;
   onPickPhotoOrGallery: () => void;
   onPickDocument: () => void;
   onPickLocation: () => void;
@@ -73,11 +72,44 @@ export function AttachmentPickerMenu({
       });
 
       if (!result.canceled && result.assets[0]) {
-        onSelectPhotoUri(result.assets[0].uri);
+        const photo = result.assets[0];
+        onSelectPhotoUri(
+          photo.uri,
+          photo.fileName || "camera_capture.jpg",
+          photo.mimeType || "image/jpeg",
+          photo.fileSize || undefined,
+        );
         onClose();
       }
     } catch (error) {
       console.log("Error launching camera:", error);
+    }
+  };
+
+  const handleSelectRecentAsset = async (asset: any) => {
+    try {
+      let resolvedUri = asset.uri;
+      // On iOS, MediaLibrary returns ph:// URIs. Resolve to local file:// URI
+      if (resolvedUri.startsWith("ph://")) {
+        const assetInfo = await MediaLibrary.getAssetInfoAsync(asset.id);
+        if (assetInfo?.localUri) {
+          resolvedUri = assetInfo.localUri;
+        }
+      }
+
+      onSelectPhotoUri(
+        resolvedUri,
+        asset.filename || `photo_${asset.id}.jpg`,
+        "image/jpeg",
+        undefined,
+      );
+      onClose();
+    } catch {
+      onSelectPhotoUri(
+        asset.uri,
+        asset.filename || `photo_${asset.id}.jpg`,
+      );
+      onClose();
     }
   };
 
@@ -116,19 +148,21 @@ export function AttachmentPickerMenu({
           {/* Recent Device Photo Thumbnails or Fallback */}
           {hasPermission === false ? (
             <View className="h-20 flex-row items-center w-[240px] rounded-2xl bg-neutral-100 dark:bg-neutral-700/50 px-4 justify-center">
-              <Ionicons name="images-outline" size={24} color={isDark ? "#9CA3AF" : "#6B7280"} />
+              <Ionicons
+                name="images-outline"
+                size={24}
+                color={isDark ? "#9CA3AF" : "#6B7280"}
+              />
               <Text className="text-xs text-neutral-500 dark:text-neutral-400 ml-2 flex-1">
-                Please allow access to photos in settings to view your recent media here.
+                Please allow access to photos in settings to view your recent
+                media here.
               </Text>
             </View>
           ) : (
             recentPhotos.map((asset) => (
               <TouchableOpacity
                 key={asset.id}
-                onPress={() => {
-                  onSelectPhotoUri(asset.uri);
-                  onClose();
-                }}
+                onPress={() => handleSelectRecentAsset(asset)}
                 activeOpacity={0.85}
                 className="mr-3"
               >
