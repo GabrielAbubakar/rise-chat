@@ -29,6 +29,7 @@ import {
   optimisticallyUnarchive,
 } from "./optimisticHelpers";
 import { useOptimisticMutation } from "./useOptimisticMutation";
+import { isConfirmedMessage } from "./useOutboxMessages";
 
 export const useCreateDirectConversation = (
   options?: UseMutationOptions<
@@ -211,6 +212,8 @@ export const useSendMessage = (
 
       // Update ONLY the failed message to status: "failed".
       // Do NOT revert the entire cache snapshot, so unrelated incoming messages remain preserved!
+      // R7: skip a copy the server already confirmed (socket can deliver before
+      // the HTTP response is lost) — it was sent, whatever this error says.
       queryClient.setQueryData<InfiniteData<MessageHistoryResponseDto>>(
         msgKey,
         (oldData) => {
@@ -218,7 +221,8 @@ export const useSendMessage = (
           const newPages = oldData.pages.map((page) => ({
             ...page,
             items: page.items.map((item) =>
-              item.clientMessageId === variables.clientMessageId
+              item.clientMessageId === variables.clientMessageId &&
+              !isConfirmedMessage(item)
                 ? { ...item, status: "failed" as const }
                 : item,
             ),

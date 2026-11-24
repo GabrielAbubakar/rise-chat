@@ -15,6 +15,7 @@ import type {
   ReceiptFrontiersResponseDto,
 } from "../types";
 import { chatsKeys } from "./useChats";
+import { useChatOutboxStore } from "../store/useChatOutboxStore";
 
 export function useChatRealtime(conversationId: string, targetUserId?: string) {
   const { socket, reconcileVersion } = useRealtime();
@@ -106,6 +107,13 @@ export function useChatRealtime(conversationId: string, targetUserId?: string) {
             return { ...oldData, pages: newPages };
           },
         );
+        // R7: the server delivered our own message — the send is done even if
+        // its HTTP response never arrives.
+        if (payload.clientMessageId) {
+          useChatOutboxStore
+            .getState()
+            .updateOutboxStatus(payload.clientMessageId, "sent");
+        }
         queryClient.invalidateQueries({
           queryKey: chatsKeys.list(),
         });

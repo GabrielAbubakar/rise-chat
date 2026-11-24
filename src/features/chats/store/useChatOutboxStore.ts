@@ -20,6 +20,8 @@ export interface OutboxEntry {
   status: "pending" | "failed" | "sent";
   createdAt: string;
   error?: string;
+  /** Set on hydration when the app was terminated while this send was pending. */
+  interrupted?: boolean;
 }
 
 interface ChatOutboxStoreState {
@@ -45,11 +47,43 @@ interface ChatOutboxStoreState {
   clearActiveSession: (ownerId?: string) => void;
 }
 
+export const INTERRUPTED_SEND_ERROR =
+  "Sending was interrupted. Tap retry to send.";
+
+/**
+ * R7: the outbox is loaded once per process, so any entry still "pending" at
+ * load time belonged to a process that was terminated mid-send — nothing in
+ * this process is working on it. Mark it failed + interrupted so the room
+ * shows a Retry affordance. Payload, IDs and upload checkpoint are kept so
+ * Retry resumes from the last confirmed stage. Confirmed ("sent") entries are
+ * dropped: the server owns them now.
+ */
+export function normalizeHydratedOutbox(
+  entries: Record<string, OutboxEntry>,
+): Record<string, OutboxEntry> {
+  const next: Record<string, OutboxEntry> = {};
+  Object.values(entries).forEach((entry) => {
+    if (!entry?.clientMessageId || entry.status === "sent") return;
+    next[entry.clientMessageId] =
+      entry.status === "pending"
+        ? {
+            ...entry,
+            status: "failed",
+            interrupted: true,
+            error: INTERRUPTED_SEND_ERROR,
+          }
+        : entry;
+  });
+  return next;
+}
+
 function loadInitialOutbox(): Record<string, OutboxEntry> {
   try {
     const raw = storage.getString(OUTBOX_KEY);
     if (raw) {
-      return JSON.parse(raw);
+      const normalized = normalizeHydratedOutbox(JSON.parse(raw));
+      persistOutbox(normalized);
+      return normalized;
     }
   } catch (e) {
     console.error("Failed to load outbox from storage", e);
@@ -89,10 +123,16 @@ export const useChatOutboxStore = create<ChatOutboxStoreState>((set, get) => ({
     set((state) => {
       const existing = state.entries[clientMessageId];
       if (!existing) return state;
+      // Server confirmation is final: a late HTTP failure (e.g. a lost
+      // response after the socket already delivered the message) must not
+      // turn a delivered message back into a failed one.
+      if (existing.status === "sent" && status !== "sent") return state;
 
       const updated: OutboxEntry = {
         ...existing,
         status,
+        // A new attempt in this process supersedes the interruption
+        interrupted: status === "pending" ? undefined : existing.interrupted,
         clientUploadId: updates?.clientUploadId ?? existing.clientUploadId,
         uploadedMediaId: updates?.uploadedMediaId ?? existing.uploadedMediaId,
         uploadStage: updates?.uploadStage ?? existing.uploadStage,

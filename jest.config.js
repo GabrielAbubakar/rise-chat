@@ -10,6 +10,9 @@ module.exports = {
     "<rootDir>/ios/",
   ],
   moduleNameMapper: {
+    // SVGs are components in Metro (react-native-svg-transformer); mirror that in Jest.
+    // Must precede the @/assets alias: Jest uses the first matching pattern.
+    "\\.svg$": "<rootDir>/test-utils/svgMock.tsx",
     "^@/assets/(.*)$": "<rootDir>/assets/$1",
     "^@/(.*)$": "<rootDir>/src/$1",
     "^@core/(.*)$": "<rootDir>/src/core/$1",

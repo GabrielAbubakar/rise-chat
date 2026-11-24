@@ -50,6 +50,7 @@ import {
   useMarkRead,
   useSendMessage,
 } from "../hooks/useChats";
+import { useOutboxMessages } from "../hooks/useOutboxMessages";
 import { useSendChatMessage } from "../hooks/useSendChatMessage";
 import { MessageResponseDto } from "../types";
 
@@ -91,10 +92,21 @@ export function ChatDetailScreen({ id, search }: ChatDetailScreenProps) {
   const { mutate: markRead } = useMarkRead(conversationId);
   const { data: receiptsData } = useConversationReceipts(conversationId);
 
-  // Flatten and sort messages oldest first
+  // R7: remote history merged with this account's unsent outbox entries, so
+  // interrupted or in-flight sends stay visible (with Retry) even when history
+  // failed to load or the cache was empty after a restart.
+  const historyMessages = useMemo(
+    () => messagesData?.pages.flatMap((page) => page.items),
+    [messagesData],
+  );
+  const allMessages = useOutboxMessages(
+    historyMessages,
+    currentUserId,
+    conversationId,
+  );
+
+  // Sort messages oldest first
   const messages = useMemo(() => {
-    if (!messagesData) return [];
-    const allMessages = messagesData.pages.flatMap((page) => page.items);
     const sorted = [...allMessages].sort(
       (a, b) =>
         new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
@@ -106,7 +118,7 @@ export function ChatDetailScreen({ id, search }: ChatDetailScreenProps) {
         !isSameDay(new Date(msg.createdAt), new Date(prevMessage.createdAt));
       return { ...msg, showDateSeparator };
     });
-  }, [messagesData]);
+  }, [allMessages]);
 
   const lastReadMessageIdRef = useRef<string | null>(null);
 
@@ -580,7 +592,8 @@ export function ChatDetailScreen({ id, search }: ChatDetailScreenProps) {
           style={styles.backgroundImage}
           contentFit="cover"
         />
-        {isMessagesLoading ? (
+        {/* Don't hide local outbox bubbles behind the history spinner */}
+        {isMessagesLoading && messages.length === 0 ? (
           <View className="flex-1 items-center justify-center">
             <ActivityIndicator size="large" color="#4ADE80" />
           </View>

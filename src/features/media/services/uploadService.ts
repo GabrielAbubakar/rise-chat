@@ -60,6 +60,38 @@ export const VALID_MEDIA_CONTENT_TYPES: MediaContentType[] = [
   "application/vnd.openxmlformats-officedocument.presentationml.presentation",
 ];
 
+/**
+ * The backend returned an asset that cannot be attached yet (pending) or ever
+ * (failed / deleted). `retryable` tells the UI whether Retry can succeed
+ * without the user re-picking the file — it always can here: pending retries
+ * completion only, failed/deleted re-uploads from the original local URI.
+ */
+export class MediaNotReadyError extends Error {
+  readonly mediaId: string;
+  readonly status: Exclude<MediaAssetResponseDto["status"], "ready">;
+  readonly retryable = true;
+
+  constructor(
+    mediaId: string,
+    status: Exclude<MediaAssetResponseDto["status"], "ready">,
+  ) {
+    super(
+      status === "pending"
+        ? "Attachment is still being processed. Tap retry to check again."
+        : status === "failed"
+          ? "The attachment could not be processed. Tap retry to upload it again."
+          : "The attachment is no longer available. Tap retry to upload it again.",
+    );
+    this.name = "MediaNotReadyError";
+    this.mediaId = mediaId;
+    this.status = status;
+  }
+}
+
+export function isMediaNotReadyError(error: unknown): error is MediaNotReadyError {
+  return (error as { name?: unknown } | null)?.name === "MediaNotReadyError";
+}
+
 // Active controller registry to abort in-flight uploads on logout / session termination
 const activeUploadControllers = new Set<AbortController>();
 
@@ -194,18 +226,46 @@ export async function uploadMedia(
 
     const clientUploadId = params.clientUploadId || generateUUID();
 
+    /**
+     * R8: the single exit point for every path. Only a `ready` asset is
+     * reported as completed and returned for submission.
+     * - pending: bytes are on the server but not verified yet. Stay at
+     *   "transferred" so Retry runs completion only (same media/message IDs).
+     * - failed / deleted: the asset can never become usable. Reset to "idle"
+     *   with a fresh clientUploadId so Retry uploads again instead of being
+     *   deduplicated back to the dead asset.
+     */
+    const finalize = (asset: MediaAssetResponseDto): MediaAssetResponseDto => {
+      checkCancelled();
+      if (asset.status === "ready") {
+        params.onStageChange?.({
+          stage: "completed",
+          clientUploadId,
+          mediaId: asset.id,
+        });
+        return asset;
+      }
+      if (asset.status === "pending") {
+        params.onStageChange?.({
+          stage: "transferred",
+          clientUploadId,
+          mediaId: asset.id,
+        });
+      } else {
+        params.onStageChange?.({
+          stage: "idle",
+          clientUploadId: generateUUID(),
+        });
+      }
+      throw new MediaNotReadyError(asset.id, asset.status);
+    };
+
     // F9 FIX: If bytes were already transferred, skip authorization and binary transfer!
     // Directly retry backend verification with the existing mediaId
     if (params.existingStage === "transferred" && params.existingMediaId) {
       checkCancelled();
       const verifiedMedia = await mediaApi.completeUpload(params.existingMediaId);
-      checkCancelled();
-      params.onStageChange?.({
-        stage: "completed",
-        clientUploadId,
-        mediaId: verifiedMedia.id,
-      });
-      return verifiedMedia;
+      return finalize(verifiedMedia);
     }
 
     // Step 1: Create upload authorization
@@ -278,24 +338,22 @@ export async function uploadMedia(
 
       // Step 3: Complete verification
       const verifiedMedia = await mediaApi.completeUpload(uploadAuth.media.id);
-      checkCancelled();
-
-      params.onStageChange?.({
-        stage: "completed",
-        clientUploadId,
-        mediaId: verifiedMedia.id,
-      });
-
-      return verifiedMedia;
+      return finalize(verifiedMedia);
     }
 
-    // Already uploaded / deduplicated
-    params.onStageChange?.({
-      stage: "completed",
-      clientUploadId,
-      mediaId: uploadAuth.media.id,
-    });
-    return uploadAuth.media;
+    // No transfer needed (deduplicated by clientUploadId). The authorization
+    // response does not by itself mean the asset is usable.
+    if (uploadAuth.media.status === "pending") {
+      // Bytes already exist server-side; ask the backend to verify them.
+      params.onStageChange?.({
+        stage: "transferred",
+        clientUploadId,
+        mediaId: uploadAuth.media.id,
+      });
+      const verifiedMedia = await mediaApi.completeUpload(uploadAuth.media.id);
+      return finalize(verifiedMedia);
+    }
+    return finalize(uploadAuth.media);
   } finally {
     if (params.signal) {
       params.signal.removeEventListener("abort", onExternalAbort);

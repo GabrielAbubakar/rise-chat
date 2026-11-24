@@ -10,15 +10,20 @@ export interface OptimisticRollbackContext {
   rollback?: (queryClient: QueryClient, userId: string | undefined) => void;
 }
 
+const compareConversations = (
+  a: ConversationResponseDto,
+  b: ConversationResponseDto,
+): number => {
+  const aPinned = a.settings?.pinned ? 1 : 0;
+  const bPinned = b.settings?.pinned ? 1 : 0;
+  if (aPinned !== bPinned) return bPinned - aPinned;
+  const aTime = a.lastActivityAt ? new Date(a.lastActivityAt).getTime() : 0;
+  const bTime = b.lastActivityAt ? new Date(b.lastActivityAt).getTime() : 0;
+  return bTime - aTime;
+};
+
 const sortConversations = (items: ConversationResponseDto[]) => {
-  items.sort((a, b) => {
-    const aPinned = a.settings?.pinned ? 1 : 0;
-    const bPinned = b.settings?.pinned ? 1 : 0;
-    if (aPinned !== bPinned) return bPinned - aPinned;
-    const aTime = a.lastActivityAt ? new Date(a.lastActivityAt).getTime() : 0;
-    const bTime = b.lastActivityAt ? new Date(b.lastActivityAt).getTime() : 0;
-    return bTime - aTime;
-  });
+  items.sort(compareConversations);
 };
 
 /**
@@ -126,258 +131,171 @@ export const optimisticallyTogglePin = async (
   };
 };
 
+type ConversationListKind = "list" | "archived";
+type ConversationPages = InfiniteData<ConversationListResponseDto>;
+
+const listKeyFor = (kind: ConversationListKind, userId: string | undefined) =>
+  kind === "list"
+    ? [...chatsKeys.list(), userId]
+    : [...chatsKeys.archived(), userId];
+
+const findInList = (
+  qc: QueryClient,
+  key: readonly unknown[],
+  conversationId: string,
+): ConversationResponseDto | undefined =>
+  qc
+    .getQueryData<ConversationPages>(key)
+    ?.pages?.flatMap((p) => p.items || [])
+    .find((i) => i.id === conversationId);
+
+const removeFromList = (
+  qc: QueryClient,
+  key: readonly unknown[],
+  conversationId: string,
+) => {
+  qc.setQueryData<ConversationPages>(key, (old) => {
+    if (!old?.pages) return old;
+    return {
+      ...old,
+      pages: old.pages.map((page) => ({
+        ...page,
+        items: (page.items || []).filter((i) => i.id !== conversationId),
+      })),
+    };
+  });
+};
+
 /**
- * Optimistically archives a conversation (removes from active list, adds to archived list).
+ * Inserts at the sorted position without flattening pages, so page sizes and
+ * cursors stay meaningful. If the item sorts after everything loaded and more
+ * pages exist, it belongs to an unloaded page: leave it for the refetch.
+ * An unloaded list is left unloaded (no partial "complete" list is invented).
  */
-export const optimisticallyArchive = async (
+const insertSorted = (
+  qc: QueryClient,
+  key: readonly unknown[],
+  item: ConversationResponseDto,
+) => {
+  qc.setQueryData<ConversationPages>(key, (old) => {
+    if (!old?.pages || old.pages.length === 0) return old;
+    const pages = old.pages.map((page) => ({
+      ...page,
+      items: [...(page.items || [])],
+    }));
+    for (const page of pages) {
+      const index = page.items.findIndex(
+        (existing) => compareConversations(item, existing) < 0,
+      );
+      if (index !== -1) {
+        page.items.splice(index, 0, item);
+        return { ...old, pages };
+      }
+    }
+    const lastPage = pages[pages.length - 1];
+    if (lastPage.pageInfo?.hasNextPage) return old;
+    lastPage.items.push(item);
+    return { ...old, pages };
+  });
+};
+
+/**
+ * Moves a conversation into the `to` list and marks it archived/unarchived in
+ * both lists and the detail cache.
+ *
+ * R3: it always moves the LATEST cached row (which may carry newer fields such
+ * as muted or latestMessage written while the request was in flight) and only
+ * changes `settings.archived`. `fallback` (the row captured when the action
+ * started) is used only if the row is no longer cached anywhere.
+ */
+const moveConversation = (
+  qc: QueryClient,
+  userId: string | undefined,
+  conversationId: string,
+  to: ConversationListKind,
+  fallback?: ConversationResponseDto | null,
+) => {
+  const from: ConversationListKind = to === "list" ? "archived" : "list";
+  const toKey = listKeyFor(to, userId);
+  const fromKey = listKeyFor(from, userId);
+  const detailKey = [...chatsKeys.detail(conversationId), userId];
+  const archived = to === "archived";
+
+  const latest =
+    findInList(qc, toKey, conversationId) ??
+    findInList(qc, fromKey, conversationId) ??
+    qc.getQueryData<ConversationResponseDto>(detailKey) ??
+    fallback ??
+    undefined;
+
+  // Remove from both so a row re-added elsewhere (e.g. by realtime) isn't duplicated
+  removeFromList(qc, fromKey, conversationId);
+  removeFromList(qc, toKey, conversationId);
+  if (latest) {
+    insertSorted(qc, toKey, {
+      ...latest,
+      settings: { ...latest.settings, archived },
+    });
+  }
+
+  qc.setQueryData<ConversationResponseDto>(detailKey, (detail) =>
+    detail
+      ? { ...detail, settings: { ...detail.settings, archived } }
+      : detail,
+  );
+};
+
+const optimisticallyMove = async (
   queryClient: QueryClient,
   userId: string | undefined,
   conversationId: string,
+  to: ConversationListKind,
 ): Promise<OptimisticRollbackContext> => {
   await queryClient.cancelQueries({ queryKey: chatsKeys.conversations() });
 
-  const listKey = [...chatsKeys.list(), userId];
-  const archivedKey = [...chatsKeys.archived(), userId];
+  const from: ConversationListKind = to === "list" ? "archived" : "list";
+  const detailKey = [...chatsKeys.detail(conversationId), userId];
+  const previousList = queryClient.getQueryData(listKeyFor("list", userId));
+  const previousArchived = queryClient.getQueryData(listKeyFor("archived", userId));
+  const previousDetail = queryClient.getQueryData(detailKey);
+  const snapshot =
+    findInList(queryClient, listKeyFor(from, userId), conversationId) ??
+    (previousDetail as ConversationResponseDto | undefined) ??
+    null;
 
-  const previousList = queryClient.getQueryData(listKey);
-  const previousArchived = queryClient.getQueryData(archivedKey);
-
-  const currentList =
-    queryClient.getQueryData<InfiniteData<ConversationListResponseDto>>(
-      listKey,
-    );
-  const targetItem =
-    currentList?.pages
-      ?.flatMap((p) => p.items || [])
-      .find((i) => i.id === conversationId) ?? null;
-
-  queryClient.setQueryData<InfiniteData<ConversationListResponseDto>>(
-    listKey,
-    (oldData) => {
-      if (!oldData || !oldData.pages) return oldData;
-
-      const newPages = oldData.pages.map((page) => {
-        const filtered = (page.items || []).filter(
-          (item: ConversationResponseDto) => item.id !== conversationId,
-        );
-        return { ...page, items: filtered };
-      });
-
-      return { ...oldData, pages: newPages };
-    },
-  );
-
-  if (targetItem) {
-    const archivedItem: ConversationResponseDto = {
-      ...targetItem,
-      settings: { ...targetItem.settings, archived: true },
-    };
-    queryClient.setQueryData<InfiniteData<ConversationListResponseDto>>(
-      archivedKey,
-      (oldData) => {
-        if (!oldData || !oldData.pages) {
-          return {
-            pages: [
-              {
-                items: [archivedItem],
-                pageInfo: { hasNextPage: false, nextCursor: null },
-              },
-            ],
-            pageParams: [undefined],
-          };
-        }
-        const newPages = [...oldData.pages];
-        newPages[0] = {
-          ...newPages[0],
-          items: [archivedItem, ...newPages[0].items],
-        };
-        return { ...oldData, pages: newPages };
-      },
-    );
-  }
-
-  const originalTargetItem = targetItem;
+  moveConversation(queryClient, userId, conversationId, to);
 
   return {
     previousList,
     previousArchived,
-    rollback: (qc, uid) => {
-      const targetListKey = [...chatsKeys.list(), uid];
-      const targetArchivedKey = [...chatsKeys.archived(), uid];
-
-      // 1. Remove conversation from archived list
-      qc.setQueryData<InfiniteData<ConversationListResponseDto>>(
-        targetArchivedKey,
-        (currArchived) => {
-          if (!currArchived || !currArchived.pages) return currArchived;
-          return {
-            ...currArchived,
-            pages: currArchived.pages.map((page) => ({
-              ...page,
-              items: (page.items || []).filter(
-                (item) => item.id !== conversationId,
-              ),
-            })),
-          };
-        },
-      );
-
-      // 2. Put conversation back into active list if it was found
-      if (originalTargetItem) {
-        qc.setQueryData<InfiniteData<ConversationListResponseDto>>(
-          targetListKey,
-          (currList) => {
-            if (!currList || !currList.pages) return currList;
-
-            const allItems = currList.pages
-              .flatMap((p) => p.items || [])
-              .filter((i) => i.id !== conversationId);
-            allItems.push({
-              ...originalTargetItem,
-              settings: { ...originalTargetItem.settings, archived: false },
-            });
-
-            sortConversations(allItems);
-
-            return {
-              ...currList,
-              pages: currList.pages.map((page, index) =>
-                index === 0
-                  ? { ...page, items: allItems }
-                  : { ...page, items: [] },
-              ),
-            };
-          },
-        );
-      }
-    },
+    previousDetail,
+    detailKey,
+    rollback: (qc, uid) =>
+      moveConversation(qc, uid, conversationId, from, snapshot),
   };
 };
 
 /**
- * Optimistically unarchives a conversation (removes from archived list, adds back to active list).
+ * Optimistically archives a conversation (moves it from the active list to the
+ * archived list). Rollback moves the latest version of the row back.
  */
-export const optimisticallyUnarchive = async (
+export const optimisticallyArchive = (
   queryClient: QueryClient,
   userId: string | undefined,
   conversationId: string,
-): Promise<OptimisticRollbackContext> => {
-  await queryClient.cancelQueries({ queryKey: chatsKeys.conversations() });
+): Promise<OptimisticRollbackContext> =>
+  optimisticallyMove(queryClient, userId, conversationId, "archived");
 
-  const listKey = [...chatsKeys.list(), userId];
-  const archivedKey = [...chatsKeys.archived(), userId];
-
-  const previousList = queryClient.getQueryData(listKey);
-  const previousArchived = queryClient.getQueryData(archivedKey);
-
-  const currentArchived =
-    queryClient.getQueryData<InfiniteData<ConversationListResponseDto>>(
-      archivedKey,
-    );
-  const targetItem =
-    currentArchived?.pages
-      ?.flatMap((p) => p.items || [])
-      .find((i) => i.id === conversationId) ?? null;
-
-  queryClient.setQueryData<InfiniteData<ConversationListResponseDto>>(
-    archivedKey,
-    (oldData) => {
-      if (!oldData || !oldData.pages) return oldData;
-
-      const newPages = oldData.pages.map((page) => {
-        const filtered = (page.items || []).filter(
-          (item: ConversationResponseDto) => item.id !== conversationId,
-        );
-        return { ...page, items: filtered };
-      });
-
-      return { ...oldData, pages: newPages };
-    },
-  );
-
-  if (targetItem) {
-    const unarchivedItem: ConversationResponseDto = {
-      ...targetItem,
-      settings: { ...targetItem.settings, archived: false },
-    };
-    queryClient.setQueryData<InfiniteData<ConversationListResponseDto>>(
-      listKey,
-      (oldData) => {
-        if (!oldData || !oldData.pages) return oldData;
-
-        const allItems: ConversationResponseDto[] = oldData.pages.flatMap(
-          (p) => p.items || [],
-        );
-        allItems.push(unarchivedItem);
-        sortConversations(allItems);
-
-        const newPages = oldData.pages.map((page, index: number) => {
-          if (index === 0) {
-            return { ...page, items: allItems };
-          }
-          return { ...page, items: [] };
-        });
-
-        return { ...oldData, pages: newPages };
-      },
-    );
-  }
-
-  const originalTargetItem = targetItem;
-
-  return {
-    previousList,
-    previousArchived,
-    rollback: (qc, uid) => {
-      const targetListKey = [...chatsKeys.list(), uid];
-      const targetArchivedKey = [...chatsKeys.archived(), uid];
-
-      // 1. Remove from active list
-      qc.setQueryData<InfiniteData<ConversationListResponseDto>>(
-        targetListKey,
-        (currList) => {
-          if (!currList || !currList.pages) return currList;
-          return {
-            ...currList,
-            pages: currList.pages.map((page) => ({
-              ...page,
-              items: (page.items || []).filter(
-                (item) => item.id !== conversationId,
-              ),
-            })),
-          };
-        },
-      );
-
-      // 2. Put back into archived list
-      if (originalTargetItem) {
-        qc.setQueryData<InfiniteData<ConversationListResponseDto>>(
-          targetArchivedKey,
-          (currArchived) => {
-            if (!currArchived || !currArchived.pages) return currArchived;
-
-            const allItems = currArchived.pages
-              .flatMap((p) => p.items || [])
-              .filter((i) => i.id !== conversationId);
-            allItems.push({
-              ...originalTargetItem,
-              settings: { ...originalTargetItem.settings, archived: true },
-            });
-
-            return {
-              ...currArchived,
-              pages: currArchived.pages.map((page, index) =>
-                index === 0
-                  ? { ...page, items: allItems }
-                  : { ...page, items: [] },
-              ),
-            };
-          },
-        );
-      }
-    },
-  };
-};
+/**
+ * Optimistically unarchives a conversation (moves it from the archived list to
+ * the active list). Rollback moves the latest version of the row back.
+ */
+export const optimisticallyUnarchive = (
+  queryClient: QueryClient,
+  userId: string | undefined,
+  conversationId: string,
+): Promise<OptimisticRollbackContext> =>
+  optimisticallyMove(queryClient, userId, conversationId, "list");
 
 /**
  * Optimistically toggles the muted status of a conversation.
