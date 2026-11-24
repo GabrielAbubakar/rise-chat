@@ -20,6 +20,10 @@ export interface UseSendChatMessageOptions {
   };
   sendTypingStop: () => void;
   onMessageSent?: () => void;
+  /** Message the next send replies to, if any. */
+  replyToMessageId?: string | null;
+  /** Called once a send has consumed `replyToMessageId`, so the caller can clear it. */
+  onReplyConsumed?: () => void;
 }
 
 export function useSendChatMessage({
@@ -27,6 +31,8 @@ export function useSendChatMessage({
   sendMessageMutation,
   sendTypingStop,
   onMessageSent,
+  replyToMessageId,
+  onReplyConsumed,
 }: UseSendChatMessageOptions) {
   const queryClient = useQueryClient();
   const { data: user } = useGetMe();
@@ -120,6 +126,7 @@ export function useSendChatMessage({
       clientMessageId: string,
       textToSend?: string,
       attachment?: SelectedAttachment | null,
+      replyTo?: string,
     ) => {
       const currentUser =
         user ?? queryClient.getQueryData<ProfileResponseDto>(profileKeys.me());
@@ -151,6 +158,7 @@ export function useSendChatMessage({
               },
             ]
           : undefined,
+        replyToMessageId: replyTo ?? null,
         createdAt: new Date().toISOString(),
         status: "pending",
       };
@@ -206,6 +214,7 @@ export function useSendChatMessage({
 
     const textToSend = message.trim();
     const currentAttachment = selectedAttachment;
+    const replyTo = replyToMessageId || undefined;
     const clientMessageId = generateUUID();
     const clientUploadId = currentAttachment ? generateUUID() : undefined;
 
@@ -218,6 +227,7 @@ export function useSendChatMessage({
       attachment: currentAttachment,
       clientUploadId,
       uploadStage: currentAttachment ? "authorizing" : undefined,
+      replyToMessageId: replyTo,
       status: "pending",
       createdAt: new Date().toISOString(),
     };
@@ -228,12 +238,14 @@ export function useSendChatMessage({
     setSelectedAttachmentState(null);
     clearDraft(currentUserId, conversationId);
     sendTypingStop();
+    if (replyTo) onReplyConsumed?.();
 
     // 3. Immediately display message in chat history as pending
     insertOptimisticPendingMessage(
       clientMessageId,
       textToSend,
       currentAttachment,
+      replyTo,
     );
 
     if (onMessageSent) {
@@ -323,11 +335,14 @@ export function useSendChatMessage({
       clientMessageId,
       text: textToSend || undefined,
       attachmentMediaIds: uploadedMediaId ? [uploadedMediaId] : undefined,
+      replyToMessageId: replyTo,
       localAttachmentUri: currentAttachment?.uri,
     });
   }, [
     message,
     selectedAttachment,
+    replyToMessageId,
+    onReplyConsumed,
     conversationId,
     currentUserId,
     addOutboxEntry,
@@ -445,6 +460,7 @@ export function useSendChatMessage({
         clientMessageId,
         text: textToSend || undefined,
         attachmentMediaIds: uploadedMediaId ? [uploadedMediaId] : undefined,
+        replyToMessageId: entry?.replyToMessageId,
         localAttachmentUri: attachment?.uri,
       });
     },

@@ -1,0 +1,17 @@
+name: Publish update (dev)
+
+on:
+  push:
+    branches: ['dev']
+
+jobs:
+  publish_update:
+    name: Publish EAS Update to preview channel
+    type: update
+    environment: preview
+    env:
+      EXPO_PUBLIC_API_URL: https://chateo-lhuw.onrender.com/v1
+      EXPO_PUBLIC_WS_URL: wss://chateo-lhuw.onrender.com/chat
+    params:
+      channel: preview
+      platform: all

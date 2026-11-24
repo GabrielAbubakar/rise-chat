@@ -127,10 +127,21 @@ export interface MessageAttachmentDto {
   type?: string;
 }
 
+/** Emoji accepted by PUT /messages/:id/reaction (SetMessageReactionDto). */
+export const MESSAGE_REACTION_EMOJIS = [
+  "👍",
+  "❤️",
+  "😂",
+  "😮",
+  "😢",
+  "🙏",
+] as const;
+
+export type MessageReactionEmoji = (typeof MESSAGE_REACTION_EMOJIS)[number];
+
 export interface MessageReactionDto {
   emoji: string;
   userId: string;
-  createdAt?: string;
 }
 
 export type LocalMessageStatus = "pending" | "sent" | "failed";
@@ -141,11 +152,13 @@ export interface MessageResponseDto {
   clientMessageId: string;
   senderId: string;
   kind: "text" | "image" | "audio" | "video" | "document";
-  text?: string;
+  text?: string | null;
   attachments?: MessageAttachmentResponseDto[];
   reactions?: MessageReactionDto[];
   replyToMessageId?: string | null;
+  /** Monotonic revision for edits, deletion, and reactions. */
   version?: number;
+  editedAt?: string | null;
   deletedAt?: string | null;
   createdAt: string;
   updatedAt?: string;
@@ -153,11 +166,14 @@ export interface MessageResponseDto {
 }
 
 export interface UpdateMessageDto {
-  text?: string;
+  /** New text or caption. Null removes an attachment caption. */
+  text: string | null;
+  /** The message version last read by this client; stale edits return 409. */
+  expectedVersion: number;
 }
 
 export interface AddReactionDto {
-  emoji: string;
+  emoji: MessageReactionEmoji;
 }
 
 export interface MessagePageInfoDto {

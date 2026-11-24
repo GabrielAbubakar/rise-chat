@@ -122,6 +122,7 @@ export const useSendMessage = (
               },
             ]
           : undefined,
+        replyToMessageId: newMessageDto.replyToMessageId ?? null,
         createdAt: new Date().toISOString(),
         status: "pending",
       };

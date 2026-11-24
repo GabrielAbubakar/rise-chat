@@ -17,6 +17,7 @@ export interface OutboxEntry {
   clientUploadId?: string;
   uploadedMediaId?: string;
   uploadStage?: OutboxUploadStage;
+  replyToMessageId?: string;
   status: "pending" | "failed" | "sent";
   createdAt: string;
   error?: string;

@@ -34,7 +34,8 @@ export function buildOutboxMessage(
     attachments: entry.attachment
       ? [
           {
-            mediaId: entry.uploadedMediaId ?? `temp_media_${entry.clientMessageId}`,
+            mediaId:
+              entry.uploadedMediaId ?? `temp_media_${entry.clientMessageId}`,
             url: entry.attachment.uri,
             type: isImage ? "image" : "document",
             contentType:
@@ -45,6 +46,7 @@ export function buildOutboxMessage(
           },
         ]
       : undefined,
+    replyToMessageId: entry.replyToMessageId ?? null,
     createdAt: entry.createdAt,
     status: entry.status === "failed" ? "failed" : "pending",
   } as MessageResponseDto;

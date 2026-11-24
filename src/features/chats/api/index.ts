@@ -89,8 +89,9 @@ export const chatsApi = {
     return response.data;
   },
 
-  deleteMessage: async (conversationId: string, messageId: string): Promise<void> => {
-    await apiClient.delete(`/conversations/${conversationId}/messages/${messageId}`);
+  deleteMessage: async (conversationId: string, messageId: string): Promise<MessageResponseDto> => {
+    const response = await apiClient.delete<MessageResponseDto>(`/conversations/${conversationId}/messages/${messageId}`);
+    return response.data;
   },
 
   addReaction: async (conversationId: string, messageId: string, data: AddReactionDto): Promise<MessageResponseDto> => {
@@ -98,8 +99,9 @@ export const chatsApi = {
     return response.data;
   },
 
-  removeReaction: async (conversationId: string, messageId: string): Promise<void> => {
-    await apiClient.delete(`/conversations/${conversationId}/messages/${messageId}/reaction`);
+  removeReaction: async (conversationId: string, messageId: string): Promise<MessageResponseDto> => {
+    const response = await apiClient.delete<MessageResponseDto>(`/conversations/${conversationId}/messages/${messageId}/reaction`);
+    return response.data;
   },
 
   markRead: async (conversationId: string): Promise<ConversationReadStateResponseDto> => {

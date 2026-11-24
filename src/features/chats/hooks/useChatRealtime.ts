@@ -14,6 +14,7 @@ import type {
   ReceiptFrontierResponseDto,
   ReceiptFrontiersResponseDto,
 } from "../types";
+import { isStaleSnapshot } from "./messageCache";
 import { chatsKeys } from "./useChats";
 import { useChatOutboxStore } from "../store/useChatOutboxStore";
 
@@ -61,8 +62,10 @@ export function useChatRealtime(conversationId: string, targetUserId?: string) {
     // 2. Listen for real-time incoming messages
     const handleMessageCreated = (payload: MessageCreatedEventPayload) => {
       if (payload.conversationId === conversationId) {
-        queryClient.setQueriesData<InfiniteData<MessageHistoryResponseDto>>(
-          { queryKey: chatsKeys.messages(conversationId) },
+        // Target the history query exactly: the `messages` prefix also matches
+        // the search query, which has a different shape.
+        queryClient.setQueryData<InfiniteData<MessageHistoryResponseDto>>(
+          [...chatsKeys.messages(conversationId), currentUserId],
           (oldData) => {
             if (!oldData || !oldData.pages || oldData.pages.length === 0) {
               return {
@@ -88,11 +91,12 @@ export function useChatRealtime(conversationId: string, targetUserId?: string) {
               const newPages = oldData.pages.map((page) => ({
                 ...page,
                 items: page.items.map((msg) =>
-                  msg.id === payload.id ||
-                  (msg.clientMessageId &&
-                    payload.clientMessageId &&
-                    msg.clientMessageId === payload.clientMessageId)
-                    ? payload
+                  (msg.id === payload.id ||
+                    (msg.clientMessageId &&
+                      payload.clientMessageId &&
+                      msg.clientMessageId === payload.clientMessageId)) &&
+                  !isStaleSnapshot(msg, payload)
+                    ? { ...payload, status: "sent" as const }
                     : msg,
                 ),
               }));
