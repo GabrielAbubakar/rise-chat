@@ -11,6 +11,7 @@ export interface OutboxEntry {
   text?: string;
   attachment?: SelectedAttachment | null;
   uploadedMediaId?: string;
+  replyToMessageId?: string;
   status: "pending" | "failed" | "sent";
   createdAt: string;
   error?: string;

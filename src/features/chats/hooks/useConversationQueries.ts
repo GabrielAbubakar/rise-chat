@@ -92,9 +92,12 @@ export const useMessage = (
 ) => {
   const { data: user } = useGetMe();
   return useQuery({
-    queryKey: [...chatsKeys.messages(conversationId), messageId, user?.id],
+    queryKey: [...chatsKeys.message(conversationId, messageId), user?.id],
     queryFn: () => chatsApi.getMessage(conversationId, messageId),
     enabled: !!conversationId && !!messageId && !!user?.id,
+    // A 404 means the target is hidden from this user; retrying won't help.
+    retry: false,
+    staleTime: 60_000,
   });
 };
 

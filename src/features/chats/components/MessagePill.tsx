@@ -1,10 +1,18 @@
 import { BaseText } from "@/shared/components";
+import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
-import React from "react";
-import { Pressable, View } from "react-native";
+import React, { useCallback, useMemo, useRef } from "react";
+import { Pressable, Text, View } from "react-native";
 import Animated, { Keyframe } from "react-native-reanimated";
-import { LocalMessageStatus, MessageAttachmentResponseDto } from "../types";
+import {
+  LocalMessageStatus,
+  MESSAGE_REACTION_EMOJIS,
+  MessageAttachmentResponseDto,
+  MessageReactionDto,
+} from "../types";
 import { AttachmentItem } from "./AttachmentItem";
+import type { MessageAnchor } from "./MessageActionsMenu";
+import { MessageReplyQuote, MessageReplyQuoteProps } from "./MessageReplyQuote";
 
 import CheckIcon from "@/assets/icons/solid/check.svg";
 import ClockIcon from "@/assets/icons/solid/clock.svg";
@@ -42,6 +50,16 @@ export interface MessagePillProps {
   status?: LocalMessageStatus;
   deliveryStatus?: DeliveryStatus;
   onRetry?: () => void;
+  isDeleted?: boolean;
+  isEdited?: boolean;
+  /** Shown at the top of the bubble when this message is a reply. */
+  replyQuote?: Omit<MessageReplyQuoteProps, "isMe" | "onLongPress">;
+  reactions?: MessageReactionDto[];
+  currentUserId?: string;
+  /** Opens the message actions menu, anchored to the bubble's window frame. */
+  onLongPress?: (anchor: MessageAnchor) => void;
+  /** Tapping a reaction chip. */
+  onPressReaction?: (emoji: string) => void;
 }
 
 const NAME_COLORS = [
@@ -150,7 +168,42 @@ export function MessagePill({
   status,
   deliveryStatus,
   onRetry,
+  isDeleted = false,
+  isEdited = false,
+  replyQuote,
+  reactions,
+  currentUserId,
+  onLongPress,
+  onPressReaction,
 }: MessagePillProps) {
+  const bubbleRef = useRef<View>(null);
+
+  const handleLongPress = useCallback(() => {
+    if (!onLongPress) return;
+    const node = bubbleRef.current;
+    if (!node) return;
+    node.measureInWindow((x, y, width, height) =>
+      onLongPress({ x, y, width, height }),
+    );
+  }, [onLongPress]);
+
+  const reactionGroups = useMemo(() => {
+    if (!reactions?.length) return [];
+    const counts = new Map<string, { count: number; mine: boolean }>();
+    for (const r of reactions) {
+      const entry = counts.get(r.emoji) ?? { count: 0, mine: false };
+      entry.count += 1;
+      entry.mine = entry.mine || r.userId === currentUserId;
+      counts.set(r.emoji, entry);
+    }
+    const order = MESSAGE_REACTION_EMOJIS as readonly string[];
+    return [...counts.entries()]
+      .map(([emoji, v]) => ({ emoji, ...v }))
+      .sort((a, b) => order.indexOf(a.emoji) - order.indexOf(b.emoji));
+  }, [reactions, currentUserId]);
+
+  const timeLabel = isEdited && !isDeleted ? `Edited ${time}` : time;
+
   const renderMessageContent = () => {
     const trimmedQuery = searchQuery?.trim();
     if (!trimmedQuery) {
@@ -207,7 +260,7 @@ export function MessagePill({
       {isMe && (
         <View className="flex-row items-center mr-2 self-center mb-1">
           <BaseText className="text-neutral-400 dark:text-neutral-400 text-xs">
-            {time}
+            {timeLabel}
           </BaseText>
           <ReceiptStatusIcon
             deliveryStatus={deliveryStatus}
@@ -235,45 +288,126 @@ export function MessagePill({
         </View>
       )}
       <View
-        className={`max-w-[75%] px-4 py-3 rounded-2xl ${
-          isMe
-            ? status === "failed"
-              ? "bg-red-500/80 rounded-br-sm"
-              : "bg-primary-400 rounded-br-sm"
-            : isCurrentMatch
-              ? "bg-white dark:bg-neutral-800 border-2 border-primary-400 rounded-bl-sm"
-              : "bg-white dark:bg-neutral-800 rounded-bl-sm"
-        }`}
-        style={{
-          shadowColor: "#000",
-          shadowOffset: { width: 0, height: 1 },
-          shadowOpacity: 0.05,
-          shadowRadius: 2,
-          elevation: 1,
-        }}
+        className={`max-w-[75%] ${isMe ? "items-end" : "items-start"}`}
       >
-        {attachments?.map((attachment, index) => (
-          <AttachmentItem
-            key={attachment.mediaId || index}
-            attachment={attachment}
-            isMe={isMe}
-            hasText={!!text}
-          />
-        ))}
-        {!isMe && isGroupChat && senderName && (
-          <BaseText
-            style={{ color: getUserColor(senderId), marginBottom: 4 }}
-            className="text-xs font-bold"
+        <Pressable
+          ref={bubbleRef}
+          onLongPress={onLongPress ? handleLongPress : undefined}
+          delayLongPress={300}
+          className={`px-4 py-3 rounded-2xl ${
+            isMe
+              ? status === "failed"
+                ? "bg-red-500/80 rounded-br-sm"
+                : "bg-primary-400 rounded-br-sm"
+              : isCurrentMatch
+                ? "bg-white dark:bg-neutral-800 border-2 border-primary-400 rounded-bl-sm"
+                : "bg-white dark:bg-neutral-800 rounded-bl-sm"
+          }`}
+          style={{
+            shadowColor: "#000",
+            shadowOffset: { width: 0, height: 1 },
+            shadowOpacity: 0.05,
+            shadowRadius: 2,
+            elevation: 1,
+          }}
+          accessibilityHint={
+            onLongPress ? "Long press for reply, reactions and more" : undefined
+          }
+          accessibilityActions={
+            onLongPress
+              ? [{ name: "longpress", label: "Message actions" }]
+              : undefined
+          }
+          onAccessibilityAction={(event) => {
+            if (event.nativeEvent.actionName === "longpress") {
+              handleLongPress();
+            }
+          }}
+        >
+          {!isMe && isGroupChat && senderName && (
+            <BaseText
+              style={{ color: getUserColor(senderId), marginBottom: 4 }}
+              className="text-xs font-bold"
+            >
+              {senderName}
+            </BaseText>
+          )}
+          {isDeleted ? (
+            <View className="flex-row items-center">
+              <Ionicons
+                name="ban-outline"
+                size={15}
+                color={isMe ? "#F3F4F6" : "#9CA3AF"}
+              />
+              <BaseText
+                type="body-md"
+                className={`ml-1.5 italic ${
+                  isMe ? "text-white/90" : "text-neutral-500 dark:text-neutral-400"
+                }`}
+              >
+                {isMe ? "You deleted this message" : "This message was deleted"}
+              </BaseText>
+            </View>
+          ) : (
+            <>
+              {replyQuote ? (
+                <MessageReplyQuote
+                  {...replyQuote}
+                  isMe={isMe}
+                  onLongPress={onLongPress ? handleLongPress : undefined}
+                />
+              ) : null}
+              {attachments?.map((attachment, index) => (
+                <AttachmentItem
+                  key={attachment.mediaId || index}
+                  attachment={attachment}
+                  isMe={isMe}
+                  hasText={!!text}
+                  onLongPress={onLongPress ? handleLongPress : undefined}
+                />
+              ))}
+              {!!text && renderMessageContent()}
+            </>
+          )}
+        </Pressable>
+
+        {reactionGroups.length > 0 && !isDeleted ? (
+          <View
+            className={`flex-row flex-wrap -mt-2 px-2 ${
+              isMe ? "justify-end" : "justify-start"
+            }`}
           >
-            {senderName}
-          </BaseText>
-        )}
-        {!!text && renderMessageContent()}
+            {reactionGroups.map(({ emoji, count, mine }) => (
+              <Pressable
+                key={emoji}
+                onPress={() => onPressReaction?.(emoji)}
+                disabled={!onPressReaction}
+                hitSlop={4}
+                className={`flex-row items-center rounded-full px-1.5 py-0.5 mr-1 border ${
+                  mine
+                    ? "bg-primary-50 dark:bg-primary-950 border-primary-300 dark:border-primary-700"
+                    : "bg-white dark:bg-neutral-800 border-divider dark:border-neutral-700"
+                }`}
+                accessibilityRole="button"
+                accessibilityLabel={`${emoji} ${count}${
+                  mine ? ", including you. Tap to remove" : ". Tap to react"
+                }`}
+              >
+                <Text style={{ fontSize: 13 }}>{emoji}</Text>
+                {count > 1 ? (
+                  <BaseText className="text-[11px] ml-0.5 text-neutral-600 dark:text-neutral-300">
+                    {count}
+                  </BaseText>
+                ) : null}
+              </Pressable>
+            ))}
+          </View>
+        ) : null}
       </View>
 
       {!isMe && (
         <BaseText className="text-neutral-400 dark:text-neutral-400 ml-2 self-center mb-1 text-xs">
-          {time}
+          {timeLabel}
         </BaseText>
       )}
     </Animated.View>
