@@ -1,5 +1,5 @@
+import { useSessionMutation } from "@/core/useSessionMutation";
 import {
-  useMutation,
   UseMutationOptions,
   useQuery,
   UseQueryOptions,
@@ -19,7 +19,7 @@ export const useMatchContacts = (
     MatchContactsDto
   >,
 ) => {
-  return useMutation({
+  return useSessionMutation({
     ...options,
     mutationFn: chatsApi.matchContacts,
   });

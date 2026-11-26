@@ -2,13 +2,20 @@ import { useGetMe } from "@/features/settings/hooks/useProfile";
 import { useAppStore } from "@/store";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useSecurityStore } from "@/store/useSecurityStore";
-import { useRouter, useSegments } from "expo-router";
+import {
+  useGlobalSearchParams,
+  usePathname,
+  useRouter,
+  useSegments,
+} from "expo-router";
 import { useEffect } from "react";
 
 const PUBLIC_SEGMENTS = ["(auth)", "welcome", "tokens"];
 
 export function useProtectedRoute(isAppReady: boolean) {
   const segments = useSegments();
+  const pathname = usePathname();
+  const globalParams = useGlobalSearchParams();
   const router = useRouter();
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const hasSeenOnboarding = useAppStore((state) => state.hasSeenOnboarding);
@@ -29,16 +36,54 @@ export function useProtectedRoute(isAppReady: boolean) {
     const inAuthGroup = firstSegment === "(auth)";
     const inWelcome = firstSegment === "welcome";
     const inUnlock = firstSegment === "unlock";
-    const isPublicRoute = PUBLIC_SEGMENTS.includes(firstSegment);
     const isProfileComplete = user?.profileComplete || !!user?.displayName;
-    const attemptedPath = segments.length > 0 ? `/${segments.join("/")}` : "";
+
+    // F10 FIX: Reconstruct concrete destination URL with actual parameters instead of dynamic placeholders ([id])
+    let concretePath = pathname || "";
+    if (concretePath.includes("[")) {
+      Object.entries(globalParams).forEach(([key, val]) => {
+        if (typeof val === "string" || typeof val === "number") {
+          concretePath = concretePath
+            .replace(`[${key}]`, String(val))
+            .replace(`[...${key}]`, String(val));
+        }
+      });
+    }
+
+    if (concretePath && segments.length > 0) {
+      const queryParams = new URLSearchParams();
+      Object.entries(globalParams).forEach(([key, val]) => {
+        const isSegmentParam = segments.some(
+          (seg) => seg === `[${key}]` || seg === `[...${key}]`,
+        );
+        if (!isSegmentParam && val !== undefined && val !== null) {
+          queryParams.append(key, String(val));
+        }
+      });
+      const queryString = queryParams.toString();
+      if (queryString) {
+        concretePath = `${concretePath}?${queryString}`;
+      }
+    }
+
+    const isPublicRoute =
+      PUBLIC_SEGMENTS.includes(firstSegment) ||
+      concretePath.startsWith("/welcome") ||
+      concretePath.startsWith("/(auth)");
+
+    const isValidDestination =
+      concretePath &&
+      !isPublicRoute &&
+      concretePath !== "/unlock" &&
+      concretePath !== "/" &&
+      !concretePath.includes("[");
 
     if (isAuthenticated) {
       if (isPinSet && !isAppUnlocked) {
         if (!inUnlock) {
-          // App is locked, save intended destination if valid private screen
-          if (attemptedPath && !isPublicRoute && attemptedPath !== "/unlock") {
-            setPendingRoute(attemptedPath);
+          // App is locked, save intended concrete destination if valid private screen
+          if (isValidDestination) {
+            setPendingRoute(concretePath);
           }
           router.replace("/unlock");
         }
@@ -50,8 +95,17 @@ export function useProtectedRoute(isAppReady: boolean) {
 
       if (isProfileComplete) {
         // Authenticated user trying to access public auth screens or unlock after being unlocked
-        if (inAuthGroup || inWelcome || inUnlock || (!firstSegment && isAppUnlocked)) {
-          const destination = pendingRoute || "/(tabs)/chats";
+        if (
+          inAuthGroup ||
+          inWelcome ||
+          inUnlock ||
+          (!firstSegment && isAppUnlocked)
+        ) {
+          // Guard: Discard any stale placeholder routes containing unparsed dynamic segments
+          const destination =
+            pendingRoute && !pendingRoute.includes("[")
+              ? pendingRoute
+              : "/(tabs)/chats";
           if (pendingRoute) {
             setPendingRoute(null);
           }
@@ -66,8 +120,8 @@ export function useProtectedRoute(isAppReady: boolean) {
     } else {
       // Not authenticated: protect ALL non-public routes
       if (!isPublicRoute) {
-        if (attemptedPath && attemptedPath !== "/unlock") {
-          setPendingRoute(attemptedPath);
+        if (isValidDestination) {
+          setPendingRoute(concretePath);
         }
         if (hasSeenOnboarding) {
           router.replace("/(auth)/register");
@@ -80,6 +134,8 @@ export function useProtectedRoute(isAppReady: boolean) {
     user,
     isAuthenticated,
     segments,
+    pathname,
+    globalParams,
     isAppReady,
     router,
     hasSeenOnboarding,

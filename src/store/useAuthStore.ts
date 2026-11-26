@@ -1,16 +1,20 @@
+import { clientPersister, queryClient } from "@/core/queryClient";
+import { useChatDraftsStore } from "@/features/chats/store/useChatDraftsStore";
+import { useChatOutboxStore } from "@/features/chats/store/useChatOutboxStore";
+import { abortAllUploads } from "@/features/media/services/uploadService";
+import { tokenStorage } from "@/services/api/token";
+import { clearPinCode } from "@/services/security/pin";
 import { createMMKV } from "react-native-mmkv";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
-import { tokenStorage } from "@/services/api/token";
-import { clearPinCode } from "@/services/security/pin";
-import { clientPersister, queryClient } from "@/core/queryClient";
 import { createZustandStorage } from "./storage";
 import { useSecurityStore } from "./useSecurityStore";
 
 interface AuthState {
   isAuthenticated: boolean;
   setAuthenticated: (status: boolean) => void;
-  logout: () => Promise<void>;
+  /** Resolves once native cleanup has settled; never rejects. */
+  logout: () => Promise<{ failedSteps: string[] }>;
 }
 
 const authMMKV = createMMKV({ id: "auth-storage" });
@@ -40,13 +44,50 @@ export const useAuthStore = create<AuthState>()(
         set({ isAuthenticated: status });
       },
       logout: async () => {
-        tokenStorage.incrementSessionGeneration();
-        await tokenStorage.clearTokens();
-        await clearPinCode();
-        useSecurityStore.getState().reset();
+        // Phase 1 — synchronous, before any await (R6).
+        // End ownership first so every in-flight request, mutation, token read
+        // and upload from this session is discarded, then detach all private
+        // UI/cache/local state. Nothing below can be blocked by native storage.
+        tokenStorage.endSession();
+        abortAllUploads();
         queryClient.clear();
-        await clientPersister.removeClient();
+        useChatDraftsStore.getState().clearActiveSession();
+        useChatOutboxStore.getState().clearActiveSession();
+        useSecurityStore.getState().reset();
         set({ isAuthenticated: false });
+
+        // Phase 2 — native cleanup. Each step runs independently so one failure
+        // can't skip the others. The credential and PIN deletes go through the
+        // secure-op queue (R9): they run after any write this session already
+        // had in flight, and before any write a newer session issues. They are
+        // started synchronously, still inside phase 1's tick, so nothing a new
+        // login does after `logout()` returns can be queued ahead of them.
+        const steps: [name: string, run: () => Promise<unknown> | unknown][] = [
+          ["credentials", () => tokenStorage.deletePersistedTokens()],
+          ["pin", () => clearPinCode()],
+          ["query-persister", () => clientPersister.removeClient()],
+        ];
+        const started = steps.map(([, run]) => {
+          try {
+            return Promise.resolve(run());
+          } catch (error) {
+            return Promise.reject(error);
+          }
+        });
+        const results = await Promise.allSettled(started);
+
+        const failed = results
+          .map((r, i) => (r.status === "rejected" ? { step: steps[i][0], reason: r.reason } : null))
+          .filter((f): f is { step: string; reason: unknown } => f !== null);
+        if (failed.length > 0) {
+          // Credentials: the purge marker stays set, so the next launch retries
+          // the delete instead of restoring this account's tokens.
+          // PIN: security state is already reset (isPinSet=false), so the stale
+          // PIN is never checked and is overwritten by the next PIN setup.
+          // Persister: the cleared in-memory cache is re-persisted empty.
+          console.warn("⚠️ [Auth Module] Logout cleanup incomplete:", failed);
+        }
+        return { failedSteps: failed.map((f) => f.step) };
       },
     }),
     {

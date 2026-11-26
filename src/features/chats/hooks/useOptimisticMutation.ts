@@ -1,12 +1,14 @@
+import { useSessionMutation } from "@/core/useSessionMutation";
 import { profileKeys, useGetMe } from "@/features/settings/hooks/useProfile";
 import { ProfileResponseDto } from "@/features/settings/types";
 import { showInfoToast } from "@/shared/utils";
 import {
   QueryClient,
-  useMutation,
   UseMutationOptions,
   useQueryClient,
 } from "@tanstack/react-query";
+import { assertSetupInSession } from "@/core/sessionQueries";
+import { tokenStorage } from "@/services/api/token";
 import { chatsKeys } from "./chatsKeys";
 
 export interface UseOptimisticMutationConfig<TData, TVariables, TContext> {
@@ -35,13 +37,18 @@ export function useOptimisticMutation<
   const queryClient = useQueryClient();
   const { data: user } = useGetMe();
 
-  return useMutation<TData, Error, TVariables, TContext>({
+  return useSessionMutation<TData, Error, TVariables, TContext>({
     ...options,
     mutationFn,
     onMutate: async (variables, context) => {
+      // R4: recheck after every await so a consumer onMutate never runs (or
+      // writes) for a session that ended during the internal setup.
+      const generation = tokenStorage.getSessionGeneration();
       const internalContext = await onMutate(queryClient, user?.id, variables);
+      assertSetupInSession(generation);
       if (options?.onMutate) {
         const consumerContext = await options.onMutate(variables, context);
+        assertSetupInSession(generation);
         if (
           typeof internalContext === "object" &&
           internalContext !== null &&
@@ -57,23 +64,31 @@ export function useOptimisticMutation<
     onError: (err, variables, context, mutation) => {
       const currentUser =
         user ?? queryClient.getQueryData<ProfileResponseDto>(profileKeys.me());
-      if (context && (context as any).previousList) {
-        queryClient.setQueryData(
-          [...chatsKeys.list(), currentUser?.id],
-          (context as any).previousList,
-        );
-      }
-      if (context && (context as any).previousArchived) {
-        queryClient.setQueryData(
-          [...chatsKeys.archived(), currentUser?.id],
-          (context as any).previousArchived,
-        );
-      }
-      if (context && (context as any).previousDetail && (context as any).detailKey) {
-        queryClient.setQueryData(
-          (context as any).detailKey,
-          (context as any).previousDetail,
-        );
+      if (context && typeof (context as any).rollback === "function") {
+        (context as any).rollback(queryClient, currentUser?.id);
+      } else {
+        if (context && (context as any).previousList) {
+          queryClient.setQueryData(
+            [...chatsKeys.list(), currentUser?.id],
+            (context as any).previousList,
+          );
+        }
+        if (context && (context as any).previousArchived) {
+          queryClient.setQueryData(
+            [...chatsKeys.archived(), currentUser?.id],
+            (context as any).previousArchived,
+          );
+        }
+        if (
+          context &&
+          (context as any).previousDetail &&
+          (context as any).detailKey
+        ) {
+          queryClient.setQueryData(
+            (context as any).detailKey,
+            (context as any).previousDetail,
+          );
+        }
       }
       showInfoToast(errorMessage, "Action Failed");
       if (options?.onError) {

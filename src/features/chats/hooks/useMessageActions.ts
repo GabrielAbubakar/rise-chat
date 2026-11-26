@@ -1,9 +1,11 @@
-import { useGetMe } from "@/features/settings/hooks/useProfile";
 import {
-  useMutation,
-  UseMutationOptions,
-  useQueryClient,
-} from "@tanstack/react-query";
+  assertSetupInSession,
+  cancelQueriesInSession,
+} from "@/core/sessionQueries";
+import { useSessionMutation } from "@/core/useSessionMutation";
+import { tokenStorage } from "@/services/api/token";
+import { useGetMe } from "@/features/settings/hooks/useProfile";
+import { UseMutationOptions, useQueryClient } from "@tanstack/react-query";
 import { chatsApi } from "../api";
 import {
   MessageReactionEmoji,
@@ -11,25 +13,39 @@ import {
   UpdateMessageDto,
 } from "../types";
 import { chatsKeys } from "./chatsKeys";
+import { applyServerMessage } from "./messageCache";
 import {
-  applyServerMessage,
-  findCachedMessage,
-  updateMessageInCache,
-} from "./messageCache";
+  beginMessageOp,
+  findMessageAnywhere,
+  MessageOpHandle,
+  rollbackMessageOp,
+  settleMessageOp,
+} from "./messageOptimisticOps";
 
-interface MessageMutationContext {
+export interface MessageMutationContext {
+  /** The message as cached when the action started (for consumers). */
   previous?: MessageResponseDto;
+  /** Ownership record for this action's optimistic fields. */
+  op?: MessageOpHandle | null;
 }
 
 /**
- * Shared optimistic flow for single-message mutations: snapshot the cached
- * message, apply `optimistic`, write the server response back on success
- * and restore the snapshot on failure.
+ * Shared optimistic flow for single-message mutations (edit, delete, react):
+ * apply `optimistic`, write the server response back version-aware on
+ * success, and on failure undo only the fields this operation still owns
+ * (R10, see messageOptimisticOps) instead of restoring a whole snapshot that
+ * may be older than a confirmed edit or deletion.
+ *
+ * Runs through `useSessionMutation`, and rechecks the session right after each
+ * await in its setup (R4), so work started before a logout/login never writes
+ * into (or rolls back) the new session's cache.
  */
 function useOptimisticMessageMutation<TVars extends { messageId: string }>(
   conversationId: string,
   mutationFn: (vars: TVars) => Promise<MessageResponseDto>,
-  optimistic: ((message: MessageResponseDto, vars: TVars) => MessageResponseDto) | null,
+  optimistic:
+    | ((message: MessageResponseDto, vars: TVars) => MessageResponseDto)
+    | null,
   options?: UseMutationOptions<
     MessageResponseDto,
     Error,
@@ -39,41 +55,43 @@ function useOptimisticMessageMutation<TVars extends { messageId: string }>(
 ) {
   const queryClient = useQueryClient();
 
-  return useMutation<MessageResponseDto, Error, TVars, MessageMutationContext>({
+  return useSessionMutation<
+    MessageResponseDto,
+    Error,
+    TVars,
+    MessageMutationContext
+  >({
     ...options,
     mutationFn,
     onMutate: async (vars, mutation) => {
-      await queryClient.cancelQueries({
-        queryKey: chatsKeys.messages(conversationId),
-      });
-      const previous = findCachedMessage(
+      const generation = tokenStorage.getSessionGeneration();
+      await cancelQueriesInSession(
+        queryClient,
+        { queryKey: chatsKeys.messages(conversationId) },
+        { generation },
+      );
+      const previous = findMessageAnywhere(
         queryClient,
         conversationId,
         vars.messageId,
       );
-      if (optimistic) {
-        updateMessageInCache(queryClient, conversationId, vars.messageId, (m) =>
-          optimistic(m, vars),
-        );
-      }
+      const op = optimistic
+        ? beginMessageOp(queryClient, conversationId, vars.messageId, (m) =>
+            optimistic(m, vars),
+          )
+        : null;
       await options?.onMutate?.(vars, mutation);
-      return { previous };
+      assertSetupInSession(generation);
+      return { previous, op };
     },
     onSuccess: (serverMessage, vars, context, mutation) => {
+      settleMessageOp(context?.op);
       applyServerMessage(queryClient, serverMessage);
       queryClient.invalidateQueries({ queryKey: chatsKeys.list() });
       options?.onSuccess?.(serverMessage, vars, context, mutation);
     },
     onError: (error, vars, context, mutation) => {
-      const previous = context?.previous;
-      if (previous) {
-        updateMessageInCache(
-          queryClient,
-          conversationId,
-          vars.messageId,
-          () => previous,
-        );
-      }
+      rollbackMessageOp(queryClient, context?.op);
       options?.onError?.(error, vars, context, mutation);
     },
   });

@@ -1,7 +1,35 @@
 import * as SecureStore from "expo-secure-store";
+import { createMMKV } from "react-native-mmkv";
+import { enqueueSecureOp } from "../session/secureStoreQueue";
 
 const ACCESS_TOKEN_KEY = "rise_chat_access_token";
 const REFRESH_TOKEN_KEY = "rise_chat_refresh_token";
+
+// Synchronous marker: set before deleting persisted credentials, cleared once the
+// delete (or a newer session's write) succeeds. If a delete fails or the app is
+// killed mid-logout, the next launch must not load the old account's tokens.
+const PURGE_PENDING_KEY = "credential_purge_pending";
+const sessionMMKV = createMMKV({ id: "session-cleanup" });
+
+function isPurgePending(): boolean {
+  try {
+    return sessionMMKV.getBoolean(PURGE_PENDING_KEY) === true;
+  } catch {
+    return false;
+  }
+}
+
+function setPurgePending(pending: boolean): void {
+  try {
+    if (pending) {
+      sessionMMKV.set(PURGE_PENDING_KEY, true);
+    } else {
+      sessionMMKV.remove(PURGE_PENDING_KEY);
+    }
+  } catch (e) {
+    console.error("Error updating credential purge marker", e);
+  }
+}
 
 // Synchronous in-memory token cache to prevent async storage race conditions
 let memoryAccessToken: string | null = null;
@@ -9,6 +37,83 @@ let memoryRefreshToken: string | null = null;
 let isInitialized = false;
 let currentSessionGeneration = 1;
 const refreshListeners: Set<(token: string) => void> = new Set();
+
+function notifyRefreshListeners(token: string) {
+  refreshListeners.forEach((listener) => {
+    try {
+      listener(token);
+    } catch (e) {
+      console.error("Error in token refresh listener", e);
+    }
+  });
+}
+
+/** Queued behind any credential write already in flight (R9). */
+function deletePersistedKeys(): Promise<void> {
+  return enqueueSecureOp(async () => {
+    await Promise.all([
+      SecureStore.deleteItemAsync(ACCESS_TOKEN_KEY),
+      SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY),
+    ]);
+  });
+}
+
+/**
+ * Cold read from SecureStore that cannot leak across sessions: if the session
+ * changes while the native read is pending, the value is discarded and the
+ * in-memory cache (which may now hold the new session's token) is untouched.
+ */
+async function readPersisted(
+  key: string,
+  getMemory: () => string | null,
+  setMemory: (token: string | null) => void,
+): Promise<string | null> {
+  const memory = getMemory();
+  if (memory !== null) return memory;
+  if (isPurgePending()) return null;
+
+  const generation = currentSessionGeneration;
+  let token: string | null;
+  try {
+    token = await SecureStore.getItemAsync(key);
+  } catch (e) {
+    console.error(`Error reading ${key}`, e);
+    return null;
+  }
+
+  if (generation !== currentSessionGeneration) {
+    return getMemory();
+  }
+  // A concurrent write in the same session wins over the older disk value
+  const latest = getMemory();
+  if (latest !== null) return latest;
+  setMemory(token);
+  return token;
+}
+
+/**
+ * Persists credentials through the secure-op queue (R9).
+ *
+ * - Skipped if its session ended while it waited in the queue.
+ * - If its session ends while the native write is in flight, the write still
+ *   lands — but logout's delete is queued behind it, so it is erased before
+ *   any newer session's write runs. The post-write check only decides whether
+ *   to report success / clear the purge marker; it is not relied on to cancel.
+ */
+function persistInSession(
+  generation: number,
+  writes: [key: string, value: string][],
+): Promise<boolean> {
+  return enqueueSecureOp(async () => {
+    if (generation !== currentSessionGeneration) return false;
+    await Promise.all(
+      writes.map(([key, value]) => SecureStore.setItemAsync(key, value)),
+    );
+    if (generation !== currentSessionGeneration) return false;
+    setPurgePending(false);
+    return true;
+  });
+}
 
 export const tokenStorage = {
   // Session generation tracker for invalidating late asynchronous writes
@@ -31,12 +136,21 @@ export const tokenStorage = {
   init: async (): Promise<void> => {
     if (isInitialized) return;
     try {
+      if (isPurgePending()) {
+        // A previous logout did not finish deleting credentials: finish it now
+        // instead of restoring the old account's tokens.
+        await tokenStorage.deletePersistedTokens();
+        return;
+      }
+      const generation = currentSessionGeneration;
       const [access, refresh] = await Promise.all([
         SecureStore.getItemAsync(ACCESS_TOKEN_KEY),
         SecureStore.getItemAsync(REFRESH_TOKEN_KEY),
       ]);
-      memoryAccessToken = access;
-      memoryRefreshToken = refresh;
+      if (generation === currentSessionGeneration) {
+        memoryAccessToken ??= access;
+        memoryRefreshToken ??= refresh;
+      }
     } catch (e) {
       console.error("Error initializing tokenStorage", e);
     } finally {
@@ -44,50 +158,41 @@ export const tokenStorage = {
     }
   },
 
-  getAccessToken: async (): Promise<string | null> => {
-    if (memoryAccessToken !== null) return memoryAccessToken;
-    try {
-      const token = await SecureStore.getItemAsync(ACCESS_TOKEN_KEY);
-      memoryAccessToken = token;
-      return token;
-    } catch (e) {
-      console.error("Error getting access token", e);
-      return null;
-    }
-  },
+  getAccessToken: (): Promise<string | null> =>
+    readPersisted(
+      ACCESS_TOKEN_KEY,
+      () => memoryAccessToken,
+      (t) => {
+        memoryAccessToken = t;
+      },
+    ),
+
+  getRefreshToken: (): Promise<string | null> =>
+    readPersisted(
+      REFRESH_TOKEN_KEY,
+      () => memoryRefreshToken,
+      (t) => {
+        memoryRefreshToken = t;
+      },
+    ),
 
   setAccessToken: async (token: string): Promise<void> => {
+    const generation = currentSessionGeneration;
     memoryAccessToken = token;
     try {
-      await SecureStore.setItemAsync(ACCESS_TOKEN_KEY, token);
-      refreshListeners.forEach((listener) => {
-        try {
-          listener(token);
-        } catch (e) {
-          console.error("Error in token refresh listener", e);
-        }
-      });
+      if (await persistInSession(generation, [[ACCESS_TOKEN_KEY, token]])) {
+        notifyRefreshListeners(token);
+      }
     } catch (e) {
       console.error("Error setting access token", e);
     }
   },
 
-  getRefreshToken: async (): Promise<string | null> => {
-    if (memoryRefreshToken !== null) return memoryRefreshToken;
-    try {
-      const token = await SecureStore.getItemAsync(REFRESH_TOKEN_KEY);
-      memoryRefreshToken = token;
-      return token;
-    } catch (e) {
-      console.error("Error getting refresh token", e);
-      return null;
-    }
-  },
-
   setRefreshToken: async (token: string): Promise<void> => {
+    const generation = currentSessionGeneration;
     memoryRefreshToken = token;
     try {
-      await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, token);
+      await persistInSession(generation, [[REFRESH_TOKEN_KEY, token]]);
     } catch (e) {
       console.error("Error setting refresh token", e);
     }
@@ -97,36 +202,53 @@ export const tokenStorage = {
     accessToken: string,
     refreshToken: string,
   ): Promise<void> => {
+    const generation = currentSessionGeneration;
     memoryAccessToken = accessToken;
     memoryRefreshToken = refreshToken;
     try {
-      await Promise.all([
-        SecureStore.setItemAsync(ACCESS_TOKEN_KEY, accessToken),
-        SecureStore.setItemAsync(REFRESH_TOKEN_KEY, refreshToken),
+      const persisted = await persistInSession(generation, [
+        [ACCESS_TOKEN_KEY, accessToken],
+        [REFRESH_TOKEN_KEY, refreshToken],
       ]);
-      console.log("💾 [Auth Module] Tokens saved successfully in memory & secure storage");
-      refreshListeners.forEach((listener) => {
-        try {
-          listener(accessToken);
-        } catch (e) {
-          console.error("Error in token refresh listener", e);
-        }
-      });
+      if (persisted) {
+        console.log("💾 [Auth Module] Tokens saved successfully in memory & secure storage");
+        notifyRefreshListeners(accessToken);
+      }
     } catch (e) {
       console.error("Error setting tokens", e);
     }
   },
 
-  clearTokens: async (): Promise<void> => {
+  /**
+   * Synchronously ends the current session: bumps the generation (so every
+   * in-flight request, mutation and token read from it is discarded) and drops
+   * in-memory credentials. Does not touch native storage.
+   */
+  endSession: (): number => {
     currentSessionGeneration += 1;
     memoryAccessToken = null;
     memoryRefreshToken = null;
+    setPurgePending(true);
+    return currentSessionGeneration;
+  },
+
+  /** Deletes persisted credentials. Rejects on failure so callers can report it. */
+  deletePersistedTokens: async (): Promise<void> => {
+    setPurgePending(true);
+    const generation = currentSessionGeneration;
+    await deletePersistedKeys();
+    // If a newer session already wrote its own tokens, its write cleared the
+    // marker; only clear it here if nothing newer happened.
+    if (generation === currentSessionGeneration) {
+      setPurgePending(false);
+    }
+    console.log("🗑️ [Auth Module] Persisted tokens deleted");
+  },
+
+  clearTokens: async (): Promise<void> => {
+    tokenStorage.endSession();
     try {
-      await Promise.all([
-        SecureStore.deleteItemAsync(ACCESS_TOKEN_KEY),
-        SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY),
-      ]);
-      console.log("🗑️ [Auth Module] Tokens cleared from memory & secure storage (generation bumped)");
+      await tokenStorage.deletePersistedTokens();
     } catch (e) {
       console.error("Error clearing tokens", e);
     }

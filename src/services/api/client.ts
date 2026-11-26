@@ -1,4 +1,9 @@
 import { env } from "@/core/config/env";
+import {
+  assertSessionCurrent,
+  isStaleSessionError,
+  StaleSessionError,
+} from "@/services/session/staleSession";
 import { AppError } from "@/shared/utils";
 import axios, { AxiosError, InternalAxiosRequestConfig } from "axios";
 import { tokenStorage } from "./token";
@@ -25,7 +30,12 @@ const processQueue = (
 ) => {
   failedQueue.forEach((prom) => {
     if (prom.sessionGeneration !== currentSession) {
-      prom.reject(new Error("Session expired/logged out while queued"));
+      prom.reject(
+        new StaleSessionError(
+          "Session expired/logged out while queued",
+          prom.sessionGeneration,
+        ),
+      );
     } else if (error) {
       prom.reject(error);
     } else {
@@ -36,10 +46,30 @@ const processQueue = (
   failedQueue = [];
 };
 
-// Request Interceptor: Attach access token
+// Request Interceptor: Attach access token and stamp initiating session
 apiClient.interceptors.request.use(
   async (config: InternalAxiosRequestConfig) => {
+    // Stamp the initiating session generation on the request config.
+    // Replays after refresh keep their original stamp.
+    if ((config as any)._sessionGeneration === undefined) {
+      (config as any)._sessionGeneration = tokenStorage.getSessionGeneration();
+    }
+    const requestSession: number = (config as any)._sessionGeneration;
+
+    // R5: the session may already be gone (e.g. a queued replay), and the token
+    // lookup below can be a slow cold SecureStore read. Check ownership on both
+    // sides of the await so a request is never dispatched with another
+    // session's credentials.
+    assertSessionCurrent(
+      requestSession,
+      "Request from a previous session was not sent",
+    );
     const token = await tokenStorage.getAccessToken();
+    assertSessionCurrent(
+      requestSession,
+      "Request from a previous session was not sent",
+    );
+
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     } else if (config.headers) {
@@ -55,12 +85,46 @@ apiClient.interceptors.request.use(
 // Response Interceptor: Handle global errors, token refresh
 apiClient.interceptors.response.use(
   (response) => {
+    // R4 defence in depth: a response for a session that has since ended must
+    // not reach any consumer (query cache, mutation callbacks, stores).
+    const requestSession = (response.config as any)?._sessionGeneration;
+    if (
+      requestSession !== undefined &&
+      requestSession !== tokenStorage.getSessionGeneration()
+    ) {
+      return Promise.reject(
+        new StaleSessionError(
+          "Response from a previous session was discarded",
+          requestSession,
+        ),
+      );
+    }
     return response;
   },
   async (error: AxiosError) => {
+    // Already-classified stale work (e.g. rejected by the request interceptor)
+    if (isStaleSessionError(error)) {
+      return Promise.reject(error);
+    }
+
     const originalRequest = error.config as InternalAxiosRequestConfig & {
       _retry?: boolean;
+      _sessionGeneration?: number;
     };
+
+    // Errors for a session that has since ended are discarded, not surfaced
+    // to the new session (no refresh, no replay, no error toast).
+    if (
+      originalRequest?._sessionGeneration !== undefined &&
+      originalRequest._sessionGeneration !== tokenStorage.getSessionGeneration()
+    ) {
+      return Promise.reject(
+        new StaleSessionError(
+          "Stale request from previous session dropped",
+          originalRequest._sessionGeneration,
+        ),
+      );
+    }
 
     // Handle 401 Unauthorized errors for token refresh
     if (
@@ -68,16 +132,21 @@ apiClient.interceptors.response.use(
       originalRequest &&
       !originalRequest._retry
     ) {
-      const sessionGeneration = tokenStorage.getSessionGeneration();
+      // F5: 401s from an earlier session were already discarded above, so this
+      // request belongs to the current session.
+      const currentSession = tokenStorage.getSessionGeneration();
 
       if (isRefreshing) {
         return new Promise(function (resolve, reject) {
-          failedQueue.push({ resolve, reject, sessionGeneration });
+          failedQueue.push({ resolve, reject, sessionGeneration: currentSession });
         })
           .then((token) => {
-            if (tokenStorage.getSessionGeneration() !== sessionGeneration) {
+            if (tokenStorage.getSessionGeneration() !== currentSession) {
               return Promise.reject(
-                new Error("Session invalidated while waiting for refresh"),
+                new StaleSessionError(
+                  "Session invalidated while waiting for refresh",
+                  currentSession,
+                ),
               );
             }
             if (originalRequest.headers) {
@@ -93,7 +162,7 @@ apiClient.interceptors.response.use(
       originalRequest._retry = true;
       isRefreshing = true;
       console.log(
-        `⏳ [Auth Module] Attempting token refresh (session: ${sessionGeneration})...`,
+        `⏳ [Auth Module] Attempting token refresh (session: ${currentSession})...`,
       );
 
       try {
@@ -111,18 +180,16 @@ apiClient.interceptors.response.use(
         );
 
         // Guard against late writes: check if user logged out or session rotated during refresh
-        if (tokenStorage.getSessionGeneration() !== sessionGeneration) {
+        if (tokenStorage.getSessionGeneration() !== currentSession) {
           console.log(
             "🛑 [Auth Module] Session invalidated during refresh; discarding returned tokens.",
           );
-          processQueue(
-            new Error("Session invalidated during refresh"),
-            null,
-            sessionGeneration,
+          const staleError = new StaleSessionError(
+            "Session invalidated during refresh",
+            currentSession,
           );
-          return Promise.reject(
-            new Error("Session invalidated during refresh"),
-          );
+          processQueue(staleError, null, currentSession);
+          return Promise.reject(staleError);
         }
 
         const newAccessToken = data.accessToken;
@@ -135,7 +202,7 @@ apiClient.interceptors.response.use(
         }
 
         console.log("✨ [Auth Module] Token refreshed successfully");
-        processQueue(null, newAccessToken, sessionGeneration);
+        processQueue(null, newAccessToken, currentSession);
 
         return apiClient(originalRequest);
       } catch (refreshError: any) {
@@ -143,20 +210,23 @@ apiClient.interceptors.response.use(
           "🚨 [Auth Module] Token refresh failed:",
           refreshError?.message,
         );
-        processQueue(refreshError, null, sessionGeneration);
+        processQueue(refreshError, null, currentSession);
 
-        // Distinguish network/timeout failure from rejected credentials
-        const isAuthRejection =
-          refreshError.response?.status === 401 ||
-          refreshError.response?.status === 403 ||
-          !refreshError.response;
+        // F6 FIX: Distinguish genuine credential rejection (401/403) from temporary network/server errors
+        const status = refreshError.response?.status;
+        const isAuthRejection = status === 401 || status === 403;
 
         if (
           isAuthRejection &&
-          tokenStorage.getSessionGeneration() === sessionGeneration
+          tokenStorage.getSessionGeneration() === currentSession
         ) {
-          const { useAuthStore } = await import("@/store/useAuthStore");
+          // eslint-disable-next-line @typescript-eslint/no-require-imports
+          const { useAuthStore } = require("@/store/useAuthStore");
           await useAuthStore.getState().logout();
+        } else {
+          console.warn(
+            "⚠️ [Auth Module] Temporary refresh failure (offline/timeout/server error). Retaining session.",
+          );
         }
 
         return Promise.reject(refreshError);

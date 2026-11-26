@@ -1,4 +1,5 @@
-import { useMutation, UseMutationOptions } from "@tanstack/react-query";
+import { useSessionMutation } from "@/core/useSessionMutation";
+import { UseMutationOptions } from "@tanstack/react-query";
 import { mediaApi } from "../api";
 import { CreateMediaUploadDto, CreateMediaUploadResponseDto, MediaAssetResponseDto } from "../types";
 
@@ -9,7 +10,7 @@ export const mediaKeys = {
 export const useCreateMediaUpload = (
   options?: UseMutationOptions<CreateMediaUploadResponseDto, Error, CreateMediaUploadDto>
 ) => {
-  return useMutation({
+  return useSessionMutation({
     ...options,
     mutationFn: mediaApi.createUpload,
   });
@@ -18,7 +19,7 @@ export const useCreateMediaUpload = (
 export const useCompleteMediaUpload = (
   options?: UseMutationOptions<MediaAssetResponseDto, Error, string>
 ) => {
-  return useMutation({
+  return useSessionMutation({
     ...options,
     mutationFn: mediaApi.completeUpload,
   });

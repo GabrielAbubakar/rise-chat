@@ -1,4 +1,5 @@
-import { useQuery, useMutation, useQueryClient, UseQueryOptions, UseMutationOptions } from '@tanstack/react-query';
+import { useSessionMutation } from "@/core/useSessionMutation";
+import { useQuery, useQueryClient, UseQueryOptions, UseMutationOptions } from '@tanstack/react-query';
 import { profileApi } from '../api';
 import { ProfileResponseDto, UpdateProfileDto, BlockResponseDto, BlockListResponseDto, SetProfileAvatarDto } from '../types';
 
@@ -23,7 +24,7 @@ export const useUpdateMe = (
 ) => {
   const queryClient = useQueryClient();
 
-  return useMutation({
+  return useSessionMutation({
     mutationFn: profileApi.updateMe,
     ...options,
     onSuccess: (data, variables, context) => {
@@ -46,7 +47,7 @@ export const useBlocksList = (options?: Partial<UseQueryOptions<BlockListRespons
 
 export const useBlockUser = (options?: UseMutationOptions<BlockResponseDto, Error, string>) => {
   const queryClient = useQueryClient();
-  return useMutation({
+  return useSessionMutation({
     ...options,
     mutationFn: profileApi.blockUser,
     onSuccess: (data, variables, context) => {
@@ -61,7 +62,7 @@ export const useBlockUser = (options?: UseMutationOptions<BlockResponseDto, Erro
 
 export const useUnblockUser = (options?: UseMutationOptions<void, Error, string>) => {
   const queryClient = useQueryClient();
-  return useMutation({
+  return useSessionMutation({
     ...options,
     mutationFn: profileApi.unblockUser,
     onSuccess: (data, variables, context) => {
@@ -79,7 +80,7 @@ export const useSetAvatar = (
 ) => {
   const queryClient = useQueryClient();
 
-  return useMutation({
+  return useSessionMutation({
     mutationFn: profileApi.setAvatar,
     ...options,
     onSuccess: (data, variables, context) => {
@@ -97,7 +98,7 @@ export const useRemoveAvatar = (
 ) => {
   const queryClient = useQueryClient();
 
-  return useMutation({
+  return useSessionMutation({
     mutationFn: profileApi.removeAvatar,
     ...options,
     onSuccess: (data, variables, context) => {

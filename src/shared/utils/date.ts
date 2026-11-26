@@ -104,10 +104,15 @@ export const formatLastMessageTime = (isoString?: string | null): string => {
   if (!isoString) return "";
   try {
     const date = new Date(isoString);
+    if (isNaN(date.getTime())) return "";
+
     const now = new Date();
 
     if (isSameDay(date, now)) {
-      return "Today";
+      return date.toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
     }
 
     const yesterday = new Date(now);
