@@ -4,7 +4,6 @@ import { useChatOutboxStore } from "@/features/chats/store/useChatOutboxStore";
 import { abortAllUploads } from "@/features/media/services/uploadService";
 import { tokenStorage } from "@/services/api/token";
 import { clearPinCode } from "@/services/security/pin";
-import { trackSessionCleanup } from "@/services/session/cleanupBarrier";
 import { createMMKV } from "react-native-mmkv";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
@@ -58,18 +57,24 @@ export const useAuthStore = create<AuthState>()(
         set({ isAuthenticated: false });
 
         // Phase 2 — native cleanup. Each step runs independently so one failure
-        // can't skip the others. Tracked by the cleanup barrier so a newer
-        // session's token/PIN writes wait for these deletes instead of being
-        // erased by them.
+        // can't skip the others. The credential and PIN deletes go through the
+        // secure-op queue (R9): they run after any write this session already
+        // had in flight, and before any write a newer session issues. They are
+        // started synchronously, still inside phase 1's tick, so nothing a new
+        // login does after `logout()` returns can be queued ahead of them.
         const steps: [name: string, run: () => Promise<unknown> | unknown][] = [
           ["credentials", () => tokenStorage.deletePersistedTokens()],
           ["pin", () => clearPinCode()],
           ["query-persister", () => clientPersister.removeClient()],
         ];
-        const cleanup = trackSessionCleanup(
-          Promise.allSettled(steps.map(([, run]) => Promise.resolve().then(run))),
-        );
-        const results = await cleanup;
+        const started = steps.map(([, run]) => {
+          try {
+            return Promise.resolve(run());
+          } catch (error) {
+            return Promise.reject(error);
+          }
+        });
+        const results = await Promise.allSettled(started);
 
         const failed = results
           .map((r, i) => (r.status === "rejected" ? { step: steps[i][0], reason: r.reason } : null))

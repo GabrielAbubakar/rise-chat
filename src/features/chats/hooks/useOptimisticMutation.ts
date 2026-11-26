@@ -7,6 +7,8 @@ import {
   UseMutationOptions,
   useQueryClient,
 } from "@tanstack/react-query";
+import { assertSetupInSession } from "@/core/sessionQueries";
+import { tokenStorage } from "@/services/api/token";
 import { chatsKeys } from "./chatsKeys";
 
 export interface UseOptimisticMutationConfig<TData, TVariables, TContext> {
@@ -39,9 +41,14 @@ export function useOptimisticMutation<
     ...options,
     mutationFn,
     onMutate: async (variables, context) => {
+      // R4: recheck after every await so a consumer onMutate never runs (or
+      // writes) for a session that ended during the internal setup.
+      const generation = tokenStorage.getSessionGeneration();
       const internalContext = await onMutate(queryClient, user?.id, variables);
+      assertSetupInSession(generation);
       if (options?.onMutate) {
         const consumerContext = await options.onMutate(variables, context);
+        assertSetupInSession(generation);
         if (
           typeof internalContext === "object" &&
           internalContext !== null &&

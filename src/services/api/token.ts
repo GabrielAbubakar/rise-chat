@@ -1,6 +1,6 @@
 import * as SecureStore from "expo-secure-store";
 import { createMMKV } from "react-native-mmkv";
-import { waitForSessionCleanup } from "../session/cleanupBarrier";
+import { enqueueSecureOp } from "../session/secureStoreQueue";
 
 const ACCESS_TOKEN_KEY = "rise_chat_access_token";
 const REFRESH_TOKEN_KEY = "rise_chat_refresh_token";
@@ -48,11 +48,14 @@ function notifyRefreshListeners(token: string) {
   });
 }
 
-async function deletePersistedKeys(): Promise<void> {
-  await Promise.all([
-    SecureStore.deleteItemAsync(ACCESS_TOKEN_KEY),
-    SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY),
-  ]);
+/** Queued behind any credential write already in flight (R9). */
+function deletePersistedKeys(): Promise<void> {
+  return enqueueSecureOp(async () => {
+    await Promise.all([
+      SecureStore.deleteItemAsync(ACCESS_TOKEN_KEY),
+      SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY),
+    ]);
+  });
 }
 
 /**
@@ -89,21 +92,27 @@ async function readPersisted(
 }
 
 /**
- * Persists credentials only after any earlier logout cleanup has finished, and
- * only if the session that requested the write is still current.
+ * Persists credentials through the secure-op queue (R9).
+ *
+ * - Skipped if its session ended while it waited in the queue.
+ * - If its session ends while the native write is in flight, the write still
+ *   lands — but logout's delete is queued behind it, so it is erased before
+ *   any newer session's write runs. The post-write check only decides whether
+ *   to report success / clear the purge marker; it is not relied on to cancel.
  */
-async function persistInSession(
+function persistInSession(
   generation: number,
   writes: [key: string, value: string][],
 ): Promise<boolean> {
-  await waitForSessionCleanup();
-  if (generation !== currentSessionGeneration) return false;
-  await Promise.all(
-    writes.map(([key, value]) => SecureStore.setItemAsync(key, value)),
-  );
-  if (generation !== currentSessionGeneration) return false;
-  setPurgePending(false);
-  return true;
+  return enqueueSecureOp(async () => {
+    if (generation !== currentSessionGeneration) return false;
+    await Promise.all(
+      writes.map(([key, value]) => SecureStore.setItemAsync(key, value)),
+    );
+    if (generation !== currentSessionGeneration) return false;
+    setPurgePending(false);
+    return true;
+  });
 }
 
 export const tokenStorage = {

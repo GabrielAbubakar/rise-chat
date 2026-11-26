@@ -1,5 +1,6 @@
 import { QueryClient, type InfiniteData } from "@tanstack/react-query";
 import { ConversationListResponseDto, ConversationResponseDto } from "../types";
+import { cancelQueriesInSession } from "@/core/sessionQueries";
 import { chatsKeys } from "./chatsKeys";
 
 export interface OptimisticRollbackContext {
@@ -35,7 +36,10 @@ export const optimisticallyTogglePin = async (
   conversationId: string,
   targetPinned: boolean,
 ): Promise<OptimisticRollbackContext> => {
-  await queryClient.cancelQueries({ queryKey: chatsKeys.conversations() });
+  // R4: throws if the session ends while cancelling, before any cache write
+  await cancelQueriesInSession(queryClient, {
+    queryKey: chatsKeys.conversations(),
+  });
 
   const listKey = [...chatsKeys.list(), userId];
   const previousList = queryClient.getQueryData(listKey);
@@ -251,7 +255,10 @@ const optimisticallyMove = async (
   conversationId: string,
   to: ConversationListKind,
 ): Promise<OptimisticRollbackContext> => {
-  await queryClient.cancelQueries({ queryKey: chatsKeys.conversations() });
+  // R4: throws if the session ends while cancelling, before any cache write
+  await cancelQueriesInSession(queryClient, {
+    queryKey: chatsKeys.conversations(),
+  });
 
   const from: ConversationListKind = to === "list" ? "archived" : "list";
   const detailKey = [...chatsKeys.detail(conversationId), userId];
@@ -306,7 +313,10 @@ export const optimisticallyToggleMute = async (
   conversationId: string,
   targetMuted: boolean,
 ): Promise<OptimisticRollbackContext> => {
-  await queryClient.cancelQueries({ queryKey: chatsKeys.conversations() });
+  // R4: throws if the session ends while cancelling, before any cache write
+  await cancelQueriesInSession(queryClient, {
+    queryKey: chatsKeys.conversations(),
+  });
 
   const listKey = [...chatsKeys.list(), userId];
   const previousList = queryClient.getQueryData(listKey);

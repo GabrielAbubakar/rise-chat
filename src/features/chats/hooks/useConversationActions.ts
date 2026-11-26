@@ -28,6 +28,11 @@ import {
   optimisticallyTogglePin,
   optimisticallyUnarchive,
 } from "./optimisticHelpers";
+import {
+  assertSetupInSession,
+  cancelQueriesInSession,
+} from "@/core/sessionQueries";
+import { tokenStorage } from "@/services/api/token";
 import { useOptimisticMutation } from "./useOptimisticMutation";
 import { isConfirmedMessage } from "./useOutboxMessages";
 
@@ -96,13 +101,17 @@ export const useSendMessage = (
       return chatsApi.sendMessage(conversationId, payload);
     },
     onMutate: async (newMessageDto, mutation) => {
+      // R4: one identity for this execution, rechecked after every await
+      const generation = tokenStorage.getSessionGeneration();
       const currentUser =
         user ?? queryClient.getQueryData<ProfileResponseDto>(profileKeys.me());
       const msgKey = [...chatsKeys.messages(conversationId), currentUser?.id];
 
-      await queryClient.cancelQueries({
-        queryKey: chatsKeys.messages(conversationId),
-      });
+      await cancelQueriesInSession(
+        queryClient,
+        { queryKey: chatsKeys.messages(conversationId) },
+        { generation },
+      );
 
       const optimisticMsg: MessageResponseDto = {
         id: `temp_${Date.now()}`,
@@ -173,6 +182,7 @@ export const useSendMessage = (
       let consumerContext: any;
       if (options?.onMutate) {
         consumerContext = await options.onMutate(newMessageDto, mutation);
+        assertSetupInSession(generation);
       }
 
       return { clientMessageId: newMessageDto.clientMessageId, ...consumerContext };
