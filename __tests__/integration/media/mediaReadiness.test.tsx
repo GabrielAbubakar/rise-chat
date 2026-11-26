@@ -29,6 +29,7 @@ import axios from "axios";
 import React from "react";
 import { flushAsync } from "../../../test-utils/deferred";
 import { secureStoreMock } from "../../../test-utils/secureStoreMock";
+import { resetQueryClient } from "../../../test-utils/queryClient";
 
 jest.mock("expo-secure-store", () =>
   // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -75,7 +76,7 @@ let transferSpy: jest.SpyInstance;
 beforeEach(async () => {
   jest.clearAllMocks();
   secureStoreMock.reset();
-  queryClient.clear();
+  resetQueryClient(queryClient);
   useChatOutboxStore.getState().clearActiveSession();
   await tokenStorage.setTokens("A-access", "A-refresh");
   useAuthStore.setState({ isAuthenticated: true });
@@ -84,7 +85,7 @@ beforeEach(async () => {
 
 afterEach(() => {
   transferSpy.mockRestore();
-  queryClient.clear();
+  resetQueryClient(queryClient);
 });
 
 function recordStages() {

@@ -24,6 +24,7 @@ import { act, renderHook } from "@testing-library/react-native";
 import React from "react";
 import { Deferred, deferred, flushAsync } from "../../../test-utils/deferred";
 import { secureStoreMock } from "../../../test-utils/secureStoreMock";
+import { resetQueryClient } from "../../../test-utils/queryClient";
 
 jest.mock("expo-secure-store", () =>
   // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -111,14 +112,14 @@ async function renderActions() {
 beforeEach(async () => {
   jest.clearAllMocks();
   secureStoreMock.reset();
-  queryClient.clear();
+  resetQueryClient(queryClient);
   await tokenStorage.setTokens("A-access", "A-refresh");
   useAuthStore.setState({ isAuthenticated: true });
   queryClient.setQueryData(profileKeys.me(), { id: me });
   seedCache();
 });
 
-afterEach(() => queryClient.clear());
+afterEach(() => resetQueryClient(queryClient));
 
 const confirmedDeletionV3 = () =>
   v1({ version: 3, text: null, deletedAt: "2026-01-01T12:05:00.000Z", attachments: [], reactions: [] });

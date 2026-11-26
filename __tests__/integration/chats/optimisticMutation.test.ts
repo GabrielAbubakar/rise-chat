@@ -10,6 +10,7 @@ import type {
   ConversationResponseDto,
   ConversationMemberSettingsDto,
 } from "@/features/chats/types";
+import { resetQueryClient } from "../../../test-utils/queryClient";
 
 describe("F3 Regression: Granular optimistic mutation rollbacks", () => {
   let queryClient: QueryClient;
@@ -59,9 +60,15 @@ describe("F3 Regression: Granular optimistic mutation rollbacks", () => {
   beforeEach(() => {
     queryClient = new QueryClient({
       defaultOptions: {
-        queries: { retry: false },
+        // gcTime: Infinity never schedules a GC timer, so no handle outlives the test
+        queries: { retry: false, gcTime: Infinity },
+        mutations: { gcTime: Infinity },
       },
     });
+  });
+
+  afterEach(() => {
+    resetQueryClient(queryClient);
   });
 
   it("preserves concurrent successful mute when pin fails and rolls back", async () => {
